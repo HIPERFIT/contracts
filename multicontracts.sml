@@ -1,3 +1,44 @@
+structure multicontracts = struct
+
+exception Error of string
+
+(* Standard ML gymnastics... no Date convenience functions, rigid
+   expected format with redundant data (unchecked).
+   The expected format of our converter is yyyy-mm-dd *)
+fun ? s = let val s' = String.explode s
+              val y  = String.implode (List.take (s',4)) 
+              val m  = case List.nth (s',6) of
+                           #"0" => ( case List.nth (s',7) of
+                                         #"1" => " Jan "
+                                       | #"2" => " Feb "
+                                       | #"3" => " Mar "
+                                       | #"4" => " Apr "
+                                       | #"5" => " May "
+                                       | #"6" => " Jun "
+                                       | #"7" => " Jul "
+                                       | #"8" => " Aug "
+                                       | #"9" => " Sep "
+                                       | other => raise Error "garbled date" )
+                         | #"1" => ( case List.nth (s',7) of
+                                         #"2" => " Dec "
+                                       | #"1" => " Nov "
+                                       | #"0" => " Oct "
+                                       | other => raise Error "garbled date" )
+                         | other => raise Error "garbled date"
+              val d  = String.implode [List.nth (s',9), List.nth (s',10)]
+                                      
+          in case Date.fromString  ("Mon " ^ m ^ d ^ " 00:00:00 " ^ y) of
+                 SOME x => x
+               | NONE => raise Error "date conversion failed"
+          end
+
+fun dateDiff d1 d2 = if Date.compare (d1,d2) = GREATER
+                     then 0 - dateDiff d2 d1
+                     else (* when here, yDiff is positive *)
+                         let val yDiff = Date.year d1 - Date.year d2
+                             val dDiff = Date.yearDay d1 - Date.yearDay d2
+                         in yDiff * 360 + dDiff 
+                         end
 
 (* Contracts *)
 datatype currency = EUR | DKK
@@ -28,7 +69,9 @@ structure Obs = struct
            let val obs = E arg
            in case obs of
                 Underlying arg1 =>
-                if arg = arg1 then raise Eval
+                if #1 arg = #1 arg1
+                   andalso Date.compare (#2 arg, #2 arg1) = EQUAL
+                then raise Eval
                 else eval E obs
               | _ => eval E obs
            end
@@ -120,7 +163,7 @@ structure Contract = struct
            if Real.==(r,0.0) then emp else t
          | t => t)
       | Transl(d,t) => 
-        if Date.diff d0 d >= 0 then simplify d0 E t
+        if Date.compare  (d0, d) = GREATER then simplify d0 E t
         else Transl(d,simplify d0 E t)
       | Dual t => 
         (case Dual(simplify d0 E t) of
@@ -134,7 +177,9 @@ structure Contract = struct
   (* Apply a fixing to a contract *)
   fun fixing (name,date,value) t =
       let fun E arg = 
-              if arg = (name,date) then Obs.Const value 
+              if #1 arg = name 
+                 andalso Date.compare (#2 arg, date) = EQUAL
+              then Obs.Const value 
               else Obs.Underlying arg
       in simplify date E t
       end
@@ -154,9 +199,9 @@ structure Contract = struct
 
   fun swap (x,y) = (y,x)
 
-  fun today() = Date.fromString "2010-10-19"
-
-  (* Future Cash Flows *)
+  fun today() = ? "2010-10-19"
+                
+ (* Future Cash Flows *)
   fun cashflows0 E t =
       let fun flows sw s d c t =
               case t of
@@ -190,8 +235,6 @@ end
 open Contract
 
 fun println s = print (s ^ "\n")
-
-fun ? s = Date.fromString s
 
 fun you2me(d,v,c) = flow(d,v,c,"you","me")
 
@@ -260,7 +303,7 @@ val _ = println ("ex6 = " ^ pp ex6)
 (* Valuation (Pricing) *)
 structure FlatRate = struct
   fun discount d0 d amount rate =
-      let val time = real(Date.diff d d0) / 360.0
+      let val time = real (dateDiff d d0) / 360.0
       in amount * Math.exp(~ rate * time)
       end
   fun price d0 (R : currency -> real) 
@@ -282,3 +325,5 @@ val p2 = FlatRate.price (?"2011-01-01") R FX ex2
 
 val _ = println("\nPrice(ex1) : DKK " ^ Real.toString p1)
 val _ = println("\nPrice(ex2) : DKK " ^ Real.toString p2)
+
+end
