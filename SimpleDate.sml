@@ -1,12 +1,12 @@
 (* Date *)
-structure Date : sig
+structure SimpleDate (* : sig
 type date
 exception Date
 val fromString : string -> date
 val toString : date -> string
 val diff : date -> date -> int
 val compare : date * date -> order
-end =
+end *) =
 struct
  type date = {year: int, month:int, day:int}
  exception Date

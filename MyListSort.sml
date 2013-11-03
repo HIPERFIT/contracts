@@ -1,4 +1,4 @@
-structure Listsort : LIST_SORT =
+structure MyListSort :> MYLIST_SORT =
   struct
     fun sort ordr xs =
       let 
