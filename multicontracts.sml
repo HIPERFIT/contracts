@@ -5,28 +5,22 @@ exception Error of string
 (* Standard ML gymnastics... no Date convenience functions, rigid
    expected format with redundant data (unchecked).
    The expected format of our converter is yyyy-mm-dd *)
-fun ? s = let val s' = String.explode s
-              val y  = String.implode (List.take (s',4)) 
-              val m  = case List.nth (s',6) of
-                           #"0" => ( case List.nth (s',7) of
-                                         #"1" => " Jan "
-                                       | #"2" => " Feb "
-                                       | #"3" => " Mar "
-                                       | #"4" => " Apr "
-                                       | #"5" => " May "
-                                       | #"6" => " Jun "
-                                       | #"7" => " Jul "
-                                       | #"8" => " Aug "
-                                       | #"9" => " Sep "
-                                       | other => raise Error "garbled date" )
-                         | #"1" => ( case List.nth (s',7) of
-                                         #"2" => " Dec "
-                                       | #"1" => " Nov "
-                                       | #"0" => " Oct "
-                                       | other => raise Error "garbled date" )
+fun ? s = let val y  = String.substring (s,0,4) 
+              val m  = case String.substring(s,5,2) of
+                           "01" => " Jan "
+                         | "02" => " Feb "
+                         | "03" => " Mar "
+                         | "04" => " Apr "
+                         | "05" => " May "
+                         | "06" => " Jun "
+                         | "07" => " Jul "
+                         | "08" => " Aug "
+                         | "09" => " Sep "
+                         | "10" => " Oct "
+                         | "11" => " Nov "
+                         | "12" => " Dec "
                          | other => raise Error "garbled date"
-              val d  = String.implode [List.nth (s',9), List.nth (s',10)]
-                                      
+              val d  = String.substring (s,8,2)
           in case Date.fromString  ("Mon " ^ m ^ d ^ " 00:00:00 " ^ y) of
                  SOME x => x
                | NONE => raise Error "date conversion failed"
