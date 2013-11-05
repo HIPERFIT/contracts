@@ -1,5 +1,3 @@
-structure Listsort = MyListSort
-
 structure multicontracts = struct
 
 exception Error of string
@@ -238,7 +236,7 @@ structure Contract = struct
                               else []
                   | NONE => flows sw s d false t' (* obs is uncertain *)
           val res = flows (fn x => x) 1.0 (today()) true t
-      in Listsort.sort 
+      in ListSort.sort 
              (fn (r1,r2) => Date.compare(#1 r1,#1 r2)) 
              res
       end
