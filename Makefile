@@ -1,7 +1,7 @@
-MLCOMP=mlkit
-#MLCOMP=mlton
+#MLCOMP=mlkit
+MLCOMP=mlton
 
-UTILFILES=date.sml LIST_SORT.sml ListSort.sml
+UTILFILES=MYLIST_SORT.sig MyListSort.sml
 
 all: contracts.exe
 

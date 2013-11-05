@@ -1,3 +1,5 @@
+structure Listsort = MyListSort
+
 structure multicontracts = struct
 
 exception Error of string
@@ -75,6 +77,9 @@ structure Obs = struct
          | Max(obs1,obs2) => max (eval E obs1) (eval E obs2)
       end
 
+  fun evalOpt E obs =
+      SOME (eval E obs) handle Eval => NONE
+
   fun pp obs = 
       let fun par s = "(" ^ s ^ ")"
       in case obs of 
@@ -121,7 +126,7 @@ structure Contract = struct
          | All of t list             (* combining several contracts *)
          | Transl of Date.date * t   (* move by a time diff into the future *)
          | Dual of t                 (* invert contract *)
-         | If of (Obs.t -> bool) * Obs.t * t 
+         | If of (real -> bool) * Obs.t * t 
                                      (* conditional (on observable) *)
 
   fun pp t =
@@ -160,9 +165,11 @@ structure Contract = struct
          | t as Scale(Obs.Const r,_) => 
            if Real.==(r,0.0) then emp else t
          | t => t)
-      | Transl(d,t) => 
-        if Date.compare  (d0, d) = GREATER then simplify d0 E t
-        else Transl(d,simplify d0 E t)
+      | Transl(d,t) =>
+        (case simplify d0 E t of
+             All[] => emp
+          | t' => if Date.compare (d0, d) = GREATER then t'
+                  else Transl(d,t'))
       | Dual t => 
         (case Dual(simplify d0 E t) of
              Dual(Dual t) => simplify d0 E t
@@ -172,9 +179,9 @@ structure Contract = struct
       | If (pred, obs, t') => 
         let val obs' = Obs.simplify E obs
             val t''  = simplify d0 E t'
-        in if Obs.certainty obs' andalso pred obs' 
-           then t'' (* simplify if condition meanwhile known/certain *) 
-           else If (pred, obs', t'')
+        in case Obs.evalOpt E obs' of
+               SOME r => if pred r then t'' else emp
+             | NONE => If (pred, obs', t'')
         end
 
   fun noE _ = raise Fail "noEnv"
@@ -210,6 +217,8 @@ structure Contract = struct
  (* Future Cash Flows *)
   fun cashflows0 E t =
       let fun flows sw s d c t =
+              if Real.== (s, 0.0) then []
+              else
               case t of
                 TransfOne (cur,from,to) =>
                 let val (from,to) = sw (from,to)
@@ -223,12 +232,11 @@ structure Contract = struct
               | All ts => List.concat (map (flows sw s d c) ts)
               | Transl(d,t) => flows sw s d c t
               | Dual t => flows (sw o swap) s d c t                      
-              | If (pred, obs, t') => 
-                let val c' = Obs.certainty obs
-                in if c' andalso not (pred obs) 
-                   then [] (* certain to be false *)
-                   else flows sw s d (c andalso c') t' (* uncertain or true *)
-                end
+              | If (pred, obs, t') =>
+                case Obs.evalOpt E obs of
+                    SOME r => if pred r then flows sw s d c t' (* obs is certain *)
+                              else []
+                  | NONE => flows sw s d false t' (* obs is uncertain *)
           val res = flows (fn x => x) 1.0 (today()) true t
       in Listsort.sort 
              (fn (r1,r2) => Date.compare(#1 r1,#1 r2)) 
@@ -301,27 +309,37 @@ val ex4 =
              Transl(maturity,Scale(obs,TransfOne(EUR,"you","me"))))
     end
 
+val _ = println "\nEx4 - Cashflows on 1000 Stock options (Strike:50,Price:79):"
+val _ = println (cashflows (fn _ => Obs.Const 79.0) ex4)
+
 (* same call option, expressed with If *)
 val ex4if =
     let val strike = 50.0
         val nominal = 1000.0
         val obs = Obs.Underlying(equity,maturity)
-        val pred = fn _ => raise Error "need Obs Bool here! Where should Env come in otherwise?"
+        val pred = fn r => r > strike
     in Scale(Obs.Const nominal,
              If (pred, obs,
                  Transl(maturity,Scale(Obs.Sub(obs,Obs.Const strike),
                                        TransfOne(EUR,"you","me")))))
     end
 
-val _ = println "\nEx4 - Cashflows on 1000 Stock options (Strike:50,Price:79):"
-val _ = println (cashflows (fn _ => Obs.Const 79.0) ex4)
+val _ = println "\nEx4if - Cashflows on 1000 Stock options (Strike:50,Price:79):"
+val _ = println (cashflows (fn _ => Obs.Const 79.0) ex4if)
 
-val ex5 = fixing(equity,maturity,83.0) ex4
-val _ = println "\nEx5 - Call option with fixing 83"
-val _ = println ("ex5 = " ^ pp ex5)
-val ex6 = fixing(equity,maturity,46.0) ex4
-val _ = println "\nEx6 - Call option with fixing 46"
-val _ = println ("ex6 = " ^ pp ex6)
+fun matureit e =
+    let
+      val ex5 = fixing(equity,maturity,83.0) e
+      val _ = println "\nEx5 - Call option with fixing 83"
+      val _ = println ("ex5 = " ^ pp ex5)
+      val ex6 = fixing(equity,maturity,46.0) e
+      val _ = println "\nEx6 - Call option with fixing 46"
+      val _ = println ("ex6 = " ^ pp ex6)
+    in  ()
+    end
+
+val () = matureit ex4
+val () = matureit ex4if
 
 
 (* Valuation (Pricing) *)
