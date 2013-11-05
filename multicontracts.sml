@@ -115,11 +115,14 @@ type party = string
 
 structure Contract = struct
   datatype t = 
-           TransfOne of currency * party * party
-         | Scale of Obs.t * t
-         | All of t list
-         | Transl of Date.date * t
-         | Dual of t
+           TransfOne of
+           currency * party * party  (* Atom *)
+         | Scale of Obs.t *   t      (* scaling by obs. value *)
+         | All of t list             (* combining several contracts *)
+         | Transl of Date.date * t   (* move by a time diff into the future *)
+         | Dual of t                 (* invert contract *)
+         | If of (Obs.t -> bool) * Obs.t * t 
+                                     (* conditional (on observable) *)
 
   fun pp t =
       case t of
@@ -129,6 +132,7 @@ structure Contract = struct
       | All ts => "All[" ^ String.concatWith "," (map pp ts) ^ "]"
       | Transl (d, t) => "Transl(" ^ Date.toString d ^ "," ^ pp t ^ ")"
       | Dual t => "Dual(" ^ pp t ^ ")"
+      | If (pred, obs, t) => "Conditional on " ^ Obs.pp obs ^ ": " ^ pp t
 
   (* Shorthand notation *)
   fun flow(d,v,c,from,to) = Transl(d,Scale(Obs.Const v,TransfOne(c,from,to)))
@@ -165,6 +169,13 @@ structure Contract = struct
            | Dual(TransfOne(c,from,to)) => TransfOne(c,to,from)
            | t => t)
       | TransfOne _ => t
+      | If (pred, obs, t') => 
+        let val obs' = Obs.simplify E obs
+            val t''  = simplify d0 E t'
+        in if Obs.certainty obs' andalso pred obs' 
+           then t'' (* simplify if condition meanwhile known/certain *) 
+           else If (pred, obs', t'')
+        end
 
   fun noE _ = raise Fail "noEnv"
 
@@ -183,11 +194,12 @@ structure Contract = struct
       let val t = simplify d noE t
           fun adv t =
               case t of
-                TransfOne _ => emp
+                TransfOne _ => emp (* assumes advance by positive duration! *)
               | Scale(obs,t) => Scale(obs, adv t)
               | Transl _ => t
               | Dual t => Dual(adv t)
               | All ts => All(map adv ts)
+              | If (p,obs,t') => If (p, obs, adv t')
       in simplify d noE (adv t)
       end
 
@@ -211,6 +223,12 @@ structure Contract = struct
               | All ts => List.concat (map (flows sw s d c) ts)
               | Transl(d,t) => flows sw s d c t
               | Dual t => flows (sw o swap) s d c t                      
+              | If (pred, obs, t') => 
+                let val c' = Obs.certainty obs
+                in if c' andalso not (pred obs) 
+                   then [] (* certain to be false *)
+                   else flows sw s d (c andalso c') t' (* uncertain or true *)
+                end
           val res = flows (fn x => x) 1.0 (today()) true t
       in Listsort.sort 
              (fn (r1,r2) => Date.compare(#1 r1,#1 r2)) 
@@ -281,6 +299,18 @@ val ex4 =
                             Obs.Const strike))
     in Scale(Obs.Const nominal,
              Transl(maturity,Scale(obs,TransfOne(EUR,"you","me"))))
+    end
+
+(* same call option, expressed with If *)
+val ex4if =
+    let val strike = 50.0
+        val nominal = 1000.0
+        val obs = Obs.Underlying(equity,maturity)
+        val pred = fn _ => raise Error "need Obs Bool here! Where should Env come in otherwise?"
+    in Scale(Obs.Const nominal,
+             If (pred, obs,
+                 Transl(maturity,Scale(Obs.Sub(obs,Obs.Const strike),
+                                       TransfOne(EUR,"you","me")))))
     end
 
 val _ = println "\nEx4 - Cashflows on 1000 Stock options (Strike:50,Price:79):"
