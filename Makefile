@@ -1,7 +1,9 @@
 #MLCOMP=mlkit
 MLCOMP=mlton
 
-UTILFILES=MYLIST_SORT.sig MyListSort.sml
+MOSMLC=mosmlc
+
+UTILFILES=ListSort.sig ListSort.sml
 
 all: contracts.exe
 
@@ -11,5 +13,8 @@ contracts.exe: contracts.mlb contracts.sml $(UTILFILES)
 multicontracts.exe: multicontracts.mlb multicontracts.sml $(UTILFILES)
 	$(MLCOMP) -output $@ multicontracts.mlb
 
+multimos: $(UTILFILES) multicontracts.sml 
+	$(MOSMLC) -o multimos $^
+
 clean:
-	rm -rf MLB *~ *.exe
+	rm -rf MLB *~ *.exe *.ui *.uo multimos
