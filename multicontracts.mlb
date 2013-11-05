@@ -1,7 +1,7 @@
 local
    $(SML_LIB)/basis/basis.mlb
-   MYLIST_SORT.sig
-   MyListSort.sml
+   ListSort.sig
+   ListSort.sml
 in 
    multicontracts.sml
 end
