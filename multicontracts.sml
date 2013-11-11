@@ -1,5 +1,7 @@
 structure multicontracts = struct
 
+(* ************* a custom Date module ***************** *)
+
 exception Error of string
 
 (* Standard ML gymnastics... no Date convenience functions, rigid
@@ -33,6 +35,67 @@ fun dateDiff d1 d2 = if Date.compare (d1,d2) = GREATER
                              val dDiff = Date.yearDay d1 - Date.yearDay d2
                          in yDiff * 360 + dDiff 
                          end
+(* TODO this must be more precise to allow for day-based "Translate" *)
+
+(* computing with dates -- an internal representation as
+   days-since-epoch would pay off quickly... 
+*)
+(* detect leap years *)
+fun daysInY year = if year mod 4 = 0 andalso not (year mod 100 = 0)
+                  then 366 else 365
+(* daysInM*)
+fun daysInM Date.Feb yy = if yy mod 4 = 0 andalso not (yy mod 100 = 0)
+                          then 29 else 28
+  | daysInM Date.Apr _ = 30
+  | daysInM Date.Jun _ = 30
+  | daysInM Date.Sep _ = 30
+  | daysInM Date.Nov _ = 30
+  | daysInM other    _ = 31
+
+(* next month *)
+fun next Date.Jan = Date.Feb
+  | next Date.Feb = Date.Mar
+  | next Date.Mar = Date.Apr
+  | next Date.Apr = Date.May
+  | next Date.May = Date.Jun
+  | next Date.Jun = Date.Jul
+  | next Date.Jul = Date.Aug
+  | next Date.Aug = Date.Sep
+  | next Date.Sep = Date.Oct
+  | next Date.Oct = Date.Nov
+  | next Date.Nov = Date.Dec
+  | next Date.Dec = raise Error "next Dec"
+
+(* yearDay to month/day *)
+fun yearDayToMD yd yy =
+    let fun yearMD month yd = let val dm = daysInM month yy
+                              in if yd <= dm then (month,yd) 
+                                 else yearMD (next month) (yd-dm)
+                              end
+    in yearMD Date.Jan (yd+1) (* yearDay starts from 0! *) 
+    end
+
+(* *)
+fun addDays days date = 
+    if days < 0 then raise Error "addDays: negative"
+    (* else if days = 0 then date *)
+    else let val yd = Date.yearDay date 
+             val yy = Date.year date 
+             val mm = Date.month date
+             val dd = Date.day date
+         in if yd + days >= daysInY yy (* NB ">=", yearDay starts from 0 *)
+            then addDays (* advance to 1st of January *)
+                     (days - (daysInY yy - yd))
+                     (Date.date { year = yy+1, month = Date.Jan, day=1,
+                                  hour = 0, minute = 0, second = 0,
+                                  offset = NONE })
+            else let val (m, d) = yearDayToMD (yd + days) yy
+                 in Date.date {year = yy, month = m, day = d, hour = 0, 
+                               minute = 0, second = 0, offset = NONE}
+                 end
+         end
+
+(* ************************************************ *)
 
 (* Contracts *)
 datatype currency = EUR | DKK
