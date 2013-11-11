@@ -1,6 +1,6 @@
 local
    $(SML_LIB)/basis/basis.mlb
-   CustomDate.sml
+   DateUtil.sml
    ListSort.sig
    ListSort.sml
 in 

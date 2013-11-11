@@ -1,6 +1,7 @@
 structure multicontracts = struct
 
-open CustomDate (* our own date library, day-precision and supports arithmetic *)
+(* our own date library, day-precision and support for arithmetic *)
+open DateUtil
 
 (* Contracts *)
 datatype currency = EUR | DKK

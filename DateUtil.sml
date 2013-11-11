@@ -1,4 +1,4 @@
-structure CustomDate  = struct 
+structure DateUtil  = struct 
 (* ************* a custom Date module ***************** *)
 
 exception Error of string

@@ -3,7 +3,7 @@ MLCOMP=mlton
 
 MOSMLC=mosmlc
 
-UTILFILES=CustomDate.sml ListSort.sig ListSort.sml
+UTILFILES=DateUtil.sml ListSort.sig ListSort.sml
 
 all: contracts.exe
 
