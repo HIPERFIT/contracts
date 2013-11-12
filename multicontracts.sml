@@ -87,27 +87,29 @@ type party = string
 
 structure Contract = struct
   datatype t = 
-           TransfOne of
-           currency * party * party  (* Atom *)
+           TransfOne of              (* Atom: cash flow *)
+           Date.date * currency * party * party
          | Scale of Obs.t *   t      (* scaling by obs. value *)
          | All of t list             (* combining several contracts *)
-         | Transl of Date.date * t   (* move by a time diff into the future *)
+         | Transl of int * t         (* move into the future by some days.
+                                        Days argument must be positive! *)
          | Dual of t                 (* invert contract *)
          | If of (real -> bool) * Obs.t * t 
                                      (* conditional (on observable) *)
 
   fun pp t =
       case t of
-        TransfOne (c,from,to) => "TransfOne(" ^ pp_cur c ^ "," ^ from ^ "->" ^ to ^ ")"
+        TransfOne (when,c,from,to) => "Transfer(" ^ Date.toString when ^ ": " 
+                                      ^ pp_cur c ^ "," ^ from ^ "->" ^ to ^ ")"
       | Scale (obs, t) => "Scale(" ^ Obs.pp obs ^ "," ^ pp t ^ ")"
       | All [] => "emp"
       | All ts => "All[" ^ String.concatWith "," (map pp ts) ^ "]"
-      | Transl (d, t) => "Transl(" ^ Date.toString d ^ "," ^ pp t ^ ")"
+      | Transl (days, t) => "Transl(" ^ Int.toString days ^ "," ^ pp t ^ ")"
       | Dual t => "Dual(" ^ pp t ^ ")"
       | If (pred, obs, t) => "Conditional on " ^ Obs.pp obs ^ ": " ^ pp t
 
   (* Shorthand notation *)
-  fun flow(d,v,c,from,to) = Transl(d,Scale(Obs.Const v,TransfOne(c,from,to)))
+  fun flow(d,v,c,from,to) = Scale(Obs.Const v,TransfOne(d,c,from,to))
   val emp = All []
 
   (* Contract Management *)
@@ -132,15 +134,21 @@ structure Contract = struct
          | t as Scale(Obs.Const r,_) => 
            if Real.==(r,0.0) then emp else t
          | t => t)
-      | Transl(d,t) =>
-        (case simplify d0 E t of
-             All[] => emp
-          | t' => if Date.compare (d0, d) = GREATER then t'
-                  else Transl(d,t'))
+      | Transl(d,t) => (* Transl should be eliminated, push it inside *)
+        (case simplify d0 E t of (* do we need this call to simplify? *)
+             All []  => emp
+           | TransfOne (date,c,from,to) => TransfOne(addDays d date,c,from,to)
+                                           (* do the translate in the date *)
+           | Scale (obs,t') => simplify d0 E (Scale (obs,Transl(d,t')))
+           | All ts  => All (List.map (fn t => simplify d0 E (Transl(d,t))) ts)
+           | Transl(d',t')  => simplify d0 E (Transl(d'+d,t')) (* collapse *)
+           | Dual t' => simplify d0 E (Dual (Transl(d,t')))
+           | If (pred,obs,t') => simplify d0 E (If (pred,obs,Transl(d,t')))
+        )
       | Dual t => 
         (case Dual(simplify d0 E t) of
              Dual(Dual t) => simplify d0 E t
-           | Dual(TransfOne(c,from,to)) => TransfOne(c,to,from)
+           | Dual(TransfOne(d,c,from,to)) => TransfOne(d,c,to,from)
            | t => t)
       | TransfOne _ => t
       | If (pred, obs, t') => 
@@ -182,14 +190,15 @@ structure Contract = struct
   fun today() = ? "2010-10-19"
                 
  (* Future Cash Flows *)
+  (* XXX can get rid of d parameter now *)
   fun cashflows0 E t =
       let fun flows sw s d c t =
               if Real.== (s, 0.0) then []
               else
               case t of
-                TransfOne (cur,from,to) =>
+                TransfOne (when,cur,from,to) =>
                 let val (from,to) = sw (from,to)
-                in [(d,cur,from,to,s,if c then Certain else Uncertain)]
+                in [(when,cur,from,to,s,if c then Certain else Uncertain)]
                 end
               | Scale(obs,t) => 
                 let val s1 = (Obs.eval E obs) handle _ => 1.0
@@ -197,7 +206,8 @@ structure Contract = struct
                          (c andalso Obs.certainty obs) t
                 end
               | All ts => List.concat (map (flows sw s d c) ts)
-              | Transl(d,t) => flows sw s d c t
+              | Transl(d,t) => raise Error "flows sw s d c t" 
+              (* XXX do the translate, quite like the simplify code *)
               | Dual t => flows (sw o swap) s d c t                      
               | If (pred, obs, t') =>
                 case Obs.evalOpt E obs of
@@ -273,7 +283,7 @@ val ex4 =
                     Obs.Sub(Obs.Underlying(equity,maturity),
                             Obs.Const strike))
     in Scale(Obs.Const nominal,
-             Transl(maturity,Scale(obs,TransfOne(EUR,"you","me"))))
+             Scale(obs,TransfOne(maturity,EUR,"you","me")))
     end
 
 val _ = println "\nEx4 - Cashflows on 1000 Stock options (Strike:50,Price:79):"
@@ -287,8 +297,8 @@ val ex4if =
         val pred = fn r => r > strike
     in Scale(Obs.Const nominal,
              If (pred, obs,
-                 Transl(maturity,Scale(Obs.Sub(obs,Obs.Const strike),
-                                       TransfOne(EUR,"you","me")))))
+                 Scale(Obs.Sub(obs,Obs.Const strike),
+                       TransfOne(maturity,EUR,"you","me"))))
     end
 
 val _ = println "\nEx4if - Cashflows on 1000 Stock options (Strike:50,Price:79):"
