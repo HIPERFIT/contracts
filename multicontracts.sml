@@ -113,47 +113,47 @@ structure Contract = struct
   val emp = All []
 
   (* Contract Management *)
-  fun simplify d0 E t =
+  fun simplify E t =
       case t of
         All ts =>
-        let val ts = map (simplify d0 E) ts
+        let val ts = map (simplify E) ts
         in case List.filter (fn All[] => false | _ => true) ts of
              [t] => t
            | ts => All ts
         end
       | Dual(All[]) => All[]
       | Scale(obs,All[]) => All[]
-      | Dual(All ts) => simplify d0 E (All(map Dual ts))
+      | Dual(All ts) => simplify E (All(map Dual ts))
       | Scale(obs,All ts) => 
-        simplify d0 E (All (map (fn t => Scale(obs,t)) ts))
+        simplify E (All (map (fn t => Scale(obs,t)) ts))
       | Scale(obs,t) => 
-        (case Scale(Obs.simplify E obs,simplify d0 E t) of
+        (case Scale(Obs.simplify E obs,simplify E t) of
            Scale(o1,Scale(o2,t)) => 
-           simplify d0 E (Scale(Obs.Mul(o1,o2),t))
+           simplify E (Scale(Obs.Mul(o1,o2),t))
          | Scale(obs,All[]) => All[]
          | t as Scale(Obs.Const r,_) => 
            if Real.==(r,0.0) then emp else t
          | t => t)
       | Transl(d,t) => (* Transl should be eliminated, push it inside *)
-        (case simplify d0 E t of (* do we need this call to simplify? *)
+        (case simplify E t of (* do we need this call to simplify? *)
              All []  => emp
            | TransfOne (date,c,from,to) => TransfOne(addDays d date,c,from,to)
                                            (* do the translate in the date *)
-           | Scale (obs,t') => simplify d0 E (Scale (obs,Transl(d,t')))
-           | All ts  => All (List.map (fn t => simplify d0 E (Transl(d,t))) ts)
-           | Transl(d',t')  => simplify d0 E (Transl(d'+d,t')) (* collapse *)
-           | Dual t' => simplify d0 E (Dual (Transl(d,t')))
-           | If (pred,obs,t') => simplify d0 E (If (pred,obs,Transl(d,t')))
+           | Scale (obs,t') => simplify E (Scale (obs,Transl(d,t')))
+           | All ts  => All (List.map (fn t => simplify E (Transl(d,t))) ts)
+           | Transl(d',t')  => simplify E (Transl(d'+d,t')) (* collapse *)
+           | Dual t' => simplify E (Dual (Transl(d,t')))
+           | If (pred,obs,t') => simplify E (If (pred,obs,Transl(d,t')))
         )
       | Dual t => 
-        (case Dual(simplify d0 E t) of
-             Dual(Dual t) => simplify d0 E t
+        (case Dual(simplify E t) of
+             Dual(Dual t) => simplify E t
            | Dual(TransfOne(d,c,from,to)) => TransfOne(d,c,to,from)
            | t => t)
       | TransfOne _ => t
       | If (pred, obs, t') => 
         let val obs' = Obs.simplify E obs
-            val t''  = simplify d0 E t'
+            val t''  = simplify E t'
         in case Obs.evalOpt E obs' of
                SOME r => if pred r then t'' else emp
              | NONE => If (pred, obs', t'')
@@ -168,21 +168,22 @@ structure Contract = struct
                  andalso Date.compare (#2 arg, date) = EQUAL
               then Obs.Const value 
               else Obs.Underlying arg
-      in simplify date E t
+      in simplify E t (* should also advance t to date *)
       end
 
   (* Remove the past from a contract *)      
   fun advance d t =
-      let val t = simplify d noE t
+      let val t = simplify noE t
           fun adv t =
               case t of
-                TransfOne _ => emp (* assumes advance by positive duration! *)
+                TransfOne (dt,c,from,to) => if Date.compare (dt,d) = GREATER 
+                                            then t else emp (* remove past transfers *)
               | Scale(obs,t) => Scale(obs, adv t)
               | Transl _ => t
               | Dual t => Dual(adv t)
               | All ts => All(map adv ts)
               | If (p,obs,t') => If (p, obs, adv t')
-      in simplify d noE (adv t)
+      in simplify noE (adv t)
       end
 
   fun swap (x,y) = (y,x)
