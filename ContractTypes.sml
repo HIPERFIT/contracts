@@ -49,6 +49,8 @@ datatype contract =
      | All of contract list
      | If of boolE * contract * contract
      | Iter of intE * (var -> contract)
+     | CheckWithin of boolE * intE * contract
+     (* What a bad name... need a time-limited loop for barrier options *)
 end
 end
 
