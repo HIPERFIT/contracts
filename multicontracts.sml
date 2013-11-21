@@ -148,6 +148,7 @@ structure Contract = struct
            | Transl(d',t')  => simplify E (Transl(d'+d,t')) (* collapse *)
            | Dual t' => simplify E (Dual (Transl(d,t')))
            | If (pred,obs,t') => simplify E (If (pred,obs,Transl(d,t')))
+             (* XXX should transl this obs as well?   ^^^ *)
         )
       | Dual t => 
         (case Dual(simplify E t) of
