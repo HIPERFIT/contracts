@@ -1,0 +1,18 @@
+Some thoughts
+-------------
+
+type mngt_contract =
+      {start: date,
+       initial: contract,
+       date: date,
+       current: contract,
+       events: event list}    //   (start, initial)   ---events---> (date, current)
+
+datatype event =  Fixing of date * string * value | NewContract of date * ContractTypes.contract | Default of date * string
+
+datatype portfolio = {start   : date,
+                      initial : contract,
+                      events: event list,
+                      current_date: date,
+                      current : contract}
+
