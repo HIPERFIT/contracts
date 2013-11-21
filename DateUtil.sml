@@ -98,6 +98,8 @@ fun dateDiff d1 d2 = if Date.compare (d1,d2) = GREATER
                          in yDiff + dDiff 
                          end
 
+val ppDate = Date.fmt "%Y-%m-%d"
+
 (* ************************************************ *)
 
 end

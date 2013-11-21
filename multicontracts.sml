@@ -55,7 +55,7 @@ structure Obs = struct
       let fun par s = "(" ^ s ^ ")"
       in case obs of 
            Const r => Real.toString r
-         | Underlying(s,d) => "[" ^ s ^ ":" ^ Date.toString d ^ "]"
+         | Underlying(s,d) => "[" ^ s ^ ":" ^ DateUtil.ppDate d ^ "]"
          | Mul(o1,o2) => par(pp o1 ^ "*" ^ pp o2)
          | Add(o1,o2) => par(pp o1 ^ "+" ^ pp o2)
          | Sub(o1,o2) => par(pp o1 ^ "-" ^ pp o2)
@@ -93,17 +93,17 @@ structure Contract = struct
   datatype t = 
            TransfOne of              (* Atom: cash flow *)
            Date.date * currency * party * party
-         | Scale of Obs.t *   t      (* scaling by obs. value *)
+         | Scale of Obs.t *   t      (* scaling by observable value *)
          | All of t list             (* combining several contracts *)
          | Transl of int * t         (* move into the future by some days.
                                         Days argument must be positive! *)
-         | Dual of t                 (* invert contract *)
+         | Dual of t                 (* invert transfers in a contract *)
          | If of (real -> bool) * Obs.t * t 
                                      (* conditional (on observable) *)
 
   fun pp t =
       case t of
-        TransfOne (when,c,from,to) => "Transfer(" ^ Date.toString when ^ ": " 
+        TransfOne (when,c,from,to) => "TransfOne(" ^ DateUtil.ppDate when ^ "," 
                                       ^ pp_cur c ^ "," ^ from ^ "->" ^ to ^ ")"
       | Scale (obs, t) => "Scale(" ^ Obs.pp obs ^ "," ^ pp t ^ ")"
       | All [] => "emp"
@@ -228,7 +228,7 @@ structure Contract = struct
 
     fun cashflows E t : string =
         let fun pp (d,cur,from,to,r,c) = 
-              Date.toString d ^ " " ^ pp_certainty c ^ " " ^ 
+              DateUtil.ppDate d ^ " " ^ pp_certainty c ^ " " ^ 
               pp_cur cur ^ " " ^ Real.toString r ^ "  [" ^ from ^ " -> " ^ to ^ "]" 
             val res = cashflows0 E t
         in String.concatWith "\n" (List.map pp res)
