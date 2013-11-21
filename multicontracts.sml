@@ -4,9 +4,13 @@ structure multicontracts = struct
 open DateUtil
 
 (* Contracts *)
-datatype currency = EUR | DKK
+datatype currency = EUR | DKK | SEK | USD | GBP | JPY
 fun pp_cur EUR = "EUR"
   | pp_cur DKK = "DKK"
+  | pp_cur SEK = "SEK"
+  | pp_cur USD = "USD"
+  | pp_cur GBP = "GBP"
+  | pp_cur JPY = "JPY"
 
 datatype certainty = Certain | Uncertain
 fun pp_certainty Certain = "Certain  "
