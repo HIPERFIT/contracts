@@ -18,8 +18,8 @@ multicontracts.exe: multicontracts.mlb multicontracts.sml $(SMLFILES)
 multimos: $(SMLFILES) multicontracts.sml test.sml 
 	$(MOSMLC) -o multimos $^
 
-contractmos:	$(SMLFILES)
+contractmos: $(SMLFILES)
 	$(MOSMLC) -c $(SMLFILES)
 	$(MOSML) loadscript
 clean:
-	rm -rf MLB *~ *.exe *.ui *.uo multimos
+	rm -rf MLB *~ *.exe *.ui *.uo multimos run
