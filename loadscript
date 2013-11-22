@@ -1,0 +1,15 @@
+
+(* load required modules *)
+app load ["Math", "Date", "DateUtil", "ListSort", "ContractTypes", "ContractUtil"];
+
+(* bring types in direct scope *)
+open ContractTypes;
+open Currency;
+
+(* play with the tools *)
+open ContractUtil;
+
+(print "vanillaFxPut (\"F\",USD) (\"Nordea\",SEK) 30E6 6.3 365:\n";
+ vanillaFxPut ("F",USD) ("Nordea",SEK) 30E6 6.3 365);
+
+
