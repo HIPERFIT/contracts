@@ -4,6 +4,7 @@ exception Error of string
 
 open ContractTypes
 open Expr
+infix !+! !<! !|!
 
 (* buyer and seller with the currencies they receive,
    notional amount, strike (sell/buy), date of transaction 
@@ -63,15 +64,17 @@ fun fxBarrierTouchBAD
     buyer seller curSettle amount (cur1,cur2) barrier kind expiry
   = let val rate = "FX " ^ Currency.pp_cur cur1
                    ^ "/" ^ Currency.pp_cur cur2
-        val cond = case kind of 
-                       Up   => Expr.!<! (R barrier, obs (rate,0))
-                     | Down => Expr.!<! (obs (rate,0), R barrier)
+        fun cond day = case kind of 
+                           Up   => Expr.!<! (R barrier, obs (rate,day))
+                         | Down => Expr.!<! (obs (rate,day), R barrier)
                       (* next steps depend on whether barrier hit today *)
-        fun fxTLoop days = 
-            If (cond, Scale (R amount, TransfOne (curSettle, buyer, seller)),
-                if days > 0 then fxTLoop (days - 1)
-                else All [] (* base case, immediate expiry *))
-    in fxTLoop expiry
+        fun fxTLoop day = 
+            Transl (I day, 
+                    If (cond day, 
+                        Scale (R amount, TransfOne (curSettle, buyer, seller)),
+                        if day < expiry then fxTLoop (day + 1)
+                        else All [] (* base case, immediate expiry *)))
+    in fxTLoop 0
     end
 
 (* using a tailored loop construct "CheckWithin", much better: no big
@@ -86,7 +89,7 @@ fun fxBarrierTouch
                        Up   => Expr.!<! (R barrier, obs (rate,0))
                      | Down => Expr.!<! (obs (rate,0), R barrier)
                       (* next steps depend on whether barrier hit today *)
-    in CheckWithin (cond, I expiry,
+    in CheckWithin (cond, I expiry, (* XXX var -> cond?? *)
                     Scale (R amount, TransfOne (curSettle, buyer, seller)))
     end
 
@@ -100,14 +103,16 @@ fun fxBarrierNoTouchBAD
     buyer seller curSettle amount (cur1,cur2) barrier kind expiry
   = let val rate = "FX " ^ Currency.pp_cur cur1
                    ^ "/" ^ Currency.pp_cur cur2
-        val cond = case kind of (* same code as above, but condition swapped *)
-                       Up   => Expr.!<! (obs (rate,0), R barrier)
-                     | Down => Expr.!<! (R barrier, obs (rate,0))
-        fun fxTLoop days = 
-            If (cond, Scale (R amount, TransfOne (curSettle, buyer, seller)),
-                if days > 0 then fxTLoop (days - 1)
-                else All [] (* base case, immediate expiry *))
-    in fxTLoop expiry
+        fun cond day = case kind of (* same code as above, but condition swapped *)
+                           Up   => Expr.!<! (obs (rate,day), R barrier)
+                         | Down => Expr.!<! (R barrier, obs (rate,day))
+        fun fxTLoop day = 
+            Transl (I day,
+                    If (cond day, 
+                        Scale (R amount, TransfOne (curSettle, buyer, seller)),
+                        if day < expiry then fxTLoop (day + 1)
+                        else All [] (* base case, immediate expiry *)))
+    in fxTLoop 0
     end
 
 
@@ -126,8 +131,8 @@ fun fxDoubleBarrierIn
     buyer seller (cur1,cur2) optKind amount strike (loBarr,hiBarr) expiry
   = let val rate = "FX " ^ Currency.pp_cur cur1
                    ^ "/" ^ Currency.pp_cur cur2
-        val cond = Expr.!|! (Expr.!<! (obs (rate,0), R loBarr),
-                             Expr.!<! (R hiBarr, obs (rate,0)))
+        val cond = (obs (rate,0) !<! (R loBarr))
+                   !|! ((R hiBarr) !<! obs (rate,0))
                     (* "in" if price below lower || above upper *)
         val result = case optKind of
                          Call => vanillaFxCall

@@ -18,7 +18,6 @@ structure Expr : sig
    type intE = int num expr
    type realE = real num expr
    val Var : var -> 'a expr
-   infix !+! !<! !|!
    val !+! : 'a num expr * 'a num expr -> 'a num expr
    val !<! : 'a num expr * 'a num expr -> boolE
    val !|! : boolE * boolE -> boolE
