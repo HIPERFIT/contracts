@@ -18,8 +18,10 @@ structure Expr : sig
    type intE = int num expr
    type realE = real num expr
    val Var : var -> 'a expr
+   infix !+! !<! !|!
    val !+! : 'a num expr * 'a num expr -> 'a num expr
    val !<! : 'a num expr * 'a num expr -> boolE
+   val !|! : boolE * boolE -> boolE
    val obs : string*int -> 'a expr
    val I : int -> intE
    val R : real -> realE
@@ -33,9 +35,10 @@ struct
    type 'a num = unit
    type intE = int num expr
    type realE = real num expr
-   infix !+! !<!
+   infix !+! !<! !|!
    fun x !+! y = BinOp("+",x,y)
    fun x !<! y = BinOp("<",x,y)
+   fun x !|! y = BinOp("|",x,y)
    val obs : (string*int) -> 'a expr = Obs
 end
 
