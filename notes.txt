@@ -40,6 +40,13 @@ makes possible to do:
   testB  a = isBarrier (normalise (defocus ( a , 1week)))
 
 -------------
+Preconditions: causality of components
+
+consistent (a : contract) : bool
+   (no flow in the present depends on future value of any observable,
+    and this is maintained through translated contracts)
+
+-------------
 
 simpler uses, immediately possible:
 
