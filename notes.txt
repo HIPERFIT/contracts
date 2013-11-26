@@ -21,7 +21,7 @@ datatype portfolio = {start   : date,
 Semantics of tranlating a contract: should affect embedded expressions/observables!
 
 i = If (condition(day) , contract1, contract2)
-Transl (I 30 , i ) =!= If (condition ( day - 30 ) , 
+Transl (I 30 , i ) =!= If (condition ( day + 30 ) , 
                            Transl (I 30, contract1), 
                            Transl (I 30, contract2)
 
