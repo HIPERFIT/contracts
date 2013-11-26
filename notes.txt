@@ -34,6 +34,7 @@ Ideas how to use this library in the future:
 fun normalise (a : contract) = beautiful contract
 fun isBarrier (a : contract) = ...pattern match..
 fun defocus ( a : contract, days : int ) = contract aggregating "day windows"
+    should be called "decreaseLevelOfDetail", or something else?
 
 makes possible to do: 
   testB  a = isBarrier (normalise (defocus ( a , 1week)))
@@ -45,4 +46,17 @@ simpler uses, immediately possible:
 removeParty (p : string, a : contract) = contract without anything involving party p
 mergeParties (p1, p2 : string, a : contract) = contract with party p2 identified with p1
 
+more real-world functionality:
 
+defaultParty (party : string, 
+             t : time (expected litigation duration), 
+             perc : real (percentage), a : contract) = 
+      contract a, with all transactions involving party scaled to
+      perc % and translated by time t forward
+
+=======================
+
+How to model (non-rational) choice?
+
+Should be part of the Expr language (chosenBy party : boolE) and 
+use the If constructor.
