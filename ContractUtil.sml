@@ -32,9 +32,9 @@ fun vanillaFxCall
         (buyer,buyCurr) (seller, otherCurr) amount strike expiry =
     let val rate    = "FX " ^ Currency.pp_cur buyCurr   (* an ad hoc conven- *)
                       ^ "/" ^ Currency.pp_cur otherCurr (* tion for rates    *)
-        val cond    =  Expr.!<! (obs (rate,expiry), R strike)
+        val cond    =  Expr.!<! (obs (rate, 0), R strike)
                       (* option taken depending on price > strike *)
-                      (* XXX this assumes Transl does _not_ modify obs *)
+                      (* offset "0", Transl supposed to move obs date offset!*)
     in Transl (I expiry,If (cond, fxForward (buyer, buyCurr) 
                                             (seller, otherCurr) 
                                             amount strike 0    , All []))
@@ -42,11 +42,11 @@ fun vanillaFxCall
 
 fun vanillaFxPut
         (seller, sellCurr) (buyer,otherCurr) amount strike expiry =
-    let val rate    = "FX " ^ Currency.pp_cur sellCurr   (* an ad hoc conven- *)
+    let val rate    = "FX " ^ Currency.pp_cur sellCurr  (* an ad hoc conven- *)
                       ^ "/" ^ Currency.pp_cur otherCurr (* tion for rates    *)
-        val cond    =  Expr.!<! (R strike, obs (rate,expiry))
+        val cond    =  Expr.!<! (R strike, obs (rate, 0))
                       (* option taken depending on price < strike *)
-                      (* XXX this assumes Transl does _not_ modify obs *)
+                      (* assumes Transl moves obs date offset (see previous) *)
     in Transl (I expiry,If (cond, fxForward (buyer, sellCurr)
                                             (seller, otherCurr)
                                             amount strike 0    , All []))
@@ -64,13 +64,14 @@ fun fxBarrierTouchBAD
     buyer seller curSettle amount (cur1,cur2) barrier kind expiry
   = let val rate = "FX " ^ Currency.pp_cur cur1
                    ^ "/" ^ Currency.pp_cur cur2
-        fun cond day = case kind of 
-                           Up   => Expr.!<! (R barrier, obs (rate,day))
-                         | Down => Expr.!<! (obs (rate,day), R barrier)
+        val cond = case kind of 
+                           Up   => Expr.!<! (R barrier, obs (rate, 0))
+                         | Down => Expr.!<! (obs (rate, 0), R barrier)
                       (* next steps depend on whether barrier hit today *)
+                      (* note that Transl below leads to checking every day *)
         fun fxTLoop day = 
             Transl (I day, 
-                    If (cond day, 
+                    If (cond,
                         Scale (R amount, TransfOne (curSettle, buyer, seller)),
                         if day < expiry then fxTLoop (day + 1)
                         else All [] (* base case, immediate expiry *)))
@@ -89,13 +90,16 @@ fun fxBarrierTouch
                        Up   => Expr.!<! (R barrier, obs (rate,0))
                      | Down => Expr.!<! (obs (rate,0), R barrier)
                       (* next steps depend on whether barrier hit today *)
+                      (* XXX CheckWithin assumed to translate cond accordingly! *)
     in CheckWithin (cond, I expiry, (* XXX var -> cond?? *)
-                    Scale (R amount, TransfOne (curSettle, buyer, seller)))
+                    Scale (R amount, TransfOne (curSettle, buyer, seller)),
+                    All []) (* if barrier hit: payment. Otherwise: empty *)
     end
 
-(* NO-touch options: pay out if barrier NOT breached. Easy if we add
-   an "EnsureWithin" which exits when a condition is false, or if we again
-   unroll it in a recursion. 
+(* NO-touch options: pay out if barrier NOT breached, just swapping
+   the branches from before (exit to empty when touched, pay otherwise).
+
+   Could also again unroll the period in a SML-level recursion.
 
    buyer, seller, settling currency, amount, FX cross, barrier, up/down, expiry
 *)
@@ -103,21 +107,34 @@ fun fxBarrierNoTouchBAD
     buyer seller curSettle amount (cur1,cur2) barrier kind expiry
   = let val rate = "FX " ^ Currency.pp_cur cur1
                    ^ "/" ^ Currency.pp_cur cur2
-        fun cond day = case kind of (* same code as above, but condition swapped *)
-                           Up   => Expr.!<! (obs (rate,day), R barrier)
-                         | Down => Expr.!<! (R barrier, obs (rate,day))
+        val cond = case kind of (* same code as above, but condition swapped *)
+                           Up   => Expr.!<! (obs (rate, 0), R barrier)
+                         | Down => Expr.!<! (R barrier, obs (rate, 0))
         fun fxTLoop day = 
             Transl (I day,
-                    If (cond day, 
+                    If (cond, 
                         Scale (R amount, TransfOne (curSettle, buyer, seller)),
                         if day < expiry then fxTLoop (day + 1)
                         else All [] (* base case, immediate expiry *)))
     in fxTLoop 0
     end
 
+fun fxBarrierNoTouch
+    buyer seller curSettle amount (cur1,cur2) barrier kind expiry
+  = let val rate = "FX " ^ Currency.pp_cur cur1
+                   ^ "/" ^ Currency.pp_cur cur2
+        val cond = case kind of
+                       Up   => Expr.!<! (R barrier, obs (rate, 0) )
+                     | Down => Expr.!<! (obs (rate, 0), R barrier )
+                      (* intention: exit when barrier hit today *)
+                      (* XXX CheckWithin assumed to translate cond accordingly! *)
+    in CheckWithin (cond, I expiry, (* XXX var -> cond?? *)
+                    All [], (* if barrier hit: empty, otherwise: payment *)
+                    Scale (R amount, TransfOne (curSettle, buyer, seller)))
+    end
 
-(* Single barrier option: "In" easy using CheckWithin, "out" easy if
-   we add EnsureWithin 
+(* Single barrier option: easy using CheckWithin and vanillaFX[Put|Call] 
+   XXX TODO
 *)
 
 (* Double barrier option: we need a boolean "or" (added), then just as
@@ -138,9 +155,8 @@ fun fxDoubleBarrierIn
                          Call => vanillaFxCall
                        | Put  => vanillaFxPut
     in CheckWithin (cond, I expiry,
-                    result (buyer,cur1) (seller,cur2) amount strike expiry)
+                    result (buyer,cur1) (seller,cur2) amount strike expiry,
+                    All []) (* if barrier hit: option; otherwise empty *)
     end
-
-(* fxDoubleBarrierOut requires proposed "EnsureWithin" construct, otherwise same *)
 
 end

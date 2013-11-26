@@ -117,8 +117,10 @@ datatype contract =
      | All of contract list
      | If of boolE * contract * contract
      | Iter of intE * (var -> contract)
-     | CheckWithin of boolE * intE * contract
-     (* What a bad name... need a time-limited loop for barrier options *)
+     | CheckWithin of boolE * intE * contract * contract 
+     (* if cond : boolE becomes true within time: intE then contract 1 in effect. 
+        otherwise (time expired, always false) contract 2 in effect
+      *)
 end
 end
 
