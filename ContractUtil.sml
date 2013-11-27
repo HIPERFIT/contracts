@@ -30,8 +30,8 @@ fun fxForward (buyer,buyCurr) (seller, otherCurr) amount strike 0 =
 *) 
 fun vanillaFxCall 
         (buyer,buyCurr) (seller, otherCurr) amount strike expiry =
-    let val rate    = "FX " ^ Currency.pp_cur buyCurr   (* an ad hoc conven- *)
-                      ^ "/" ^ Currency.pp_cur otherCurr (* tion for rates    *)
+    let val rate    = "FX " ^ Currency.ppCur buyCurr   (* an ad hoc conven- *)
+                      ^ "/" ^ Currency.ppCur otherCurr (* tion for rates    *)
         val cond    =  Expr.!<! (obs (rate, 0), R strike)
                       (* option taken depending on price > strike *)
                       (* offset "0", Transl supposed to move obs date offset!*)
@@ -42,8 +42,8 @@ fun vanillaFxCall
 
 fun vanillaFxPut
         (seller, sellCurr) (buyer,otherCurr) amount strike expiry =
-    let val rate    = "FX " ^ Currency.pp_cur sellCurr  (* an ad hoc conven- *)
-                      ^ "/" ^ Currency.pp_cur otherCurr (* tion for rates    *)
+    let val rate    = "FX " ^ Currency.ppCur sellCurr  (* an ad hoc conven- *)
+                      ^ "/" ^ Currency.ppCur otherCurr (* tion for rates    *)
         val cond    =  Expr.!<! (R strike, obs (rate, 0))
                       (* option taken depending on price < strike *)
                       (* assumes Transl moves obs date offset (see previous) *)
@@ -62,8 +62,8 @@ datatype BarrierKind = Up | Down
 (* First version (BAD) uses recursion in SML, unrolling the entire contract period! *)
 fun fxBarrierTouchBAD
     buyer seller curSettle amount (cur1,cur2) barrier kind expiry
-  = let val rate = "FX " ^ Currency.pp_cur cur1
-                   ^ "/" ^ Currency.pp_cur cur2
+  = let val rate = "FX " ^ Currency.ppCur cur1
+                   ^ "/" ^ Currency.ppCur cur2
         val cond = case kind of 
                            Up   => Expr.!<! (R barrier, obs (rate, 0))
                          | Down => Expr.!<! (obs (rate, 0), R barrier)
@@ -84,8 +84,8 @@ fun fxBarrierTouchBAD
 *)
 fun fxBarrierTouch
     buyer seller curSettle amount (cur1,cur2) barrier kind expiry
-  = let val rate = "FX " ^ Currency.pp_cur cur1
-                   ^ "/" ^ Currency.pp_cur cur2
+  = let val rate = "FX " ^ Currency.ppCur cur1
+                   ^ "/" ^ Currency.ppCur cur2
         val cond = case kind of
                        Up   => Expr.!<! (R barrier, obs (rate,0))
                      | Down => Expr.!<! (obs (rate,0), R barrier)
@@ -105,8 +105,8 @@ fun fxBarrierTouch
 *)
 fun fxBarrierNoTouchBAD
     buyer seller curSettle amount (cur1,cur2) barrier kind expiry
-  = let val rate = "FX " ^ Currency.pp_cur cur1
-                   ^ "/" ^ Currency.pp_cur cur2
+  = let val rate = "FX " ^ Currency.ppCur cur1
+                   ^ "/" ^ Currency.ppCur cur2
         val cond = case kind of (* same code as above, but condition swapped *)
                            Up   => Expr.!<! (obs (rate, 0), R barrier)
                          | Down => Expr.!<! (R barrier, obs (rate, 0))
@@ -121,8 +121,8 @@ fun fxBarrierNoTouchBAD
 
 fun fxBarrierNoTouch
     buyer seller curSettle amount (cur1,cur2) barrier kind expiry
-  = let val rate = "FX " ^ Currency.pp_cur cur1
-                   ^ "/" ^ Currency.pp_cur cur2
+  = let val rate = "FX " ^ Currency.ppCur cur1
+                   ^ "/" ^ Currency.ppCur cur2
         val cond = case kind of
                        Up   => Expr.!<! (R barrier, obs (rate, 0) )
                      | Down => Expr.!<! (obs (rate, 0), R barrier )
@@ -146,8 +146,8 @@ datatype OptionKind = Call | Put
 
 fun fxDoubleBarrierIn 
     buyer seller (cur1,cur2) optKind amount strike (loBarr,hiBarr) expiry
-  = let val rate = "FX " ^ Currency.pp_cur cur1
-                   ^ "/" ^ Currency.pp_cur cur2
+  = let val rate = "FX " ^ Currency.ppCur cur1
+                   ^ "/" ^ Currency.ppCur cur2
         val cond = (obs (rate,0) !<! (R loBarr))
                    !|! ((R hiBarr) !<! obs (rate,0))
                     (* "in" if price below lower || above upper *)
