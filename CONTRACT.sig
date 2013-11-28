@@ -39,6 +39,7 @@ signature CONTRACT = sig
   val certainExp  : 'a exp -> bool
   val simplifyExp : env * date -> 'a exp -> 'a exp
   val ppExp       : 'a exp -> string
+  val eqExp       : 'a exp * 'a exp -> bool
 
   (* Contracts *)
   type party      = string
@@ -58,3 +59,7 @@ signature CONTRACT = sig
   (* Contract utilities *)
   val ppContr     : contr -> string
 end
+
+signature CONTRACT_UNSAFE =
+CONTRACT where type 'a exp = ContractBase.exp0
+           and type contr = ContractBase.contr 

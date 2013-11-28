@@ -1,14 +1,5 @@
-structure Contract :> CONTRACT = struct
-
-type var = string
-datatype exp0 = I of int
-              | R of real
-              | B of bool
-              | Var of var
-              | BinOp of string * exp0 * exp0
-              | UnOp of string * exp0
-              | Obs of string * int
-
+structure Contract :> CONTRACT_UNSAFE = struct
+open ContractBase Currency
 type 'a exp = exp0
 type boolE = bool exp
 type 'a num = unit
@@ -139,18 +130,15 @@ fun simplifyExp P e =  (* memo: rewrite to bottom-up strategy to avoid the quadr
              | BinOp(f,e1,e2) => BinOp(f,simplifyExp P e1,simplifyExp P e2)
              | _ => e
 
-open Currency
-type party = string
-datatype contr =
-       TransfOne of cur * party * party
-     | Scale of realE * contr
-     | Transl of intE * contr
-     | All of contr list
-     | If of boolE * contr * contr
-     | CheckWithin of boolE * intE * contr * contr 
-     (* if cond : boolE becomes true within time: intE then contract 1 in effect. 
-        otherwise (time expired, always false) contract 2 in effect
-      *)
+val rec eqExp = fn
+    (I i1, I i2) => i1 = i2
+  | (R r1, R r2) => Real.compare(r1,r2) = EQUAL
+  | (B b1, B b2) => b1 = b2
+  | (Var v1, Var v2) => v1 = v2
+  | (BinOp(s1,e1,e'1), BinOp(s2,e2,e'2)) => s1 = s2 andalso eqExp(e1,e2) andalso eqExp(e'1,e'2)
+  | (UnOp(s1,e1), UnOp(s2,e2)) => s1 = s2 andalso eqExp(e1,e2)
+  | (Obs(s1,i1),Obs(s2,i2)) => s1=s2 andalso i1=i2
+  | _ => false
 
 fun ppContr c =
     let fun par s = "(" ^ s ^ ")"

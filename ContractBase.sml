@@ -1,0 +1,27 @@
+structure ContractBase = struct
+
+type var = string
+datatype exp0 = I of int
+              | R of real
+              | B of bool
+              | Var of var
+              | BinOp of string * exp0 * exp0
+              | UnOp of string * exp0
+              | Obs of string * int
+
+local open Currency
+in
+type party = string
+datatype contr =
+       TransfOne of cur * party * party
+     | Scale of exp0 * contr
+     | Transl of exp0 * contr
+     | All of contr list
+     | If of exp0 * contr * contr
+     | CheckWithin of exp0 * exp0 * contr * contr 
+     (* if cond : boolE becomes true within time: intE then contract 1 in effect. 
+        otherwise (time expired, always false) contract 2 in effect
+      *)
+end
+
+end

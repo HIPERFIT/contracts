@@ -1,7 +1,0 @@
-local
-   $(SML_LIB)/basis/basis.mlb
-   ListSort.sig
-   ListSort.sml
-in 
-   contracts.sml
-end

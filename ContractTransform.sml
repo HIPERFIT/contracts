@@ -1,6 +1,6 @@
 structure ContractTransform = struct
 
-local open ContractTypes in
+local open Currency Contract ContractBase in
 
 (* find out if two contracts are the same. Assumes normalised, i.e. same
    constructor structure and ordered components *)
@@ -8,13 +8,13 @@ fun equal (c1,c2) = case (c1,c2) of
                       (TransfOne (cur1,x1,y1),TransfOne (cur2,x2,y2))
                       => cur1 = cur2 andalso x1 = x2 andalso y1 = y2
                     | (Scale (s1,c1),Scale (s2,c2))
-                      => s1 = s2 andalso equal (c1,c2)
+                      => eqExp(s1, s2) andalso equal (c1,c2)
                     | (Transl (d1,c1),Transl (d2,c2))
-                      => d1 = d2 andalso equal (c1,c2)
+                      => eqExp(d1,d2) andalso equal (c1,c2)
                     | (If (b1,x1,y1),If (b2,x2,y2))
-                      => b1 = b2 andalso equal (x1,x2) andalso equal (y1,y2)
+                      => eqExp(b1,b2) andalso equal (x1,x2) andalso equal (y1,y2)
                     | (CheckWithin (b1,i1,x1,y1),CheckWithin (b2,i2,x2,y2))
-                      => b1 = b2 andalso i1 = i2 andalso 
+                      => eqExp(b1,b2) andalso eqExp(i1,i2) andalso 
                          equal (x1,x2) andalso equal (y1,y2)
                     | (All cs1, All cs2) 
                       => ListPair.all equal (cs1,cs2)
@@ -31,7 +31,7 @@ o sort the list inside "All" nodes (for comparisons, see above)
 
 (* routine assumes a is normalised contract and applies no own
    optimisations except removing empty branches *)
-fun removeParty_ (p : string) ( a : contract) =
+fun removeParty_ (p : string) ( a : contr) =
     let fun remv c = 
                 case c of 
                     TransfOne (_,p1,p2) => if p = p1 orelse p = p2 
@@ -46,8 +46,6 @@ fun removeParty_ (p : string) ( a : contract) =
                   | If (b,c1,c2)  => (case (remv c1, remv c2) of
                                           (All [],All []) => emp
                                         | (c1', c2')      => If (b,c1',c2'))
-                  | Iter _ => c (* could symbolically simplify "contract" if it
-                                   was a symbolic repr. of var -> "contract" *)
                   | CheckWithin (b,i,c1,c2) => 
                              (case (remv c1, remv c2) of
                                   (All [],All []) => emp
@@ -60,7 +58,7 @@ fun removeParty p a = removeParty p (normalise a)
 
 (* replaces p1 by p2 in all contracts inside a. Assumes normalised a.
    Could try to aggregate flows between same parties afterwards *)
-fun mergeParties_ (p1 : party) (p2 : party) (a : contract) =
+fun mergeParties_ (p1 : party) (p2 : party) (a : contr) =
     let fun merge c = 
                 case c of 
                     TransfOne (cur,pA,pB) =>
@@ -94,7 +92,6 @@ fun mergeParties_ (p1 : party) (p2 : party) (a : contract) =
                                 | (c1', c2')      =>
                                   if equal (c1',c2') then c1'
                                   else CheckWithin (b,i,c1',c2'))
-                  | Iter _ => raise Fail "Iter"
     in normalise (merge a)
     end 
 

@@ -4,8 +4,10 @@ local
 in 
    CURRENCY.sig
    Currency.sml
+   ContractBase.sml
    CONTRACT.sig
    Contract.sml
    Instruments.sml
+   ContractTransform.sml
    Instruments_test.sml
 end
