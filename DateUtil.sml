@@ -66,24 +66,33 @@ fun yearDayToMD yd yy =
     end
 
 (* *)
-fun addDays days date = 
-    if days < 0 then raise Error "addDays: negative"
-    (* else if days = 0 then date *)
-    else let val yd = Date.yearDay date 
-             val yy = Date.year date 
-             val mm = Date.month date
-             val dd = Date.day date
-         in if yd + days >= daysInY yy (* NB ">=", yearDay starts from 0 *)
-            then addDays (* advance to 1st of January *)
-                     (days - (daysInY yy - yd))
-                     (Date.date { year = yy+1, month = Date.Jan, day=1,
+fun addDays   0  date = date
+  | addDays days date = 
+    let val yd = Date.yearDay date 
+        val yy = Date.year date 
+        val mm = Date.month date
+        val dd = Date.day date
+    in if yd + days >= 0 andalso yd + days < daysInY yy 
+          (* new date stays in same year as old *)
+          (* NB ">=" and "<" because yearDay starts from 0 *)
+       then let val (m, d) = yearDayToMD (yd + days) yy
+            in Date.date {year = yy, month = m, day = d, hour = 0, 
+                          minute = 0, second = 0, offset = NONE}
+            end
+       else if days < 0 
+            then (* rewind date to 1 Jan of year before; recursion,
+                    adding days in last year and yd to days *)
+             addDays (days + yd + daysInY (yy-1))
+                     (Date.date { year = yy-1, month = Date.Jan, day=1,
                                   hour = 0, minute = 0, second = 0,
                                   offset = NONE })
-            else let val (m, d) = yearDayToMD (yd + days) yy
-                 in Date.date {year = yy, month = m, day = d, hour = 0, 
-                               minute = 0, second = 0, offset = NONE}
-                 end
-         end
+            else (* yd + days > daysInY yy: advance to 1 Jan next
+                    year, recursion, subtracting remaining days *)
+             addDays (days - (daysInY yy - yd))
+                     (Date.date { year = yy+1, month = Date.Jan, day=1,
+                                  hour = 0, minute = 0, second = 0, 
+                                  offset = NONE })
+    end
 
 (* computes day difference to go from d1 to d2 *)
 fun dateDiff d1 d2 = if Date.compare (d1,d2) = GREATER
