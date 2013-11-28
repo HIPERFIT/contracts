@@ -86,3 +86,63 @@ How to model (non-rational) choice?
 
 Should be part of the Expr language (chosenBy party : boolE) and 
 use the If constructor.
+
+=======================
+
+How the contract language differs from the LexiFi contract language
+
+ - Dates are first class, meaning that a residual contract can be
+   translated in time a dynamic amount (e.g., based on an
+   underlying). American optionality and knock-outs are therefore
+   easily expressible, without discretization; we may need a few more
+   operators, such as anytime, however.
+
+ - Concrete contracts are paired with an associated date under which
+   the contract should be understood. Using this date, cash flows with
+   concrete dates can be computed. The notion of advancing a contract
+   is important. Say we have a concrete contract (d,c), that is a
+   contract c that should be understood relative to the date d. We
+   have (d,c) -adv(1)-> (d+1,c'), where c' is c advanced by one
+   day. First notice that expressions in the contract language are
+   arithmetic and boolean expressions that may reference underlying
+   observable quantities at particular dates, relative to
+   now. Formally, we first define the notion of expression time
+   adjustment:
+
+   Expression Time Adjustment
+    (s,d)/d' = (s,d+d')
+    e/d' = e with all underlying references (s,d) in e replaced by (s,d+d')
+
+   Here are some equivalences that hold:
+
+    transl(d1,transl(d2,c)  ==   transl(d1+(d2/d1),c)
+    transl(d,scale(s,c))    ==   scale(s/d,transl(d,c))
+    scale(s1,scale(s2,c))   ==   scale(s1*s2,c)
+    scale(0,c)              ==   emp
+    iff(T,c1,c2)            ==   c1
+    iff(F,c1,c2)            ==   c2
+
+   Advancing a contract (throwing away due transfers) can now be
+   defined, formally, as follows:
+
+    fun adv 0 c = c
+      | adv n c =         (* notice: n >= 0 *)
+        case c of
+           scale(s,c) => scale(s/-n, adv n c)
+         | transl(d,c) => transl(d-n', adv (n-n') c)           n' = min(n,d)
+         | iff(cond,c1,c2) => iff(cond/-n,adv n c1,adv n c2)
+         | all cs => all (map (adv n) cs)
+         | transfOne(c,p1,p2) => emp
+
+   It is not clear whether we can always write up a contract in a
+   canonical form that will help us determine whether two contracts
+   are bisimilar.
+
+=======================
+
+Design question:
+
+ Should transl affect the date on which an underlying is referenced?
+
+ - The answer to this question is yes! Otherwise, we would lack good
+   compositionality properties.
