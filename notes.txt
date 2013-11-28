@@ -18,14 +18,30 @@ datatype portfolio = {start   : date,
 
 ===================
 
-Semantics of tranlating a contract: should affect embedded expressions/observables!
+Semantics of translating a contract: should affect embedded expressions/observables!
 
 i = If (condition(day) , contract1, contract2)
 Transl (I 30 , i ) =!= If (condition ( day + 30 ) , 
                            Transl (I 30, contract1), 
                            Transl (I 30, contract2)
 
-TODO transform ContractUtils according to above
+-------------
+Preconditions: causality of components
+
+consistent (a : contract) : bool
+   (no flow in the present depends on future value of any observable,
+    and this is maintained through translated contracts)
+
+This implies the following side conditions:
+o Obs of String * int: int should be non-positive
+                       if a positive int occurs, an _outer_ Transl must be introduced 
+                       to eliminate it*).
+o Transl of intE * contract: intE should _evaluate_ _to_ non-negative number
+
+Transl nodes should be pushed to the outside in normalisation
+(direction "<=" in the example above). If this yields negative Transl
+on the inside, the contract is not consistent.
+Question here is, how to check this, as Transl uses intE, not int.
 
 =====================
 
@@ -40,13 +56,16 @@ makes possible to do:
   testB  a = isBarrier (normalise (defocus ( a , 1week)))
 
 -------------
-Preconditions: causality of components
 
-consistent (a : contract) : bool
-   (no flow in the present depends on future value of any observable,
-    and this is maintained through translated contracts)
+"beautiful contract" (normal form): established by a special routine.
+Should gather constructors in one place, essentially on one
+side of If and CheckWithin constructs: Transl should be pushed to the
+outside, Scale should be pushed in. All should be inside, but above 
+Scale (to see empty leaves?)
+In addition, should apply simplifications once constructors are
+adjacent: multiply Scales, add Transl, cut them when empty below
 
--------------
+======================
 
 simpler uses, immediately possible:
 
