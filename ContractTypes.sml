@@ -123,10 +123,10 @@ struct
                       | _ => raise Fail "evalR: expecting real"
    fun evalI E e =
        case eval E e of I i => i
-                      | _ => raise Fail "evalI: expecting real"
+                      | _ => raise Fail "evalI: expecting int"
    fun evalB E e =
        case eval E e of B b => b
-                      | _ => raise Fail "evalB: expecting real"
+                      | _ => raise Fail "evalB: expecting bool"
 
   fun pp e = 
       let fun par s = "(" ^ s ^ ")"
