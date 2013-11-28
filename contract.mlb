@@ -1,0 +1,11 @@
+local 
+   $(SML_LIB)/basis/basis.mlb
+   DateUtil.sml
+in 
+   CURRENCY.sig
+   Currency.sml
+   CONTRACT.sig
+   Contract.sml
+   Instruments.sml
+   Instruments_test.sml
+end

@@ -1,15 +1,14 @@
 
 (* load required modules *)
-app load ["Math", "Date", "DateUtil", "ListSort", "ContractTypes", "ContractUtil"];
+app load ["Math", "Date", "Bool"];
 
-(* bring types in direct scope *)
-open ContractTypes;
-open Currency;
+app use ["DateUtil.sml", "ListSort.sig", "ListSort.sml", "CURRENCY.sig", "Currency.sml", "CONTRACT.sig", "Contract.sml", "Instruments.sml"];
 
-(* play with the tools *)
-open ContractUtil;
+(* bring contract "constructors" in direct scope *)
+open Currency Contract Instruments;
 
-(print "vanillaFxPut (\"F\",USD) (\"Nordea\",SEK) 30E6 6.3 365:\n";
- vanillaFxPut ("F",USD) ("Nordea",SEK) 30E6 6.3 365);
+print "vanillaFxPut (\"F\",USD) (\"Nordea\",SEK) 30E6 6.3 365:\n";
+
+val fxput = vanillaFxPut ("F",USD) ("Nordea",SEK) 30E6 6.3 365;
 
 
