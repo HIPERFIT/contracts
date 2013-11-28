@@ -2,6 +2,8 @@ structure ContractTransform = struct
 
 local open Currency Contract ContractBase in
 
+infix !+! !*!
+
 (* find out if two contracts are the same. Assumes normalised, i.e. same
    constructor structure and ordered components *)
 fun equal (c1,c2) = case (c1,c2) of
@@ -21,13 +23,57 @@ fun equal (c1,c2) = case (c1,c2) of
                       (* assumes lists are sorted! Need to define ordering *)
                     | (_,_) => false
 
-fun cOrd (c1,c2) = raise Fail "dude! do it"
+(* this can be quite arbitrary... here implementing an ordering that
+   follows the normalisation (inside to outside), 
 
-fun normalise a = a (* do this one later: many jobs to do here:
+     TransfOne < Scale < All < If < CheckWithin < Transl
+
+   and order by components within. Requires compare on expressions
+   (with same type) and on currencies.
+*)
+fun notEqual EQUAL = false
+  | notEqual _     = true
+
+(* some of this requires compare for expressions, commented out for now *)
+fun compare (TransfOne (c1,x1,y1), TransfOne (c2,x2,y2)) =
+    hd (List.filter notEqual [(* compare (c1,c2),*) 
+                              String.compare (x1^y1,x2^y2)] @ [EQUAL])
+  | compare (TransfOne _, _) = LESS
+  | compare (_, TransfOne _) = GREATER
+  | compare (Scale (s1,c1), Scale (s2,c2)) =
+    hd (List.filter notEqual [compare (c1,c2)
+                           (*, compare (s1,s2)*)] @ [EQUAL])
+  | compare (Scale _, _) = LESS
+  | compare (_, Scale _) = GREATER
+  | compare (All cs1, All cs2) = 
+    hd (List.filter notEqual (ListPair.map compare (cs1,cs2))
+        @ [EQUAL])
+  | compare (All _, _) = LESS
+  | compare (_, All _) = GREATER
+  | compare (If(b1,x1,y1),If(b2,x2,y2)) =
+    hd (List.filter notEqual [compare (x1,x2), 
+                              compare (y1,y2) 
+                           (*, compare (b1,b2)*)] @ [EQUAL])
+  | compare (If _, _) = LESS
+  | compare (_, If _) = GREATER
+  | compare (CheckWithin (b1,i1,x1,y1),CheckWithin (b2,i2,x2,y2)) =
+    hd (List.filter notEqual [compare (x1,x2), compare (y1,y2) 
+                           (*, compare (b1,b2), compare (i1,i2)*)] @ [EQUAL])
+  | compare (CheckWithin _, _) = LESS
+  | compare (_, CheckWithin _) = GREATER
+  | compare (Transl (i1,c1), Transl (i2,c2)) =
+    hd (List.filter notEqual [compare (c1,c2)(*, compare (i1,i2)*)] @ [EQUAL])
+  | compare (_,_) = raise Fail "Dude! This should never happen!"
+
+(* Normalisation... Continue this one, many jobs to do here:
 o gather Transl outside of If/Check, All and Scale inside 
 o multiply Scale, add Transl, cutting them when empty below 
 o sort the list inside "All" nodes (for comparisons, see above)
 *)
+fun normalise (Transl (i,c)) = (case normalise c of
+   (* aggregate several Transl *)   Transl (i',c') => Transl (i !+! i', c')
+                                  | other => Transl (i,other))
+  | normalise a = a
 
 (* routine assumes a is normalised contract and applies no own
    optimisations except removing empty branches *)
