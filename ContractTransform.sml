@@ -103,7 +103,7 @@ fun removeParty_ (p : string) ( a : contr) =
     end
 
 (* this routine should work with any contract *)
-fun removeParty p a = removeParty p (normalise a)
+fun removeParty p a = removeParty_ p (normalise a)
 
 (* replaces p1 by p2 in all contracts inside a. Assumes normalised a.
    Could try to aggregate flows between same parties afterwards *)
