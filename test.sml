@@ -6,7 +6,7 @@ infix !+! !-! !*! !<! !=! !|!
 fun println s = print (s ^ "\n")
 
 fun prHash s c =
-   println ("\nHash(" ^ s ^ ") = " ^ IntInf.toString (hashContr(c,0)) ^ "\n")
+   println ("\nHash(" ^ s ^ ") = " ^ IntInf.toString (hashContr(c,IntInf.fromInt 0)) ^ "\n")
 
 fun you2me(d,v,c) = flow(d,R v,c,"you","me")
 

@@ -10,8 +10,9 @@ local
   type hash = IntInf.int
   val Alpha = IntInf.fromInt 65599
   val Beta = IntInf.fromInt 19
-  fun H (p,a) = p * (a + IntInf.fromInt 1)
-  fun hashAdd (w:IntInf.int, acc) = w+acc*Beta
+  fun H (p,a) = IntInf.*(IntInf.fromInt p,
+                         IntInf.+(a,IntInf.fromInt 1))
+  fun hashAdd (w:IntInf.int, acc) = let open IntInf in w+acc*Beta end
   fun Hs (s,a:hash) =
 	let val sz = size s
 	    fun loop (n,a) = 
@@ -24,18 +25,18 @@ local
 in
 fun hashExp (e,a) =
     case e of
-        I i => H(2,H(IntInf.fromInt i,a))
+        I i => H(2,H(i,a))
       | R r => H(3,Hs(Real.toString r, a))
       | B true => H(5,a)
       | B false => H(7,a)
       | Var v => H(11, Hs(v,a))
       | BinOp(s,e1,e2) => Hs(s,hashExp(e1,hashExp(e2,a)))
       | UnOp(s,e) => Hs(s,hashExp(e,a))
-      | Obs(s,i) => H(13,Hs(s,H(IntInf.fromInt i,a)))
+      | Obs(s,i) => H(13,Hs(s,H(i,a)))
 fun hashContr (c,a) = 
     case c of
         Zero => H(2,a)
-      | Both(c1,c2) => hashContr(c1,0) + hashContr(c2,0) + a
+      | Both(c1,c2) => let open IntInf in hashContr(c1,IntInf.fromInt 0) + hashContr(c2,IntInf.fromInt 0) + a end
       | TransfOne(cur,p1,p2) => Hs(ppCur cur,Hs(p1,Hs(p2,H(3,a))))
       | If(e,c1,c2) => hashContr(c1,hashContr(c2,hashExp(e,H(5,a))))
       | Scale(e,c) => hashExp(e,hashContr(c,H(7,a)))
@@ -191,7 +192,7 @@ val rec eqExp = fn
   | _ => false
 *)
 
-fun eqExp (e1,e2) = hashExp(e1,0) = hashExp(e2,0)
+fun eqExp (e1,e2) = IntInf.compare(hashExp(e1,IntInf.fromInt 0),hashExp(e2,IntInf.fromInt 0)) = EQUAL
 fun ppContr c =
     let fun par s = "(" ^ s ^ ")"
     in case c of

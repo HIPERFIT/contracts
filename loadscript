@@ -1,6 +1,6 @@
 
 (* load required modules *)
-app load ["Math", "Date", "Bool", "ListPair"];
+app load ["Math", "Date", "Bool", "ListPair", "IntInf"];
 
 app use ["DateUtil.sml", "ListSort.sig", "ListSort.sml", "CURRENCY.sig", "Currency.sml", "ContractBase.sml", "CONTRACT.sig", "Contract.sml", "Instruments.sml", "ContractTransform.sml"];
 
