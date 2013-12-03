@@ -6,6 +6,42 @@ type 'a num = unit
 type intE = int num exp
 type realE = real num exp
 
+local
+  type hash = IntInf.int
+  val Alpha = IntInf.fromInt 65599
+  val Beta = IntInf.fromInt 19
+  fun H (p,a) = p * (a + IntInf.fromInt 1)
+  fun hashAdd (w:IntInf.int, acc) = w+acc*Beta
+  fun Hs (s,a:hash) =
+	let val sz = size s
+	    fun loop (n,a) = 
+		if n >= sz then a
+		else loop (n+1, 
+			   hashAdd 
+			       (IntInf.fromInt(Char.ord(String.sub(s,n))), a))
+	in loop (0,a)
+	end
+in
+fun hashExp (e,a) =
+    case e of
+        I i => H(2,H(IntInf.fromInt i,a))
+      | R r => H(3,Hs(Real.toString r, a))
+      | B true => H(5,a)
+      | B false => H(7,a)
+      | Var v => H(11, Hs(v,a))
+      | BinOp(s,e1,e2) => Hs(s,hashExp(e1,hashExp(e2,a)))
+      | UnOp(s,e) => Hs(s,hashExp(e,a))
+      | Obs(s,i) => H(13,Hs(s,H(IntInf.fromInt i,a)))
+fun hashContr (c,a) = 
+    case c of
+        Zero => H(2,a)
+      | Both(c1,c2) => hashContr(c1,0) + hashContr(c2,0) + a
+      | TransfOne(cur,p1,p2) => Hs(ppCur cur,Hs(p1,Hs(p2,H(3,a))))
+      | If(e,c1,c2) => hashContr(c1,hashContr(c2,hashExp(e,H(5,a))))
+      | Scale(e,c) => hashExp(e,hashContr(c,H(7,a)))
+      | Transl(e,c) => hashExp(e,hashContr(c,H(11,a)))
+      | CheckWithin(e1,e2,c1,c2) => hashContr(c1,hashContr(c2,hashExp(e1,hashExp(e2,H(13,a)))))
+end
 infix !+! !-! !*! !<! !=! !|!
 fun x !+! y = BinOp("+",x,y)
 fun x !-! y = BinOp("-",x,y)
@@ -97,7 +133,6 @@ fun evalB E e =
     case eval E e of B b => b
                    | _ => raise Fail "evalB: expecting real"
          
-
 fun ppTime t = 
     let val months = t div 30
         val years = t div 360
@@ -144,6 +179,7 @@ fun simplifyExp P e =  (* memo: rewrite to bottom-up strategy to avoid the quadr
              | BinOp(f,e1,e2) => BinOp(f,simplifyExp P e1,simplifyExp P e2)
              | _ => e
 
+(*
 val rec eqExp = fn
     (I i1, I i2) => i1 = i2
   | (R r1, R r2) => Real.compare(r1,r2) = EQUAL
@@ -153,7 +189,9 @@ val rec eqExp = fn
   | (UnOp(s1,e1), UnOp(s2,e2)) => s1 = s2 andalso eqExp(e1,e2)
   | (Obs(s1,i1),Obs(s2,i2)) => s1=s2 andalso i1=i2
   | _ => false
+*)
 
+fun eqExp (e1,e2) = hashExp(e1,0) = hashExp(e2,0)
 fun ppContr c =
     let fun par s = "(" ^ s ^ ")"
     in case c of

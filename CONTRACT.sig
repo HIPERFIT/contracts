@@ -40,6 +40,7 @@ signature CONTRACT = sig
   val simplifyExp : env * date -> 'a exp -> 'a exp
   val ppExp       : 'a exp -> string
   val eqExp       : 'a exp * 'a exp -> bool
+  val hashExp     : 'a exp * IntInf.int -> IntInf.int
 
   (* Contracts *)
   type party      = string
@@ -60,6 +61,7 @@ signature CONTRACT = sig
 
   (* Contract utilities *)
   val ppContr     : contr -> string
+  val hashContr   : contr * IntInf.int -> IntInf.int
 end
 
 signature CONTRACT_UNSAFE =

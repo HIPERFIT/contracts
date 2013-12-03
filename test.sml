@@ -5,6 +5,9 @@ infix !+! !-! !*! !<! !=! !|!
 
 fun println s = print (s ^ "\n")
 
+fun prHash s c =
+   println ("\nHash(" ^ s ^ ") = " ^ IntInf.toString (hashContr(c,0)) ^ "\n")
+
 fun you2me(d,v,c) = flow(d,R v,c,"you","me")
 
 val now = I 0
@@ -43,6 +46,7 @@ val ex2 =
 val _ = println "\nEx2 - Cashflows for cross-currency swap:"
 (* val _ = println (cashflows noE ex2) *)
 
+val _ = prHash "ex2" ex2
 (* Contract Management *)
 
 (* val ex3 = advance (I 15) ex2 *)
@@ -78,6 +82,7 @@ val ex4if =
     end
 
 val _ = println "\nEx4if - Cashflows on 1000 Stock options (Strike:50,Price:79):"
+
 (* val _ = println (cashflows (fn _ => 79.0) ex4if) *)
 
 (*
