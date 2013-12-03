@@ -219,3 +219,18 @@ Design question:
 
  - The answer to this question is yes! Otherwise, we would lack good
    compositionality properties.
+
+
+h([],a) = a
+h(c::cs,a)  = h(cs, c + a * 19)
+
+val hashExp:  expr0 -> IntInf.int
+val hashContr : contr -> IntInf.int
+
+h(Zero, a)                 = 2 * a
+h(Both(c1,c2), a)          = h(c1,0) + h(c2,0) + a
+h(TransfOne(cur,p1,p2), a) = 3 * h(cur,h(p1,h(p2,a)))
+h(Iff(e,c1,c2),a)          = 5 * h(c1,h(c2,h(e,a)))
+h(Scale(e,c),a)            = 7 * h(e,h(c,a))
+h(Transl(e,c),a)           = 11 * h(e,h(c,a))
+
