@@ -8,7 +8,7 @@ type mngt_contract =
        current: contract,
        events: event list}    //   (start, initial)   ---events---> (date, current)
 
-datatype event =  Fixing of date * string * value | NewContract of date * ContractTypes.contract | Default of date * string
+datatype event =  Fixing of date * string * value | NewContract of date * Contract.contract | Default of date * string
 
 datatype portfolio = {start   : date,
                       initial : contract,
@@ -134,11 +134,12 @@ How the contract language differs from the LexiFi contract language
     iff(F,c1,c2)               ==   c2
     transl(d,all cs)           ==   all (map (\c.transl(d,c)) cs)
     transl(d,iff(cond,c1,c2))  ==   iff(cond/d, transl(d,c1), transl(d,c2))   d certain
-    iff(c,emp,emp)             ==   emp
-    transl(d,emp)              ==   emp
-    scale(r,emp)               ==   emp
-    all cs                     ==   emp             forall c in cs. c == emp
-    scale(0,c)                 ==   emp
+    iff(c,zero,zero)           ==   zero
+    transl(d,zero)             ==   zero
+    scale(r,zero)              ==   zero
+    Both (zero,zero)           ==   zero
+    scale(0,c)                 ==   zero
+    all cs                     ==   zero if c == zero forall c in cs
 
    Advancing a contract (throwing away due transfers) can now be
    defined, formally (and partially), as follows:
@@ -192,6 +193,8 @@ Conservative contract causality                            | |- c |
           |- d    |- c
          -------------- (TL2)
          |- transl(d,c)
+should probably be removed, as it cannot state anything about value of d
+(d is causal but its value is unknown. It should be positive.)
 
          --------------------- (TO)
          |- transfOne(C,p1,p2)
@@ -207,6 +210,20 @@ Conservative contract causality                            | |- c |
           |- ci    i=1..n
         ------------------- (Al)
         |- all [c1,....,cn]
+
+       certain(d)  d >= 0  |- b  |- c2/d
+          |- c1/i for all 0 <= i < d
+       --------------------------------- (CW1)
+        |- checkWithin (b, d, c1, c2)
+
+(This follows from an algebraic law which "unrolls" the check:
+   checkWithin (b, d, c1, c2) == 
+               let r i = if i == d then transl(d,c2)
+                                   else iff (b/i, transl(i,c1), r (i+1))
+               in r 0
+This recursion could be written as a fixed point...
+c1 is translated with i < d during unrolling. 
+b is causal at present, but not necessarily in the future.)
 
 Proposition (Conservative Causality Soundness).
 If |- c then c is causal. 
