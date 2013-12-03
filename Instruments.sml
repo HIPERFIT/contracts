@@ -2,7 +2,8 @@ structure Instruments = struct
 
 exception Error of string
 
-open Currency Contract
+local open Currency Contract in
+
 infix !+! !-! !*! !<! !=! !|! 
 
 fun fxRate c1 c2 = "FX " ^ ppCur c1   (* an ad hoc conven- *)
@@ -13,42 +14,45 @@ fun fxRate c1 c2 = "FX " ^ ppCur c1   (* an ad hoc conven- *)
    (string,currency) -> (string,currency) 
    -> real -> real -> days -> Contract.t
 *) 
-fun fxForward (buyer,buyCurr) (seller, otherCurr) amount strike 0 =
+fun fxForward buyer seller (buyCurr, otherCurr) amount strike 0 =
             scale (R amount, 
                    all [ transfOne (buyCurr, seller, buyer)
                         , scale ((R strike),
                                  transfOne (otherCurr, buyer, seller))]
                   )
-  | fxForward (buyer,buyCurr) (seller, otherCurr) amount strike days =
+  | fxForward buyer seller (buyCurr, otherCurr) amount strike days =
     if days > 0 then 
         transl (I days, 
-                fxForward (buyer, buyCurr) (seller, otherCurr) amount strike 0)
+                fxForward buyer seller (buyCurr, otherCurr) amount strike 0)
     else raise Error "fxForward into the past"
 
+
+(* all following split into put and call, so we use a tag type *)
+datatype OptionKind = Call | Put
+
 (* buyer and seller with the currencies they receive,
-   notional amount, strike (sell/buy), expiry (days), start date (today?) 
-   (string,currency) -> (string,currency) 
+   notional amount, strike (sell/buy), expiry (days)
+   OptionKind -> (string,currency) -> (string,currency) 
    -> real -> real -> int -> days -> Contract.t
 *) 
-fun vanillaFxCall 
-        (buyer,buyCurr) (seller, otherCurr) amount strike expiry =
+fun vanillaFx Call 
+        buyer seller (buyCurr,otherCurr) amount strike expiry =
     let val rate    = fxRate buyCurr otherCurr
         val cond    = R strike !<! obs (rate, 0) 
                       (* option taken depending on price > strike *)
                       (* offset "0", Transl supposed to move obs date offset!*)
-    in transl (I expiry,iff (cond, fxForward (buyer, buyCurr) 
-                                             (seller, otherCurr) 
+    in transl (I expiry,iff (cond, fxForward buyer seller
+                                             (buyCurr, otherCurr)
                                              amount strike 0    , zero))
     end
-
-fun vanillaFxPut
-        (seller, sellCurr) (buyer,otherCurr) amount strike expiry =
+  | vanillaFx Put
+        seller buyer (sellCurr,otherCurr) amount strike expiry =
     let val rate    = fxRate sellCurr otherCurr
         val cond    = obs (rate, 0) !<! R strike
                       (* option taken depending on price < strike *)
                       (* assumes transl moves obs date offset (see previous) *)
-    in transl (I expiry,iff (cond, fxForward (buyer, sellCurr)
-                                             (seller, otherCurr)
+    in transl (I expiry,iff (cond, fxForward buyer seller
+                                             (sellCurr, otherCurr)
                                              amount strike 0    , zero))
     end
 
@@ -129,29 +133,64 @@ fun fxBarrierNoTouch
                     scale (R amount, transfOne (curSettle, buyer, seller)))
     end
 
-(* Single barrier option: easy using CheckWithin and vanillaFX[Put|Call] 
-   XXX TODO
-*)
-
 (* Double barrier option: we need a boolean "or" (added), then just as
    easy as the single barrier.
    option buyer, option seller, (curr1,curr2) 
        OptionKind(Call/Put) amount strike (lo-barrier, hi-barrier) expiry
 *)
-datatype OptionKind = Call | Put
-
 fun fxDoubleBarrierIn 
-    buyer seller (cur1,cur2) optKind amount strike (loBarr,hiBarr) expiry
+    buyer seller (cur1,cur2) kind amount strike (loBarr,hiBarr) expiry
   = let val rate = fxRate cur1 cur2
         val cond = (obs (rate,0) !<! R loBarr)
                    !|! (R hiBarr !<! obs (rate,0))
                     (* "in" if price below lower || above upper *)
-        val result = case optKind of
-                         Call => vanillaFxCall
-                       | Put  => vanillaFxPut
     in checkWithin (cond, I expiry,
-                    result (buyer,cur1) (seller,cur2) amount strike expiry,
+                    vanillaFx kind buyer seller (cur1,cur2)
+                              amount strike expiry,
                     zero) (* if barrier hit: option; otherwise zero *)
     end
+
+fun fxDoubleBarrierOut
+    buyer seller (cur1,cur2) kind amount strike (loBarr,hiBarr) expiry
+  = let val rate = fxRate cur1 cur2
+        val cond = (obs (rate,0) !<! R loBarr)
+                   !|! (R hiBarr !<! obs (rate,0))
+                    (* "in" if price below lower || above upper *)
+    in checkWithin (cond, I expiry,
+                    zero,  (* if barrier hit: zero, otherwise option *)
+                    vanillaFx kind buyer seller (cur1,cur2)
+                              amount strike expiry)
+    end
+
+(* Single barrier: needs a barrierKind (Up/Down), but only one barrier value
+   Arg.s:
+   option buyer, option seller, (curr1,curr2) 
+       OptionKind(Call/Put) BarrierKind(Up/Down) amount strike barrier expiry
+ *)
+fun fxSingleBarrierIn
+    buyer seller (cur1,cur2) optKind barrKind amount strike barr expiry
+  = let val rate = fxRate cur1 cur2
+        val cond = case barrKind of  
+                       Up   => R barr !<! obs (rate,0) (* Up: price higher  *)
+                     | Down => obs (rate,0) !<! R barr (* Down: price lower *)
+    in checkWithin (cond, I expiry,
+                    vanillaFx optKind buyer seller (cur1,cur2)
+                              amount strike expiry,
+                    zero) (* if barrier hit: option, otherwise zero *)
+    end
+
+fun fxSingleBarrierOut
+    buyer seller (cur1,cur2) optKind barrKind amount strike barr expiry
+  = let val rate = fxRate cur1 cur2
+        val cond = case barrKind of  
+                       Up   => R barr !<! obs (rate,0) (* Up: price higher  *)
+                     | Down => obs (rate,0) !<! R barr (* Down: price lower *)
+    in checkWithin (cond, I expiry,
+                    zero, (* if barrier hit: zero, otherwise option *)
+                    vanillaFx optKind buyer seller (cur1,cur2)
+                              amount strike expiry)
+    end
+
+end
 
 end
