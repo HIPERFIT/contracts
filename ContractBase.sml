@@ -13,10 +13,11 @@ local open Currency
 in
 type party = string
 datatype contr =
-       TransfOne of cur * party * party
+       Zero
+     | TransfOne of cur * party * party
      | Scale of exp0 * contr
      | Transl of exp0 * contr
-     | All of contr list
+     | Both of contr * contr
      | If of exp0 * contr * contr
      | CheckWithin of exp0 * exp0 * contr * contr 
      (* if cond : boolE becomes true within time: intE then contract 1 in effect. 

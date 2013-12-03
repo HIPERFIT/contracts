@@ -53,8 +53,10 @@ signature CONTRACT = sig
   val checkWithin : boolE * intE * contr * contr -> contr 
 
   (* Some derived forms *)
-  val emp         : contr
+  val zero        : contr
   val flow        : intE * realE * cur * party * party -> contr
+
+  val dual        : contr -> contr
 
   (* Contract utilities *)
   val ppContr     : contr -> string

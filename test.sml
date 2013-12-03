@@ -1,82 +1,86 @@
 structure test = struct
 
-open multicontracts
-
-open Contract
+open Currency Contract
+infix !+! !-! !*! !<! !=! !|! 
 
 fun println s = print (s ^ "\n")
 
-fun you2me(d,v,c) = flow(d,v,c,"you","me")
+fun you2me(d,v,c) = flow(d,R v,c,"you","me")
 
-val me2you = Dual o you2me
+val now = I 0
+fun M n = I (n*30)
+fun Y n = I (n*360)
+val me2you = dual o you2me
 
 (* Simple amortized loan *)
 val ex1 =
     let val coupon = 11000.0
         val principal = 30000.0
-    in All [you2me(?"2011-01-01",principal,EUR),
-            me2you(?"2011-02-01",coupon,EUR),
-            me2you(?"2011-03-01",coupon,EUR),
-            me2you(?"2011-04-01",coupon,EUR)]
+    in all [you2me(now,principal,EUR),
+            me2you(M 1,coupon,EUR),
+            me2you(M 2,coupon,EUR),
+            me2you(M 3,coupon,EUR)]
     end
 
 val _ = println "\nEx1 - Cashflows for simple amortized loan:"
-val _ = println (cashflows noE ex1)
+val _ = println ("  Contract: " ^ ppContr ex1)
+
+(*val _ = println (cashflows noE ex1)*)
 
 (* Cross currency swap *)
 val ex2 =
     let val coupon_eur = 1000.0
         val coupon_dkk = 7000.0
-    in All [Dual(
-             All[me2you(?"2011-01-01",coupon_dkk,DKK),
-                 me2you(?"2011-02-01",coupon_dkk,DKK),
-                 me2you(?"2011-03-01",coupon_dkk,DKK)]),
-            me2you(?"2011-01-01",coupon_eur,EUR),
-            me2you(?"2011-02-01",coupon_eur,EUR),
-            me2you(?"2011-03-01",coupon_eur,EUR)]
+    in all [dual(
+             all[me2you(M 0,coupon_dkk,DKK),
+                 me2you(M 1,coupon_dkk,DKK),
+                 me2you(M 2,coupon_dkk,DKK)]),
+            me2you(M 0,coupon_eur,EUR),
+            me2you(M 1,coupon_eur,EUR),
+            me2you(M 2,coupon_eur,EUR)]
     end    
 
 val _ = println "\nEx2 - Cashflows for cross-currency swap:"
-val _ = println (cashflows noE ex2)
+(* val _ = println (cashflows noE ex2) *)
 
 (* Contract Management *)
 
-val ex3 = advance (?"2011-01-15") ex2
-val _ = println "\nEx3: Cross-currency swap advanced to 2011-01-15:"
-val _ = println (cashflows noE ex3)
+(* val ex3 = advance (I 15) ex2 *)
+val _ = println "\nEx3: Cross-currency swap advanced half a month:"
+(*val _ = println (cashflows noE ex3) *)
 
 (* Call option on "Carlsberg" stock *)
 val equity = "Carlsberg"
-val maturity = ?"2012-01-01"
+val maturity = Y 1
 val ex4 =
     let val strike = 50.0
         val nominal = 1000.0
-        val obs = 
-            Obs.Max(Obs.Const 0.0,
-                    Obs.Sub(Obs.Underlying(equity,maturity),
-                            Obs.Const strike))
-    in Scale(Obs.Const nominal,
-             Scale(obs,TransfOne(maturity,EUR,"you","me")))
+        val obs = max(R 0.0, obs(equity,0) !-! R strike)
+    in scale(R nominal,
+             transl(maturity,
+                    scale(obs,transfOne(EUR,"you","me"))))
     end
 
 val _ = println "\nEx4 - Cashflows on 1000 Stock options (Strike:50,Price:79):"
-val _ = println (cashflows (fn _ => Obs.Const 79.0) ex4)
+(* val _ = println (cashflows (fn _ => 79.0) ex4) *)
 
 (* same call option, expressed with If *)
 val ex4if =
     let val strike = 50.0
         val nominal = 1000.0
-        val obs = Obs.Underlying(equity,maturity)
-        val pred = fn r => r > strike
-    in Scale(Obs.Const nominal,
-             If (pred, obs,
-                 Scale(Obs.Sub(obs,Obs.Const strike),
-                       TransfOne(maturity,EUR,"you","me"))))
+        val obs = obs(equity,0)
+    in scale(R nominal,
+             transl(maturity,
+                    iff (R strike !<! obs,
+                         scale(obs !-! R strike,
+                               transfOne(EUR,"you","me")),
+                         zero)))
     end
 
 val _ = println "\nEx4if - Cashflows on 1000 Stock options (Strike:50,Price:79):"
-val _ = println (cashflows (fn _ => Obs.Const 79.0) ex4if)
+(* val _ = println (cashflows (fn _ => 79.0) ex4if) *)
 
+(*
 fun matureit e =
     let
       val ex5 = fixing(equity,maturity,83.0) e
@@ -118,5 +122,5 @@ val p2 = FlatRate.price (?"2011-01-01") R FX ex2
 
 val _ = println("\nPrice(ex1) : DKK " ^ Real.toString p1)
 val _ = println("\nPrice(ex2) : DKK " ^ Real.toString p2)
-
+*)
 end

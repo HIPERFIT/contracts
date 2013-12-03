@@ -97,6 +97,14 @@ How the contract language differs from the LexiFi contract language
    easily expressible, without discretization; we may need a few more
    operators, such as anytime, however.
 
+ - Contracts are truly relative to the present, which is contrary to
+   how the LexiFi system works. In the LexiFi system, observables are
+   defined separately and are not translated in time by the 'when'
+   operator; see "The Fun of Programming" paper, page 114, for
+   instance. Also, the paper does not mention whether there is a
+   "delay" operator that allows for a contract to refer to a past
+   value of an underlying.
+
  - Concrete contracts are paired with an associated date under which
    the contract should be understood. Using this date, cash flows with
    concrete dates can be computed. The notion of advancing a contract
@@ -113,30 +121,95 @@ How the contract language differs from the LexiFi contract language
     (s,d)/d' = (s,d+d')
     e/d' = e with all underlying references (s,d) in e replaced by (s,d+d')
 
+   Notice that time adjustment e/d is defined only when d is known to
+   be a particular integer.
+
    Here are some equivalences that hold:
 
-    transl(d1,transl(d2,c)  ==   transl(d1+(d2/d1),c)
-    transl(d,scale(s,c))    ==   scale(s/d,transl(d,c))
-    scale(s1,scale(s2,c))   ==   scale(s1*s2,c)
-    scale(0,c)              ==   emp
-    iff(T,c1,c2)            ==   c1
-    iff(F,c1,c2)            ==   c2
+    transl(d1,transl(d2,c)     ==   transl(d1+(d2/d1),c)           d1 certain
+    transl(d,scale(s,c))       ==   scale(s,transl(d,c))           s certain
+    transl(d,scale(s,c))       ==   scale(s/d,transl(d,c))         d certain
+    scale(s1,scale(s2,c))      ==   scale(s1*s2,c)
+    iff(T,c1,c2)               ==   c1
+    iff(F,c1,c2)               ==   c2
+    transl(d,all cs)           ==   all (map (\c.transl(d,c)) cs)
+    transl(d,iff(cond,c1,c2))  ==   iff(cond/d, transl(d,c1), transl(d,c2))   d certain
+    iff(c,emp,emp)             ==   emp
+    transl(d,emp)              ==   emp
+    scale(r,emp)               ==   emp
+    all cs                     ==   emp             forall c in cs. c == emp
+    scale(0,c)                 ==   emp
 
    Advancing a contract (throwing away due transfers) can now be
-   defined, formally, as follows:
+   defined, formally (and partially), as follows:
 
     fun adv 0 c = c
       | adv n c =         (* notice: n >= 0 *)
         case c of
            scale(s,c) => scale(s/-n, adv n c)
-         | transl(d,c) => transl(d-n', adv (n-n') c)           n' = min(n,d)
+         | transl(d,c) => 
+              if certain d then
+                  let n' = min n d
+                  in transl(d-n', adv (n-n') c)
+                  end
+              else error "contract advancement not possible"
+         | transl(d,c) => 
          | iff(cond,c1,c2) => iff(cond/-n,adv n c1,adv n c2)
          | all cs => all (map (adv n) cs)
          | transfOne(c,p1,p2) => emp
-
+ 
    It is not clear whether we can always write up a contract in a
    canonical form that will help us determine whether two contracts
    are bisimilar.
+
+ - A causal contract is, by definition, a contract with the property that during all
+   possible executions of the contract, a transfer cannot depend on a
+   future fixing.
+
+   Example of a non-causal contract:
+
+      iff(("CarlsbergDKR",2) > 50.0, transfOne(EUR,me,you), emp)
+
+         - Meaning: if the Carlsberg stock is worth more than kr 50 in
+           two days, I should transfer one EUR to you today.
+
+In general, causality is now a dynamic property that for some
+contracts needs to be checked at runtime (during contract
+management). For many contracts, however, the property of causality
+can be established statically. We now define a conservative causality
+check. An expression e is causal (written |- e), if for all (s,d) in
+e, we have d <= 0. That is, the valuation of the expression depends
+only on values for underlyings in the past. A conservative causality
+check can now be defined for contracts, as follows.
+ 
+                                                           +------+
+Conservative contract causality                            | |- c |
+                                                           +------+
+       certain(d)  d >= 0    |- c/d
+       ---------------------------- (TL1)
+            |- transl(d,c)
+
+          |- d    |- c
+         -------------- (TL2)
+         |- transl(d,c)
+
+         --------------------- (TO)
+         |- transfOne(C,p1,p2)
+
+         |- e   |- c
+        ------------- (Sc)
+        |- scale(e,c)
+
+        |- e  |- c1  |- c2
+        ------------------ (If)
+         |- iff(e,c1,c2)
+
+          |- ci    i=1..n
+        ------------------- (Al)
+        |- all [c1,....,cn]
+
+Proposition (Conservative Causality Soundness).
+If |- c then c is causal. 
 
 =======================
 

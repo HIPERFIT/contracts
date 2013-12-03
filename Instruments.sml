@@ -38,7 +38,7 @@ fun vanillaFxCall
                       (* offset "0", Transl supposed to move obs date offset!*)
     in transl (I expiry,iff (cond, fxForward (buyer, buyCurr) 
                                              (seller, otherCurr) 
-                                             amount strike 0    , emp))
+                                             amount strike 0    , zero))
     end
 
 fun vanillaFxPut
@@ -49,7 +49,7 @@ fun vanillaFxPut
                       (* assumes transl moves obs date offset (see previous) *)
     in transl (I expiry,iff (cond, fxForward (buyer, sellCurr)
                                              (seller, otherCurr)
-                                             amount strike 0    , emp))
+                                             amount strike 0    , zero))
     end
 
 (* Single-Barrier *-touch options (up or down) require "continuous", i.e.
@@ -73,7 +73,7 @@ fun fxBarrierTouchBAD
                     iff (cond,
                         scale (R amount, transfOne (curSettle, buyer, seller)),
                         if day < expiry then fxTLoop (day + 1)
-                        else emp (* base case, immediate expiry *)))
+                        else zero (* base case, immediate expiry *)))
     in fxTLoop 0
     end
 
@@ -91,11 +91,11 @@ fun fxBarrierTouch
                       (* XXX CheckWithin assumed to translate cond accordingly! *)
     in checkWithin (cond, I expiry, (* XXX var -> cond?? *)
                     scale (R amount, transfOne (curSettle, buyer, seller)),
-                    emp) (* if barrier hit: payment. Otherwise: empty *)
+                    zero) (* if barrier hit: payment. Otherwise: zero *)
     end
 
 (* NO-touch options: pay out if barrier NOT breached, just swapping
-   the branches from before (exit to empty when touched, pay otherwise).
+   the branches from before (exit to zero when touched, pay otherwise).
 
    Could also again unroll the period in a SML-level recursion.
 
@@ -112,7 +112,7 @@ fun fxBarrierNoTouchBAD
                     iff (cond, 
                         scale (R amount, transfOne (curSettle, buyer, seller)),
                         if day < expiry then fxTLoop (day + 1)
-                        else emp (* base case, immediate expiry *)))
+                        else zero (* base case, immediate expiry *)))
     in fxTLoop 0
     end
 
@@ -125,7 +125,7 @@ fun fxBarrierNoTouch
                       (* intention: exit when barrier hit today *)
                       (* XXX CheckWithin assumed to translate cond accordingly! *)
     in checkWithin (cond, I expiry, (* XXX var -> cond?? *)
-                    emp, (* if barrier hit: empty, otherwise: payment *)
+                    zero, (* if barrier hit: zero, otherwise: payment *)
                     scale (R amount, transfOne (curSettle, buyer, seller)))
     end
 
@@ -151,7 +151,7 @@ fun fxDoubleBarrierIn
                        | Put  => vanillaFxPut
     in checkWithin (cond, I expiry,
                     result (buyer,cur1) (seller,cur2) amount strike expiry,
-                    emp) (* if barrier hit: option; otherwise empty *)
+                    zero) (* if barrier hit: option; otherwise zero *)
     end
 
 end

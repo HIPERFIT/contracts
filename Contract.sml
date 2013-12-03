@@ -96,22 +96,36 @@ fun evalI E e =
 fun evalB E e =
     case eval E e of B b => b
                    | _ => raise Fail "evalB: expecting real"
-                                
-fun ppExp e = 
+         
+
+fun ppTime t = 
+    let val months = t div 30
+        val years = t div 360
+        val months = months mod 12
+        val days = t mod 30
+        val s = if days = 0 then "" else Int.toString days ^ "d"
+        val s = if months = 0 then s else Int.toString months ^ "m" ^ s
+        val s = if years = 0 then s else Int.toString years ^ "y" ^ s
+    in if s = "" then "0d" else s
+    end
+                       
+fun ppExp0 ppTime e = 
     let fun par s = "(" ^ s ^ ")"
         fun notfixed opr = opr = "max" orelse opr = "min"
     in case e of 
            Var s => "Var" ^ par s
-         | I i => Int.toString i
+         | I i => ppTime i
          | R r => Real.toString r
          | B b => Bool.toString b
-         | Obs (s,off) => "Obs" ^ par (s ^ "@" ^ Int.toString off)
+         | Obs (s,off) => "Obs" ^ par (s ^ "@" ^ ppTime off)
          | BinOp(opr,e1,e2) => 
            if notfixed opr then opr ^ par (ppExp e1 ^ "," ^ ppExp e2)
            else par(ppExp e1 ^ opr ^ ppExp e2)
          | UnOp(opr, e1) => opr ^ par (ppExp e1)
     end
-        
+and ppExp e = ppExp0 Int.toString e
+val ppTimeExp = ppExp0 ppTime
+
 fun certainExp e =
     case e of
         Var _ => false
@@ -145,9 +159,9 @@ fun ppContr c =
     in case c of
            TransfOne(c,p1,p2) => "TransfOne" ^ par (ppCur c ^ "," ^ p1 ^ "," ^ p2)
          | Scale (e,c) => "Scale" ^ par (ppExp e ^ "," ^ ppContr c)
-         | Transl(e,c) => "Transl" ^ par (ppExp e ^ "," ^ ppContr c)
-         | All[] => "emp"
-         | All cs => "All" ^ par (ppContrs cs)
+         | Transl(e,c) => "Transl" ^ par (ppTimeExp e ^ "," ^ ppContr c)
+         | Zero => "zero"
+         | Both (c1,c2) => "Both" ^ par (ppContrs[c1,c2])
          | If(e,c1,c2) => "If" ^ par (ppExp e ^ ", " ^ ppContr c1 ^ ", " ^ ppContr c2)
          | CheckWithin (e1, e2, c1, c2) => 
            "CheckWithin" ^ par (ppExp e1 ^ ", " ^ ppExp e2 ^ ", "  ^ ppContr c1 ^ ", " ^ ppContr c2)
@@ -160,11 +174,69 @@ val transfOne = TransfOne
 val transl = Transl
 val checkWithin = CheckWithin
 val iff = If
-val all = All
+fun all [] = Zero
+  | all [c] = c
+  | all (c::cs) = Both(c,all cs)
 val scale = Scale
 
 (* Shorthand notation *)
 fun flow(d,v,c,from,to) = scale(v,transl(d,transfOne(c,from,to)))
-val emp = All []
+val zero = Zero
 
+val rec dual = 
+ fn Zero => Zero
+  | TransfOne(c,p1,p2) => TransfOne(c,p2,p1)
+  | Scale (e,c) => Scale(e,dual c)
+  | Transl(e,c) => Transl(e,dual c)
+  | Both(c1,c2) => Both (dual c1, dual c2)
+  | If(e,c1,c2) => If(e,dual c1, dual c2)
+  | CheckWithin (e1, e2, c1, c2) => CheckWithin (e1, e2, dual c1, dual c2)
+(*
+(* Contract Management *)
+fun simplify P t =
+    case t of
+        All ts =>
+        let val ts = map (simplify P) ts
+        in case List.filter (fn All[] => false | _ => true) ts of
+             [t] => t
+           | ts => all ts
+        end
+      | Scale(obs,All[]) => zero
+      | Scale(obs,All ts) => 
+        simplify P (all (map (fn t => scale(obs,t)) ts))
+      | Scale(r,t) => 
+        (case scale(simplifyExp P r,simplify P t) of
+             Scale(o1,Scale(o2,t)) => simplify P (scale(o1 !*! o2,t))
+           | Scale(obs,All[]) => zero
+           | t as Scale(R r,_) => 
+             if Real.==(r,0.0) then zero else t
+           | t => t)
+      | Transl(d,t') => (* Transl should be pushed inside *)
+        let val d = simplifyExp P d
+            val t' = simplify P t'
+        in case t' of (* do we need this call to simplify? *)
+               All []  => zero
+             | TransfOne _ => transl(d,t')
+             | Scale (r,t') =>
+               if certainExp r then simplify P (scale (r,transl(d,t')))
+               else t (* maybe simplify t' in a modified env *)
+             | All ts  => all (List.map (fn t => simplify P (transl(d,t))) ts)
+             | Transl(d',t')  => simplify P (transl(d' !+! d,t')) (* collapse *)
+             | If (pred,obs,t') => simplify E (If (pred,obs,Transl(d,t')))
+           (* XXX should transl this obs as well?   ^^^ *)
+           )
+      | Dual t => 
+        (case Dual(simplify E t) of
+             Dual(Dual t) => simplify E t
+           | Dual(TransfOne(d,c,from,to)) => TransfOne(d,c,to,from)
+           | t => t)
+      | TransfOne _ => t
+      | If (pred, obs, t') => 
+        let val obs' = Obs.simplify E obs
+            val t''  = simplify E t'
+        in case Obs.evalOpt E obs' of
+               SOME r => if pred r then t'' else zero
+             | NONE => If (pred, obs', t'')
+        end
+*)
 end

@@ -7,7 +7,8 @@ infix !+! !*!
 (* find out if two contracts are the same. Assumes normalised, i.e. same
    constructor structure and ordered components *)
 fun equal (c1,c2) = case (c1,c2) of
-                      (TransfOne (cur1,x1,y1),TransfOne (cur2,x2,y2))
+                      (Zero, Zero) => true
+                    | (TransfOne (cur1,x1,y1),TransfOne (cur2,x2,y2))
                       => cur1 = cur2 andalso x1 = x2 andalso y1 = y2
                     | (Scale (s1,c1),Scale (s2,c2))
                       => eqExp(s1, s2) andalso equal (c1,c2)
@@ -18,9 +19,8 @@ fun equal (c1,c2) = case (c1,c2) of
                     | (CheckWithin (b1,i1,x1,y1),CheckWithin (b2,i2,x2,y2))
                       => eqExp(b1,b2) andalso eqExp(i1,i2) andalso 
                          equal (x1,x2) andalso equal (y1,y2)
-                    | (All cs1, All cs2) 
-                      => ListPair.all equal (cs1,cs2)
-                      (* assumes lists are sorted! Need to define ordering *)
+                    | (Both(c1,c2), Both(c1',c2')) => equal (c1,c1') andalso equal (c2,c2')
+                      (* assumes pairs are sorted! Need to define ordering *)
                     | (_,_) => false
 
 (* this can be quite arbitrary... here implementing an ordering that
@@ -45,11 +45,13 @@ fun compare (TransfOne (c1,x1,y1), TransfOne (c2,x2,y2)) =
                            (*, compare (s1,s2)*)] @ [EQUAL])
   | compare (Scale _, _) = LESS
   | compare (_, Scale _) = GREATER
-  | compare (All cs1, All cs2) = 
-    hd (List.filter notEqual (ListPair.map compare (cs1,cs2))
-        @ [EQUAL])
-  | compare (All _, _) = LESS
-  | compare (_, All _) = GREATER
+  | compare (Both(c1,c2), Both(c1',c2')) =
+    (case compare (c1, c1') of
+         LESS => LESS
+       | GREATER => GREATER
+       | EQUAL => compare(c2,c2'))
+  | compare (Both _, _) = LESS
+  | compare (_, Both _) = GREATER
   | compare (If(b1,x1,y1),If(b2,x2,y2)) =
     hd (List.filter notEqual [compare (x1,x2), 
                               compare (y1,y2) 
@@ -81,21 +83,22 @@ fun removeParty_ (p : string) ( a : contr) =
     let fun remv c = 
                 case c of 
                     TransfOne (_,p1,p2) => if p = p1 orelse p = p2 
-                                           then emp else c
+                                           then zero else c
                   | Scale (s,c')  => (case remv c' of
-                                          All [] => emp
+                                          Zero => zero
                                         | other  => Scale (s,other))
                   | Transl (d,c') => (case remv c' of
-                                          All [] => emp
+                                          Zero => zero
                                         | other  => Transl (d, other))
-                  | All cs => All (List.map remv cs)
+                  | Both(c1,c2) => Both (remv c1, remv c2)
+                  | Zero => Zero
                   | If (b,c1,c2)  => (case (remv c1, remv c2) of
-                                          (All [],All []) => emp
-                                        | (c1', c2')      => If (b,c1',c2'))
+                                          (Zero,Zero) => zero
+                                        | (c1', c2')  => If (b,c1',c2'))
                   | CheckWithin (b,i,c1,c2) => 
                              (case (remv c1, remv c2) of
-                                  (All [],All []) => emp
-                                | (c1', c2')      => CheckWithin (b,i,c1',c2'))
+                                  (Zero,Zero) => zero
+                                | (c1', c2')  => CheckWithin (b,i,c1',c2'))
     in normalise (remv a)
     end
 
@@ -107,34 +110,35 @@ fun removeParty p a = removeParty p (normalise a)
 fun mergeParties_ (p1 : party) (p2 : party) (a : contr) =
     let fun merge c = 
                 case c of 
-                    TransfOne (cur,pA,pB) =>
+                    Zero => zero
+                  | TransfOne (cur,pA,pB) =>
                           if pA = p1 then 
-                              if pB = p1 orelse pB = p2 then emp
+                              if pB = p1 orelse pB = p2 then zero
                               else TransfOne (cur,p2,pB)
                           else 
                           if pB = p1 then 
-                              if pA = p2 then emp
+                              if pA = p2 then zero
                               else TransfOne (cur,p2,pB)
                           else c
                   | Scale (s,c')  => (case merge c' of
-                                          All [] => All []
+                                          Zero => zero
                                         | other  => Scale (s,other))
                   | Transl (i,c') => (case merge c' of
-                                          All [] => All []
+                                          Zero => zero
                                         | other  => Transl (i,other))
-                  | All cs => All (List.map merge cs)
+                  | Both(c1,c2) => Both (merge c1,merge c2)
                   (* merging parties can render conditional branches
                      equivalent (i.e. same normalised contract) *)
                   | If (b,c1,c2)  => (case (normalise (merge c1),
                                             normalise (merge c2)) of
-                                          (All [],All []) => emp
+                                          (Zero, Zero) => zero
                                         | (c1', c2')      =>
                                           if equal (c1',c2') then c1'
                                           else If (b,c1',c2'))
                   | CheckWithin (b,i,c1,c2) =>
                              (case (normalise (merge c1),
                                     normalise (merge c2)) of
-                                  (All [],All []) => emp
+                                  (Zero, Zero) => zero
                                 | (c1', c2')      =>
                                   if equal (c1',c2') then c1'
                                   else CheckWithin (b,i,c1',c2'))

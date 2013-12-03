@@ -10,4 +10,5 @@ in
    Instruments.sml
    ContractTransform.sml
    Instruments_test.sml
+   test.sml
 end
