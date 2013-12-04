@@ -94,16 +94,16 @@ o multiply Scale, add Transl, cutting them when empty below
 o sort the list inside "All" nodes (for comparisons, see above)
 *)
 fun normalise (Transl (i,c)) = (case normalise c of
-   (* aggregate several Transl *)   Transl (i',c') => transl (i !+! i', c')
+   (* aggregate several Transl *)   Transl (i',c') => transl (i + i', c')
                                   | other => transl (i,other))
   | normalise (If (b,c1,c2)) = 
     (case (normalise c1,normalise c2) of 
          (* lift Transl constr.s to top *) 
          (Transl (i1,c1'),Transl (i2,c2'))
-         => if eqExp(i1,i2) then transl(i1, iff (b, c1', c2'))
-            else let val iMin = min (i1, i2)
-                     val i1' = i1 !-! iMin
-                     val i2' = i2 !-! iMin
+         => if i1 =i2 then transl(i1, iff (b, c1', c2'))
+            else let val iMin = Int.min (i1, i2)
+                     val i1' = i1 - iMin
+                     val i2' = i2 - iMin
                  in transl(iMin, iff (b, transl(i1',c1'), transl(i2', c2')))
                  end
        | (c1',c2') => iff (b, c1', c2'))
@@ -111,10 +111,10 @@ fun normalise (Transl (i,c)) = (case normalise c of
     (case (normalise c1, normalise c2) of
          (* lift Transl constr.s to top *)
          (Transl (i1,c1'),Transl (i2,c2'))
-         => if eqExp(i1,i2) then transl(i1, checkWithin (b, i, c1', c2'))
-            else let val iMin = min (i1, i2)
-                     val i1' = i1 !-! iMin
-                     val i2' = i2 !-! iMin
+         => if i1 = i2 then transl(i1, checkWithin (b, i, c1', c2'))
+            else let val iMin = Int.min (i1, i2)
+                     val i1' = i1 - iMin
+                     val i2' = i2 - iMin
                  in transl(iMin, checkWithin (b, i, transl(i1',c1'), transl(i2', c2')))
                  end
        | (c1', c2') => checkWithin (b, i, c1', c2'))
@@ -122,10 +122,10 @@ fun normalise (Transl (i,c)) = (case normalise c of
     (case (normalise c1, normalise c2) of
          (* lift Transl constr.s to top *)
          (Transl (i1,c1'),Transl (i2,c2'))
-         => if eqExp(i1,i2) then transl(i1, all [c1', c2'])
-            else let val iMin = min (i1, i2)
-                     val i1' = i1 !-! iMin
-                     val i2' = i2 !-! iMin
+         => if i1 = i2 then transl(i1, all [c1', c2'])
+            else let val iMin = Int.min (i1, i2)
+                     val i1' = i1 - iMin
+                     val i2' = i2 - iMin
                  in transl(iMin, all [transl(i1',c1'), transl(i2', c2')])
                  end
        | (c1', c2') => all [c1', c2'])

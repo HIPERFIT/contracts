@@ -40,8 +40,8 @@ fun hashContr (c,a) =
       | TransfOne(cur,p1,p2) => Hs(ppCur cur,Hs(p1,Hs(p2,H(3,a))))
       | If(e,c1,c2) => hashContr(c1,hashContr(c2,hashExp(e,H(5,a))))
       | Scale(e,c) => hashExp(e,hashContr(c,H(7,a)))
-      | Transl(e,c) => hashExp(e,hashContr(c,H(11,a)))
-      | CheckWithin(e1,e2,c1,c2) => hashContr(c1,hashContr(c2,hashExp(e1,hashExp(e2,H(13,a)))))
+      | Transl(i,c) => H(i, hashContr(c,H(11,a)))
+      | CheckWithin(e1,i,c1,c2) => hashContr(c1,hashContr(c2,hashExp(e1,H(i,H(13,a)))))
 end
 infix !+! !-! !*! !<! !=! !|!
 fun x !+! y = BinOp("+",x,y)
@@ -198,12 +198,12 @@ fun ppContr c =
     in case c of
            TransfOne(c,p1,p2) => "TransfOne" ^ par (ppCur c ^ "," ^ p1 ^ "," ^ p2)
          | Scale (e,c) => "Scale" ^ par (ppExp e ^ "," ^ ppContr c)
-         | Transl(e,c) => "Transl" ^ par (ppTimeExp e ^ "," ^ ppContr c)
+         | Transl(i,c) => "Transl" ^ par (ppTimeExp (I i) ^ "," ^ ppContr c)
          | Zero => "zero"
          | Both (c1,c2) => "Both" ^ par (ppContrs[c1,c2])
          | If(e,c1,c2) => "If" ^ par (ppExp e ^ ", " ^ ppContr c1 ^ ", " ^ ppContr c2)
-         | CheckWithin (e1, e2, c1, c2) => 
-           "CheckWithin" ^ par (ppExp e1 ^ ", " ^ ppExp e2 ^ ", "  ^ ppContr c1 ^ ", " ^ ppContr c2)
+         | CheckWithin (e, i, c1, c2) => 
+           "CheckWithin" ^ par (ppExp e ^ ", " ^ ppTimeExp (I i) ^ ", "  ^ ppContr c1 ^ ", " ^ ppContr c2)
     end
 and ppContrs [] = ""
   | ppContrs [c] = ppContr c
@@ -226,10 +226,10 @@ val rec dual =
  fn Zero => Zero
   | TransfOne(c,p1,p2) => TransfOne(c,p2,p1)
   | Scale (e,c) => Scale(e,dual c)
-  | Transl(e,c) => Transl(e,dual c)
+  | Transl(i,c) => Transl(i,dual c)
   | Both(c1,c2) => Both (dual c1, dual c2)
   | If(e,c1,c2) => If(e,dual c1, dual c2)
-  | CheckWithin (e1, e2, c1, c2) => CheckWithin (e1, e2, dual c1, dual c2)
+  | CheckWithin (e, i, c1, c2) => CheckWithin (e, i, dual c1, dual c2)
 (*
 (* Contract Management *)
 fun simplify P t =

@@ -48,14 +48,14 @@ signature CONTRACT = sig
   type contr
   val transfOne   : cur * party * party -> contr
   val scale       : realE * contr -> contr
-  val transl      : intE * contr -> contr
+  val transl      : int * contr -> contr
   val all         : contr list -> contr
   val iff         : boolE * contr * contr -> contr
-  val checkWithin : boolE * intE * contr * contr -> contr 
+  val checkWithin : boolE * int * contr * contr -> contr 
 
   (* Some derived forms *)
   val zero        : contr
-  val flow        : intE * realE * cur * party * party -> contr
+  val flow        : int * realE * cur * party * party -> contr
 
   val dual        : contr -> contr
 

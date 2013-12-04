@@ -10,9 +10,11 @@ fun prHash s c =
 
 fun you2me(d,v,c) = flow(d,R v,c,"you","me")
 
-val now = I 0
-fun M n = I (n*30)
-fun Y n = I (n*360)
+(* these guys are now just int *)
+val now = 0
+fun M n = (n*30)
+fun Y n = (n*360)
+
 val me2you = dual o you2me
 
 (* Simple amortized loan *)

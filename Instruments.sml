@@ -22,8 +22,7 @@ fun fxForward buyer seller (buyCurr, otherCurr) amount strike 0 =
                   )
   | fxForward buyer seller (buyCurr, otherCurr) amount strike days =
     if days > 0 then 
-        transl (I days, 
-                fxForward buyer seller (buyCurr, otherCurr) amount strike 0)
+        transl (days, fxForward buyer seller (buyCurr, otherCurr) amount strike 0)
     else raise Error "fxForward into the past"
 
 
@@ -41,9 +40,9 @@ fun vanillaFx Call
         val cond    = R strike !<! obs (rate, 0) 
                       (* option taken depending on price > strike *)
                       (* offset "0", Transl supposed to move obs date offset!*)
-    in transl (I expiry,iff (cond, fxForward buyer seller
-                                             (buyCurr, otherCurr)
-                                             amount strike 0    , zero))
+    in transl (expiry,iff (cond, fxForward buyer seller
+                                           (buyCurr, otherCurr)
+                                           amount strike 0    , zero))
     end
   | vanillaFx Put
         seller buyer (sellCurr,otherCurr) amount strike expiry =
@@ -51,7 +50,7 @@ fun vanillaFx Call
         val cond    = obs (rate, 0) !<! R strike
                       (* option taken depending on price < strike *)
                       (* assumes transl moves obs date offset (see previous) *)
-    in transl (I expiry,iff (cond, fxForward buyer seller
+    in transl (expiry,iff (cond, fxForward buyer seller
                                              (sellCurr, otherCurr)
                                              amount strike 0    , zero))
     end
@@ -73,7 +72,7 @@ fun fxBarrierTouchBAD
                       (* next steps depend on whether barrier hit today *)
                       (* note that Transl below leads to checking every day *)
         fun fxTLoop day = 
-            transl (I day, 
+            transl (day, 
                     iff (cond,
                         scale (R amount, transfOne (curSettle, buyer, seller)),
                         if day < expiry then fxTLoop (day + 1)
@@ -92,8 +91,7 @@ fun fxBarrierTouch
                        Up   => R barrier !<! obs (rate,0)
                      | Down => obs (rate,0) !<! R barrier
                       (* next steps depend on whether barrier hit today *)
-                      (* XXX CheckWithin assumed to translate cond accordingly! *)
-    in checkWithin (cond, I expiry, (* XXX var -> cond?? *)
+    in checkWithin (cond, expiry,
                     scale (R amount, transfOne (curSettle, buyer, seller)),
                     zero) (* if barrier hit: payment. Otherwise: zero *)
     end
@@ -112,7 +110,7 @@ fun fxBarrierNoTouchBAD
                            Up   => obs (rate, 0) !<! R barrier
                          | Down => R barrier !<! obs (rate, 0)
         fun fxTLoop day = 
-            transl (I day,
+            transl (day,
                     iff (cond, 
                         scale (R amount, transfOne (curSettle, buyer, seller)),
                         if day < expiry then fxTLoop (day + 1)
@@ -127,8 +125,7 @@ fun fxBarrierNoTouch
                        Up   => R barrier !<! obs (rate, 0)
                      | Down => obs (rate, 0) !<! R barrier
                       (* intention: exit when barrier hit today *)
-                      (* XXX CheckWithin assumed to translate cond accordingly! *)
-    in checkWithin (cond, I expiry, (* XXX var -> cond?? *)
+    in checkWithin (cond, expiry,
                     zero, (* if barrier hit: zero, otherwise: payment *)
                     scale (R amount, transfOne (curSettle, buyer, seller)))
     end
@@ -144,7 +141,7 @@ fun fxDoubleBarrierIn
         val cond = (obs (rate,0) !<! R loBarr)
                    !|! (R hiBarr !<! obs (rate,0))
                     (* "in" if price below lower || above upper *)
-    in checkWithin (cond, I expiry,
+    in checkWithin (cond, expiry,
                     vanillaFx kind buyer seller (cur1,cur2)
                               amount strike expiry,
                     zero) (* if barrier hit: option; otherwise zero *)
@@ -156,7 +153,7 @@ fun fxDoubleBarrierOut
         val cond = (obs (rate,0) !<! R loBarr)
                    !|! (R hiBarr !<! obs (rate,0))
                     (* "in" if price below lower || above upper *)
-    in checkWithin (cond, I expiry,
+    in checkWithin (cond, expiry,
                     zero,  (* if barrier hit: zero, otherwise option *)
                     vanillaFx kind buyer seller (cur1,cur2)
                               amount strike expiry)
@@ -173,7 +170,7 @@ fun fxSingleBarrierIn
         val cond = case barrKind of  
                        Up   => R barr !<! obs (rate,0) (* Up: price higher  *)
                      | Down => obs (rate,0) !<! R barr (* Down: price lower *)
-    in checkWithin (cond, I expiry,
+    in checkWithin (cond, expiry,
                     vanillaFx optKind buyer seller (cur1,cur2)
                               amount strike expiry,
                     zero) (* if barrier hit: option, otherwise zero *)
@@ -185,7 +182,7 @@ fun fxSingleBarrierOut
         val cond = case barrKind of  
                        Up   => R barr !<! obs (rate,0) (* Up: price higher  *)
                      | Down => obs (rate,0) !<! R barr (* Down: price lower *)
-    in checkWithin (cond, I expiry,
+    in checkWithin (cond, expiry,
                     zero, (* if barrier hit: zero, otherwise option *)
                     vanillaFx optKind buyer seller (cur1,cur2)
                               amount strike expiry)
