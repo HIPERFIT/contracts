@@ -150,7 +150,8 @@ fun normalise (Transl (i,c)) = (case normalise c of
             else all [ iff (b1,c11,c12), iff (b2, c21, c22)]
        (* create right-bias (as constructor does) *)
        | (Both(c11,c12),c2) => all [c11,c12,c2]
-       | (c1', c2') => all [c1', c2'])
+       | (c1', c2') => if equal (c1', c2') then scale (R 2.0,c1')
+                       else all [c1', c2'])
   | normalise (Scale (e, c)) =
     (case normalise c of
          Zero => Zero
@@ -162,6 +163,19 @@ fun normalise (Transl (i,c)) = (case normalise c of
        | Both (c1,c2)  => all [scale (e,c1), scale (e,c2)] (* Both out *)
        | other         => scale (e, other))
   | normalise a = a (* zero and flows stay *)
+
+(* unrolling all CheckWithin constructors into a corresponding iff chain *)
+fun unrollCWs (If(e,c1,c2))  = iff (e, unrollCWs c1, unrollCWs c2)
+  | unrollCWs (Both (c1,c2)) = all (List.map unrollCWs [c1,c2])
+  | unrollCWs Zero = zero
+  | unrollCWs (Transl (i,c)) = transl (i, unrollCWs c)
+  | unrollCWs (Scale (e,c))  = scale (e,unrollCWs c)
+  | unrollCWs (TransfOne (c,p1,p2)) = TransfOne (c,p1,p2)
+  | unrollCWs (CheckWithin (e,t,c1,c2)) =
+    let fun check i = iff (translExp (e,i), transl (i,c1),
+                           if i = t then transl (t,c2) else check (i+1))
+    in check 0
+    end
 
 (* routine assumes a is normalised contract and applies no own
    optimisations except removing empty branches *)
