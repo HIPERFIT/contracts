@@ -63,6 +63,7 @@ signature CONTRACT = sig
   (* Contract utilities *)
   val ppContr     : contr -> string
   val hashContr   : contr * IntInf.int -> IntInf.int
+  val eqContr     : contr * contr -> bool
 end
 
 signature CONTRACT_UNSAFE =
