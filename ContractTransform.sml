@@ -128,7 +128,19 @@ fun normalise (Transl (i,c)) = (case normalise c of
                      val i2' = i2 - iMin
                  in transl(iMin, all [transl(i1',c1'), transl(i2', c2')])
                  end
+       | (If(b1,c11,c12),If(b2,c21,c22)) 
+            (* memo: maybe better to lift "Both" up, right below "Transl"?*)
+         => if eqExp (b1,b2) then iff (b1, all [c11,c21], all [c12,c22])
+            else all [ iff (b1,c11,c12), iff (b2, c21, c22)]
        | (c1', c2') => all [c1', c2'])
+  | normalise (Scale (e, c)) =
+    (case normalise c of
+         Transl (i,c') => transl (i, scale (e,c')) (* transl to top     *)
+       | Scale (e',c') => scale (e !*! e', c')     (* aggregate scales  *)
+       | If (e,c1,c2)  => iff (e, scale (e,c1), scale (e,c2))
+       | CheckWithin (e,i,c1,c2) => 
+         checkWithin (e, i, scale (e,c1), scale (e,c2))
+       | other         => scale (e, other))
   | normalise a = a
 
 (* routine assumes a is normalised contract and applies no own
