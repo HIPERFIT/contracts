@@ -2,10 +2,30 @@ structure ContractTransform = struct
 
 local open Currency Contract ContractBase in
 
-infix !+! !*!
+infix !+! !*! !-!
 
-(* find out if two contracts are the same. Assumes normalised, i.e. same
-   constructor structure and ordered components *)
+(* find out if two contracts are the same. 
+   Equality is based on hashContr, which was constructed such that the 
+   'Both' constructor is commutative and associative (hashes are added).
+
+   We know that this equality is imprecise, false negatives are possible
+   (incomplete contract equivalence check, even with normalisation).
+   There should be no false positives (non-equiv. contracts, same hash),
+   as the hash is based on prime numbers.
+*)
+fun equal (c1,c2) = let open IntInf
+(* normalisation        val h1 = hashContr (normalise c1, fromInt 0)
+   inside, expensive!   val h2 = hashContr (normalise c2, fromInt 0)
+      Rather than that, we assume c1 and c2 are already normalised *)
+                        val h1 = hashContr (c1, fromInt 0)
+                        val h2 = hashContr (c2, fromInt 0)
+                        val r  = compare (h1,h2)
+                    in r = EQUAL
+                    end
+(* IntInf.compare(hashContr(c1,IntInf.fromInt 0),hashContr(c2,IntInf.fromInt 0)) = EQUAL *)
+
+(* this was the old approach, which would require contracts to be _ordered_.
+
 fun equal (c1,c2) = case (c1,c2) of
                       (Zero, Zero) => true
                     | (TransfOne (cur1,x1,y1),TransfOne (cur2,x2,y2))
@@ -66,6 +86,7 @@ fun compare (TransfOne (c1,x1,y1), TransfOne (c2,x2,y2)) =
   | compare (Transl (i1,c1), Transl (i2,c2)) =
     hd (List.filter notEqual [compare (c1,c2)(*, compare (i1,i2)*)] @ [EQUAL])
   | compare (_,_) = raise Fail "Dude! This should never happen!"
+*)
 
 (* Normalisation... Continue this one, many jobs to do here:
 o gather Transl outside of If/Check, All and Scale inside 
@@ -73,8 +94,41 @@ o multiply Scale, add Transl, cutting them when empty below
 o sort the list inside "All" nodes (for comparisons, see above)
 *)
 fun normalise (Transl (i,c)) = (case normalise c of
-   (* aggregate several Transl *)   Transl (i',c') => Transl (i !+! i', c')
-                                  | other => Transl (i,other))
+   (* aggregate several Transl *)   Transl (i',c') => transl (i !+! i', c')
+                                  | other => transl (i,other))
+  | normalise (If (b,c1,c2)) = 
+    (case (normalise c1,normalise c2) of 
+         (* lift Transl constr.s to top *) 
+         (Transl (i1,c1'),Transl (i2,c2'))
+         => if eqExp(i1,i2) then transl(i1, iff (b, c1', c2'))
+            else let val iMin = min (i1, i2)
+                     val i1' = i1 !-! iMin
+                     val i2' = i2 !-! iMin
+                 in transl(iMin, iff (b, transl(i1',c1'), transl(i2', c2')))
+                 end
+       | (c1',c2') => iff (b, c1', c2'))
+  | normalise (CheckWithin (b, i, c1, c2)) =
+    (case (normalise c1, normalise c2) of
+         (* lift Transl constr.s to top *)
+         (Transl (i1,c1'),Transl (i2,c2'))
+         => if eqExp(i1,i2) then transl(i1, checkWithin (b, i, c1', c2'))
+            else let val iMin = min (i1, i2)
+                     val i1' = i1 !-! iMin
+                     val i2' = i2 !-! iMin
+                 in transl(iMin, checkWithin (b, i, transl(i1',c1'), transl(i2', c2')))
+                 end
+       | (c1', c2') => checkWithin (b, i, c1', c2'))
+  | normalise (Both (c1,c2)) =
+    (case (normalise c1, normalise c2) of
+         (* lift Transl constr.s to top *)
+         (Transl (i1,c1'),Transl (i2,c2'))
+         => if eqExp(i1,i2) then transl(i1, all [c1', c2'])
+            else let val iMin = min (i1, i2)
+                     val i1' = i1 !-! iMin
+                     val i2' = i2 !-! iMin
+                 in transl(iMin, all [transl(i1',c1'), transl(i2', c2')])
+                 end
+       | (c1', c2') => all [c1', c2'])
   | normalise a = a
 
 (* routine assumes a is normalised contract and applies no own

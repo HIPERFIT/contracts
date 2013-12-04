@@ -252,3 +252,25 @@ h(Iff(e,c1,c2),a)          = h(c1,h(c2,h(e,H(5,a))))
 h(Scale(e,c),a)            = h(e,h(c,H(7,a)))
 h(Transl(e,c),a)           = h(e,h(c,H(11,a)))
 
+==============================================
+
+Argument against using intE for Transl constructor:
+
+On day 0 observe Carlsberg to define when to receive 
+a flow scaling with the IBM stock price (on _that_ day, BAD)
+
+Transl ( obs ("Carlsberg",0) , Scale (obs ("IBM",0),flow(...)))
+
+Desired: 
+On day 0 observe Carlsberg to define when to receive 
+a flow scaling with the IBM stock price on _1st_ of _January_.
+
+Solution:
+ Choose d from today such that addDays today d = Jan 1 2014
+Scale (obs ("IBM", d), Transl(obs ("Carlsberg",0), flow (...)))
+                        
+This normalises to a non-causal thing: the observable "IBM" needs
+to be translated using an intE, not an int.
+
+==> replace intE by int in Transl constructor, incl. all changes on top.
+
