@@ -41,6 +41,7 @@ signature CONTRACT = sig
   val ppExp       : 'a exp -> string
   val eqExp       : 'a exp * 'a exp -> bool
   val hashExp     : 'a exp * IntInf.int -> IntInf.int
+  val translExp   : 'a exp * int -> 'a exp
 
   (* Contracts *)
   type party      = string

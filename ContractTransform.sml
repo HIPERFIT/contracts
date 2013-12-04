@@ -88,40 +88,56 @@ fun compare (TransfOne (c1,x1,y1), TransfOne (c2,x2,y2)) =
   | compare (_,_) = raise Fail "Dude! This should never happen!"
 *)
 
-(* Normalisation... Continue this one, many jobs to do here:
-o gather Transl outside of If/Check, All and Scale inside 
+(* Contract normalisation:
+o gather Transl outside of If, All and Scale inside 
 o multiply Scale, add Transl, cutting them when empty below 
-o sort the list inside "All" nodes (for comparisons, see above)
+o CheckWithin is a very special case, stays pinned wrt. Transl.
 *)
 fun normalise (Transl (i,c)) = (case normalise c of
    (* aggregate several Transl *)   Transl (i',c') => transl (i + i', c')
+                                  | Zero => Zero
                                   | other => transl (i,other))
   | normalise (If (b,c1,c2)) = 
     (case (normalise c1,normalise c2) of 
+         (Zero,Zero) => Zero
          (* lift Transl constr.s to top *) 
-         (Transl (i1,c1'),Transl (i2,c2'))
+       | (Transl (i1,c1'),Transl (i2,c2'))
          => if i1 =i2 then transl(i1, iff (b, c1', c2'))
             else let val iMin = Int.min (i1, i2)
                      val i1' = i1 - iMin
                      val i2' = i2 - iMin
-                 in transl(iMin, iff (b, transl(i1',c1'), transl(i2', c2')))
+                 in transl(iMin, iff (translExp (b, ~iMin),
+                                      transl(i1',c1'), transl(i2', c2')))
                  end
+       | (Transl (i1,c1'),Zero) => transl (i1, iff (b, c1', zero))
+       | (Zero,Transl (i2,c2')) => transl (i2, iff (b, zero, c2'))
        | (c1',c2') => iff (b, c1', c2'))
   | normalise (CheckWithin (b, i, c1, c2)) =
     (case (normalise c1, normalise c2) of
+         (Zero,Zero) => Zero
+(* WRONG: would translate b and i, and thereby shorten checked period!
          (* lift Transl constr.s to top *)
-         (Transl (i1,c1'),Transl (i2,c2'))
+       | (Transl (i1,c1'),Transl (i2,c2'))
          => if i1 = i2 then transl(i1, checkWithin (b, i, c1', c2'))
             else let val iMin = Int.min (i1, i2)
                      val i1' = i1 - iMin
                      val i2' = i2 - iMin
-                 in transl(iMin, checkWithin (b, i, transl(i1',c1'), transl(i2', c2')))
+                     val b'  = translExp (b, ~iMin)
+                     val i'  = i - iMin
+                 in transl(iMin, checkWithin (b', i', transl(i1',c1'),
+                                              transl(i2', c2')))
                  end
+       | (Transl (i1,c1'),Zero) => transl (i1, checkWithin (b', i', c1', zero))
+       | (Zero,Transl (i2,c2')) => transl (i2, checkWithin (b', i', zero, c2'))
+*)
        | (c1', c2') => checkWithin (b, i, c1', c2'))
   | normalise (Both (c1,c2)) =
     (case (normalise c1, normalise c2) of
-         (* lift Transl constr.s to top *)
-         (Transl (i1,c1'),Transl (i2,c2'))
+         (Zero,Zero) => Zero
+       | (Zero,c) => c
+       | (c,Zero) => c
+       (* lift Transl constr.s to top *)
+       | (Transl (i1,c1'),Transl (i2,c2'))
          => if i1 = i2 then transl(i1, all [c1', c2'])
             else let val iMin = Int.min (i1, i2)
                      val i1' = i1 - iMin
@@ -129,19 +145,23 @@ fun normalise (Transl (i,c)) = (case normalise c of
                  in transl(iMin, all [transl(i1',c1'), transl(i2', c2')])
                  end
        | (If(b1,c11,c12),If(b2,c21,c22)) 
-            (* memo: maybe better to lift "Both" up, right below "Transl"?*)
+         (* memo: maybe better to lift "Both" up, right below "Transl"?*)
          => if eqExp (b1,b2) then iff (b1, all [c11,c21], all [c12,c22])
             else all [ iff (b1,c11,c12), iff (b2, c21, c22)]
+       (* create right-bias (as constructor does) *)
+       | (Both(c11,c12),c2) => all [c11,c12,c2]
        | (c1', c2') => all [c1', c2'])
   | normalise (Scale (e, c)) =
     (case normalise c of
-         Transl (i,c') => transl (i, scale (e,c')) (* transl to top     *)
+         Zero => Zero
        | Scale (e',c') => scale (e !*! e', c')     (* aggregate scales  *)
+       | Transl (i,c') => transl (i, scale (e,c')) (* transl to top     *)
        | If (e,c1,c2)  => iff (e, scale (e,c1), scale (e,c2))
-       | CheckWithin (e,i,c1,c2) => 
+       | CheckWithin (e,i,c1,c2) =>     (* iff and checkWithin out *)
          checkWithin (e, i, scale (e,c1), scale (e,c2))
+       | Both (c1,c2)  => all [scale (e,c1), scale (e,c2)] (* Both out *)
        | other         => scale (e, other))
-  | normalise a = a
+  | normalise a = a (* zero and flows stay *)
 
 (* routine assumes a is normalised contract and applies no own
    optimisations except removing empty branches *)

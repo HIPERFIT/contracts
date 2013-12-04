@@ -180,6 +180,14 @@ fun simplifyExp P e =  (* memo: rewrite to bottom-up strategy to avoid the quadr
              | BinOp(f,e1,e2) => BinOp(f,simplifyExp P e1,simplifyExp P e2)
              | _ => e
 
+fun translExp (e, 0) = e
+  | translExp (e, d) =
+    case e of
+        Obs (s,t) => obs (s,t+d)
+      | BinOp(s,e1,e2) => BinOp (s, translExp (e1, d), translExp (e2, d))
+      | UnOp(s,e1) => UnOp (s, translExp (e1, d))
+      | other => e (* rest unmodified *)
+
 (*
 val rec eqExp = fn
     (I i1, I i2) => i1 = i2
@@ -210,9 +218,13 @@ and ppContrs [] = ""
   | ppContrs (c::cs) = ppContr c ^ ", " ^ ppContrs cs
 
 val transfOne = TransfOne
-val transl = Transl
-val checkWithin = CheckWithin
+fun transl (0,c) = c
+  | transl (t,c) = if t > 0 then Transl (t,c) 
+                   else raise Fail "transl: negative time"
 val iff = If
+fun checkWithin (b,0,c1,c2) = iff (b,c1,c2)
+  | checkWithin (b,i,c1,c2) = if i > 0 then CheckWithin (b,i,c1,c2)
+                              else raise Fail "checkWithin: negative duration"
 fun all [] = Zero
   | all [c] = c
   | all (c::cs) = Both(c,all cs)
