@@ -1,0 +1,50 @@
+
+		 An Algebra for Multiparty Contracts
+
+			      2013-12-05
+
+			by Martin Elsman, DIKU
+		 with Patrick Bahr and Jost Berthold
+
+			Presentation at Nordea
+
+
+-----
+
+*Goals
+
+
+
+
+
+*A Contract Language
+
+  e ::= i | e1 + e2 | e1 * e2 | min(e1,e2) | e1 < e2
+
+  c ::= zero
+      | transl(i,c)
+      | scale(e,c)
+      | iff(e,c1,c2)
+      | both(e1,e2)
+      | transfOne(cur,p1,p2)
+      | within(e,i,c1,c2)
+
+* Examples of contracts
+
+ - fx-swap
+
+ - vanilla call option
+ 
+ - Nordea portfolio
+
+* Contract utilities
+
+  - Finding cash flows
+ 
+  - Eliminating transfers to and from a particular party
+
+  - Merging parties
+
+  - Applying fixings
+
+  - Advancing a contract in time

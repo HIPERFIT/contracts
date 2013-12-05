@@ -65,7 +65,21 @@ fun yearDayToMD yd yy =
     in yearMD Date.Jan (yd+1) (* yearDay starts from 0! *) 
     end
 
-(* *)
+fun addDays i d =
+    let val t = Date.toTime d
+        val seconds = i * 24*60*60
+        (* Mosml's Time.fromSeconds function has a wrong type, thus it is 
+         * necessary to go over a string representation for portability *)
+        val s = Int.toString seconds ^ ".0"
+    in case Time.fromString s of
+           SOME off =>
+           let val t' = Time.+(t,off)
+           in Date.fromTimeLocal t'
+           end
+           | NONE => raise Fail "addDays - impossible"
+    end
+
+(* THIS is WRONG - it is not computing correctly... !!
 fun addDays   0  date = date
   | addDays days date = 
     let val yd = Date.yearDay date 
@@ -93,6 +107,7 @@ fun addDays   0  date = date
                                   hour = 0, minute = 0, second = 0, 
                                   offset = NONE })
     end
+*)
 
 (* computes day difference to go from d1 to d2 *)
 fun dateDiff d1 d2 = if Date.compare (d1,d2) = GREATER

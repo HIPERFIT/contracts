@@ -46,17 +46,17 @@ signature CONTRACT = sig
   type party      = string
   type cur        = Currency.cur
   type contr
+  val zero        : contr
   val transfOne   : cur * party * party -> contr
   val scale       : realE * contr -> contr
   val transl      : int * contr -> contr
-  val all         : contr list -> contr
+  val both        : contr * contr -> contr
   val iff         : boolE * contr * contr -> contr
   val checkWithin : boolE * int * contr * contr -> contr 
 
   (* Some derived forms *)
-  val zero        : contr
+  val all         : contr list -> contr
   val flow        : int * realE * cur * party * party -> contr
-
   val dual        : contr -> contr
 
   (* Contract utilities *)
@@ -64,6 +64,10 @@ signature CONTRACT = sig
   val hashContr   : contr * IntInf.int -> IntInf.int
   val eqContr     : contr * contr -> bool
   val simplify    : env * date -> contr -> contr
+
+  type cashflow   = date * cur * party * party * bool * realE
+  val ppCashflows : cashflow list -> string
+  val cashflows   : date -> contr -> cashflow list
 end
 
 signature CONTRACT_UNSAFE =

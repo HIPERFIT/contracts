@@ -12,10 +12,17 @@ fun you2me(d,v,c) = flow(d,R v,c,"you","me")
 
 (* these guys are now just int *)
 val now = 0
+val today = DateUtil.? "2013-01-01"
 fun M n = (n*30)
 fun Y n = (n*360)
 
 val me2you = dual o you2me
+
+fun report d s c =
+    (println "";
+     println(s ^ " - Contract:\n  " ^ ppContr c);
+     println "\nCashflows:";
+     println (ppCashflows(cashflows d c)))
 
 (* Simple amortized loan *)
 val ex1 =
@@ -27,10 +34,7 @@ val ex1 =
             me2you(M 3,coupon,EUR)]
     end
 
-val _ = println "\nEx1 - Cashflows for simple amortized loan:"
-val _ = println ("  Contract: " ^ ppContr ex1)
-
-(*val _ = println (cashflows noE ex1)*)
+val () = report today "Ex1 (swap)" ex1
 
 (* Cross currency swap *)
 val ex2 =
@@ -45,11 +49,8 @@ val ex2 =
             me2you(M 2,coupon_eur,EUR)]
     end    
 
-val _ = println "\nEx2 - Cashflows for cross-currency swap:"
-(* val _ = println (cashflows noE ex2) *)
+val () = report today "Ex2 (Fx-swap)" ex2
 
-val _ = prHash "ex2" ex2
-(* Contract Management *)
 
 (* val ex3 = advance (I 15) ex2 *)
 val _ = println "\nEx3: Cross-currency swap advanced half a month:"
@@ -67,6 +68,7 @@ val ex4 =
                     scale(obs,transfOne(EUR,"you","me"))))
     end
 
+val () = report today "Ex4 (call option)" ex4
 val _ = println "\nEx4 - Cashflows on 1000 Stock options (Strike:50,Price:79):"
 (* val _ = println (cashflows (fn _ => 79.0) ex4) *)
 

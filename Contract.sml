@@ -43,6 +43,15 @@ fun hashContr (c,a) =
       | Transl(i,c) => H(i, hashContr(c,H(11,a)))
       | CheckWithin(e1,i,c1,c2) => hashContr(c1,hashContr(c2,hashExp(e1,H(i,H(13,a)))))
 end
+
+fun eqExp (e1,e2) =
+    IntInf.compare(hashExp(e1,IntInf.fromInt 0),
+                   hashExp(e2,IntInf.fromInt 0)) = EQUAL
+
+fun eqContr (c1,c2) =
+    IntInf.compare(hashContr(c1,IntInf.fromInt 0),
+                   hashContr(c2,IntInf.fromInt 0)) = EQUAL
+
 infix !+! !-! !*! !<! !=! !|!
 fun x !+! y = BinOp("+",x,y)
 fun x !-! y = BinOp("-",x,y)
@@ -83,14 +92,6 @@ fun binopBB opr b1 b2 =
         "=" => B (b1=b2)
       | "|" => B (b1 orelse b2)
       | _ => raise Fail ("binopBB: operator not supported: " ^ opr)
-
-fun eqExp (e1,e2) =
-    IntInf.compare(hashExp(e1,IntInf.fromInt 0),
-                   hashExp(e2,IntInf.fromInt 0)) = EQUAL
-
-fun eqContr (c1,c2) =
-    IntInf.compare(hashContr(c1,IntInf.fromInt 0),
-                   hashContr(c2,IntInf.fromInt 0)) = EQUAL
 
 fun binop opr e1 e2 =
     let fun mk() = BinOp(opr,e1,e2)
@@ -284,5 +285,54 @@ fun simplify P t =
         in iff(e,c1,c2)
         end
       | CheckWithin (e, i, c1, c2) => checkWithin (simplifyExp P e, i, c1, simplify P c2)
+
+type cashflow   = date * cur * party * party * bool * realE
+fun ppCashflow w (d,cur,p1,p2,certain,e) =
+    let fun sq s = "[" ^ s ^ "]"
+        fun pad w s =
+            s ^ CharVector.tabulate (w - size s, fn _ => #" ")
+        fun ppCertain true = "Certain"
+          | ppCertain false = "Uncertain"
+    in String.concatWith " "
+       [Date.fmt "%Y-%m-%d" d,
+        ppCertain certain,
+        pad w (sq(p1 ^ "->" ^ p2)),
+        ppCur cur,
+        ppExp (simplifyExp (emptyEnv,d) e)]
+    end
+
+fun ppCashflows [] = "no cashflows"
+  | ppCashflows l =  
+    let val szs = List.map (fn (_,_,p1,p2,_,_) => size p1 + size p2 + 4) l
+        val sz = List.foldl(fn (i,a) => if i > a then i else a) 0 szs
+    in String.concatWith "\n" (List.map (ppCashflow sz) l)
+    end
+
+fun cashflows d c : cashflow list =
+    let fun cf (d,c,s,certain) =
+            case c of
+                Zero => nil
+              | TransfOne(c,p1,p2) => [(d,c,p1,p2,certain,s)]
+              | Both(c1,c2) => cf(d,c1,s,certain) @ cf(d,c2,s,certain)
+              | Scale(s',c) => cf(d,c,s !*! s',certain)
+              | Transl(i,c2) =>
+                let val d' = DateUtil.addDays i d
+(*
+                    val () = print ("d=" ^ Date.toString d ^ "\n")
+                    val () = print ("i=" ^ Int.toString i ^ "\n")
+                    val () = print ("d'=" ^ Date.toString d' ^ "\n")
+*)
+                in cf(d',c2,s,certain)
+                end
+              | If(b,c1,c2) => cf(d,c1,s,false) @ cf(d,c2,s,false)
+              | CheckWithin(e,i,c1,c2) =>
+                if i <= 0 then nil
+                else cf(d,c1,s,false) @
+                     cf(d,c2,s,false) @
+                     cf(DateUtil.addDays 1 d,
+                        checkWithin(translExp(e,i),i-1,c1,c2),s,certain)
+        val flows = cf(d,c,R 1.0,true)
+    in ListSort.sort (fn ((d1,_,_,_,_,_),(d2,_,_,_,_,_)) => Date.compare (d1,d2)) flows
+    end
 
 end

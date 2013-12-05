@@ -1,6 +1,8 @@
 local 
    $(SML_LIB)/basis/basis.mlb
    DateUtil.sml
+   ListSort.sig
+   ListSort.sml
 in 
    CURRENCY.sig
    Currency.sml
