@@ -30,7 +30,6 @@ signature CONTRACT = sig
   val addFixing   : (string * date * real) * env -> env
 
   (* Evaluation *)
-  exception Eval of string
   val evalR       : env * date -> realE -> real
   val evalI       : env * date -> intE  -> int
   val evalB       : env * date -> boolE -> bool
@@ -64,6 +63,7 @@ signature CONTRACT = sig
   val ppContr     : contr -> string
   val hashContr   : contr * IntInf.int -> IntInf.int
   val eqContr     : contr * contr -> bool
+  val simplify    : env * date -> contr -> contr
 end
 
 signature CONTRACT_UNSAFE =

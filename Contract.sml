@@ -56,8 +56,6 @@ fun min (x,y) = BinOp("min",x,y)
 
 val obs : (string*int) -> 'a exp = Obs
 
-exception Eval of string
-
 fun binopII opr i1 i2 =
     case opr of
         "+" => I (i1+i2)
@@ -144,7 +142,7 @@ fun eval (E:env,d:date) e =
              B b => B(Bool.not b)
            | e1 => UnOp("not",e1))
       | UnOp(opr,_) => raise Fail ("eval.UnOp: unsupported operator: " ^ opr)
-                               
+
 fun evalR E e = 
     case eval E e of R r => r
                    | _ => raise Fail "evalR: expecting real"
@@ -193,13 +191,8 @@ fun certainExp e =
       | BinOp(_,e1,e2) => certainExp e1 andalso certainExp e2
       | UnOp(_,e1) => certainExp e1
                               
-fun simplifyExp P e =  (* memo: rewrite to bottom-up strategy to avoid the quadratic behavior *)
+fun simplifyExp P e =
     eval P e
-    handle Eval _ =>
-           case e of
-               UnOp(f,e1) => UnOp(f,simplifyExp P e1)
-             | BinOp(f,e1,e2) => BinOp(f,simplifyExp P e1,simplifyExp P e2)
-             | _ => e
 
 fun translExp (e, 0) = e
   | translExp (e, d) =
@@ -275,8 +268,7 @@ fun simplify P t =
     case t of
         Zero => zero
       | Both(c1,c2) => both(simplify P c1, simplify P c2)
-      | Scale(obs,Both(c1,c2)) => 
-        simplify P (all (map (fn t => scale(obs,t)) [c1,c2]))
+      | Scale(obs,Both(c1,c2)) => simplify P (both(scale(obs,c1),scale(obs,c2)))
       | Scale(r,t) => scale(simplifyExp P r,simplify P t)
       | Transl(i,t') =>
         let val (E,d) = P
@@ -288,7 +280,7 @@ fun simplify P t =
       | If (e, c1, c2) => 
         let val e = simplifyExp P e
             val c1 = simplify P c1
-            val c1 = simplify P c2
+            val c2 = simplify P c2
         in iff(e,c1,c2)
         end
       | CheckWithin (e, i, c1, c2) => checkWithin (simplifyExp P e, i, c1, simplify P c2)
