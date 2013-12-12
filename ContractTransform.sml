@@ -31,21 +31,18 @@ fun normalise (Transl (i,c)) = (case normalise c of
   | normalise (CheckWithin (b, i, c1, c2)) =
     (case (normalise c1, normalise c2) of
          (Zero,Zero) => Zero
-(* WRONG: would translate b and i, and thereby shorten checked period!
          (* lift Transl constr.s to top *)
        | (Transl (i1,c1'),Transl (i2,c2'))
-         => if i1 = i2 then transl(i1, checkWithin (b, i, c1', c2'))
+         => if i1 = i2 then transl(i1, checkWithin (translExp (b, ~i1), i, c1', c2'))
             else let val iMin = Int.min (i1, i2)
                      val i1' = i1 - iMin
                      val i2' = i2 - iMin
                      val b'  = translExp (b, ~iMin)
-                     val i'  = i - iMin
-                 in transl(iMin, checkWithin (b', i', transl(i1',c1'),
+                 in transl(iMin, checkWithin (b', i, transl(i1',c1'),
                                               transl(i2', c2')))
                  end
-       | (Transl (i1,c1'),Zero) => transl (i1, checkWithin (b', i', c1', zero))
-       | (Zero,Transl (i2,c2')) => transl (i2, checkWithin (b', i', zero, c2'))
-*)
+       | (Transl (i1,c1'),Zero) => transl (i1, checkWithin (translExp (b, ~i1), i, c1', zero))
+       | (Zero,Transl (i2,c2')) => transl (i2, checkWithin (translExp (b, ~i2), i, zero, c2'))
        | (c1', c2') => checkWithin (b, i, c1', c2'))
   | normalise (Both (c1,c2)) =
     (case (normalise c1, normalise c2) of
