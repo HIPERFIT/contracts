@@ -211,8 +211,7 @@ should probably be removed, as it cannot state anything about value of d
         ------------------- (Al)
         |- all [c1,....,cn]
 
-       certain(d)  d >= 0  |- b  |- c2/d
-          |- c1/i for all 0 <= i < d
+         d >= 0  |- b  |- c2/d    |- c1
        --------------------------------- (CW1)
         |- checkWithin (b, d, c1, c2)
 
@@ -221,12 +220,22 @@ should probably be removed, as it cannot state anything about value of d
                let r i = if i == d then transl(d,c2)
                                    else iff (b/i, transl(i,c1), r (i+1))
                in r 0
+
+   checkWithin (b, d, c1, c2) ==
+               iff (b, c1, transl(1, checkWithin(b, d-1, c1, c2)))
+   checkWithin (b, 0, c1, c2) == iff(b,c1,c2)
+
+    (*** note: b is assumed only to contain relative observables ***)
+ 
 This recursion could be written as a fixed point...
 c1 is translated with i < d during unrolling. 
 b is causal at present, but not necessarily in the future.)
 
 Proposition (Conservative Causality Soundness).
 If |- c then c is causal. 
+
+Lemma: if |- c then |- c/i   for all i >= 0
+
 
 =======================
 
