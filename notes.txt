@@ -77,8 +77,9 @@ more real-world functionality:
 defaultParty (party : string, 
              t : time (expected litigation duration), 
              perc : real (percentage), a : contract) = 
-      contract a, with all transactions involving party scaled to
-      perc % and translated by time t forward
+      contract a, with all payments received from this party scaled to
+      perc % and translated by time t forward, and all payments to this
+      party removed.
 
 =======================
 
@@ -86,6 +87,8 @@ How to model (non-rational) choice?
 
 Should be part of the Expr language (chosenBy party : boolE) and 
 use the If constructor.
+
+Or else, Choice(p, c1, c2) as a contract constructor?
 
 =======================
 
@@ -124,16 +127,22 @@ How the contract language differs from the LexiFi contract language
    Notice that time adjustment e/d is defined only when d is known to
    be a particular integer.
 
+   An expression's value is certain if it does not contain observables.
+   In this case, we call the expression "certain" (i.e. if its _value_ is certain)
+
    Here are some equivalences that hold:
 
-    transl(d1,transl(d2,c)     ==   transl(d1+(d2/d1),c)           d1 certain
+    transl(d1,transl(d2,c)     ==   transl(d1+d2,c)
     transl(d,scale(s,c))       ==   scale(s,transl(d,c))           s certain
-    transl(d,scale(s,c))       ==   scale(s/d,transl(d,c))         d certain
+    transl(d,scale(s,c))       ==   scale(s/d,transl(d,c))
     scale(s1,scale(s2,c))      ==   scale(s1*s2,c)
     iff(T,c1,c2)               ==   c1
     iff(F,c1,c2)               ==   c2
     transl(d,all cs)           ==   all (map (\c.transl(d,c)) cs)
-    transl(d,iff(cond,c1,c2))  ==   iff(cond/d, transl(d,c1), transl(d,c2))   d certain
+    transl(d,iff(cond,c1,c2))  ==   iff(cond/d, transl(d,c1), transl(d,c2))
+                                       -------- needs expr. translation.
+                            (cond/d must be _causal_ , defined below for expr.s)
+
     iff(c,zero,zero)           ==   zero
     transl(d,zero)             ==   zero
     scale(r,zero)              ==   zero
@@ -283,3 +292,115 @@ to be translated using an intE, not an int.
 
 ==> replace intE by int in Transl constructor, incl. all changes on top.
 
+===========================
+===========================
+
+Formal semantics of contracts:
+
+
+\mathbb{C} :: Contract -> Environment -> 
+              Sequence of Set of CashFlows (for all days in the future)
+
+         where CashFlow = (Amount, currency, party_from, party_to)
+               ( see flow function in Contract.sml )
+               Environment = (int, string) -/-> Real (partial mapping)
+
+equivalent: adding a date to flow, sorting by date, inserting empty dates.
+(we have a prettyprinter for that one)
+
+Reminder: exp/d means all offsets in observables in exp forwarded by d (+d)
+We transfer this "/" to environments now:
+
+   e / d =  \(i,s) -> e (i+d,s)
+
+E [[ exp ]] e =..
+
+C [[ Zero ]] e = repeat emptySet
+
+C [[ TransfOne (cur, p1, p2) ]] e = (1,cur,p1,p2): repeat emptySet
+
+C [[ Scale (exp, c1) ]]         e = let cs = C [[ c1 ]] e
+                                    in mapmap (\(a,c,f,t) -> (a*E[[exp]]e,c,f,t)) cs
+
+C [[ Both (c1,c2) ]]  e = zipWith flowMerge ( C[[c1]]e) (C[[c2]]e)
+
+C [[ Transl (d,c1) ]] e = replicate d emptySet ++ C [[ c1 ]] (e/d) **
+
+C [[ If ( b, c1, c2) ]] e = if (E [[ b ]] e) then C [[ c1 ]] e else C [[ c2 ]] e
+                               ------------- might not exist(?)
+                       (partial Env. function leads to partial semantics)
+C [[ CheckWithin ( b, d, c1, c2) ]] 
+  | d == 0 = C [[ If (b, c1, c2) ]] e
+  | d > 0  = if (E [[ b ]] e) then C [[ c1 ]] e 
+                              else emptySet : C [[ CheckWithin (b,d-1,c1,c2) ]] e/1
+
+**      example: Transl (2 , Scale (obs "carlsberg" -1, TransfOne (dkk, me, you))
+               =semantic= Scale (obs "carlsberg" 1, Tranls(2, TransfOne (dkk, me, you)))
+           (pay in 2 days the carlsberg stock I give tomorrow)
+
+Defining causality using the semantics:
+
+(above: - A causal contract is, by definition, a contract with the property that during
+ all possible executions of the contract, a transfer cannot depend on a future fixing.)
+
+c "causal" :<=> For all d: if two environments e1 e2 coincide up to point d in time,
+                           then the semantics of c under e1 and e2 coincides at point d.
+
+(e1 and e2 "coincide" up to d <- Int :<=> e1 (s,x) == e2(s,x) for all x <= d)
+
+(Semantics of contract c under e1 and e2 "coincide" up to d :<=>
+       take d ( C[[c]] e1) == take d ( C[[c]]e2 ))
+
+-------------
+
+Advancing a contract by d days = drop d (C [[c]]e)
+
+Removing a party p from a contract = map (setFilter (not (involves p))) (C[[c]]e)
+         where involves p (_,_,p',p'') = p == p' || p == p''
+
+merging parties: ... eliminating flows between them
+
+----------
+
+"defocus" of contracts, by time window i:
+  union of d consecutive flow sets, merging as appropriate. Start
+  (arbitrary) by full time window..
+
+  This leads to a "i-day semantics", where above we defined the "day semantics".
+
+  What about the observables? (min/max/what?)
+
+more advanced: "defocusParty" from a party's perspective:
+
+  avoid "making contracts look better" by defocusing, move payments I
+  make to the beginning while the ones I receive go to the end of the
+  window.
+
+what does it mean for a contract to "look better" (and for whom)?
+
+===========
+
+A contract c' is a d-defocus of a contract c iff "when fiddling with
+ the environment using d" c' yields the same semantics as defocus(d,c)
+
+"fiddling with the env." defines the semantics of defocus more thoroughly.
+
+--------------------
+
+problem "where to draw the line".
+
+Might be useful to use a "sliding average window" of cash flows,
+window size d. However, the sum of all sliding averages is maybe not
+equal to the sum of all original cashflows between two resp. parties.
+(or is it?)
+
+contracts c1 and c2 are d-similar iff their d-defocus (using this
+sliding average) is the same.
+
+==================
+
+Potentially useful defocused views on a contract:
+
+o merging all counterparties to one, analysing the result (defocused,merged)
+    example: if the merge ends up being just one vanilla option, hedge
+             with an opposite option.
