@@ -403,3 +403,16 @@ Potentially useful defocused views on a contract:
 o merging all counterparties to one, analysing the result (defocused,merged)
     example: if the merge ends up being just one vanilla option, hedge
              with an opposite option.
+
+
+=================
+
+Higher-Order Abstract Syntax for Contracts
+
+Example:
+  observe("CB", fn cb0 => 
+    transl(10, 
+      observe("CB", fn cb =>
+        iff(cb > cb0,
+            scale(cb - cb0, transfOne(DK, "you", "me")),
+            zero))))
