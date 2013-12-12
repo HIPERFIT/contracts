@@ -140,9 +140,8 @@ How the contract language differs from the LexiFi contract language
     iff(F,c1,c2)               ==   c2
     transl(d,all cs)           ==   all (map (\c.transl(d,c)) cs)
     transl(d,iff(cond,c1,c2))  ==   iff(cond/d, transl(d,c1), transl(d,c2))
-                                       -------- needs expr. translation.
-                            (cond/d must be _causal_ , defined below for expr.s)
-
+    transl(d,checkWithin (cond, e, c1, c2))  ==  
+                             checkWithin (cond/d, e, transl(d,c1), transl(d,c2))
     iff(c,zero,zero)           ==   zero
     transl(d,zero)             ==   zero
     scale(r,zero)              ==   zero
