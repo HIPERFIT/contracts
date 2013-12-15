@@ -1,8 +1,10 @@
-Require Import ZArith.
 Require Import QArith.
 Require Import String.
 Require Import FunctionalExtensionality.
 Require Import Basics.
+Require Import ZArith.
+Import Compare_dec.
+Local Open Scope Z_scope.
 
 Infix "∘" := compose (at level 40, left associativity).
 
@@ -58,7 +60,9 @@ Inductive contract : Set :=
  | Both : contract -> contract -> contract
  | IfWithin : bexp -> nat -> contract -> contract -> contract.
 
-Definition env := Z -> observable -> option Q.
+(* Observations *)
+
+Definition obs := Z -> observable -> option Q.
 
 Definition plusZnat (n : nat) (z : Z) : Z := Zplus (Z_of_nat n) z.
 
@@ -67,27 +71,29 @@ Proof.
   unfold plusZnat. rewrite -> Z.add_assoc. rewrite <- Nat2Z.inj_add. reflexivity.
 Qed.
 
-Definition advance_env (d : nat) (e : env) : env 
+(* Move observations into the future. *)
+
+Definition adv_obs (d : nat) (e : obs) : obs 
   := fun x => e (plusZnat d x).
 
-Lemma advance_env_0 e : advance_env 0 e = e.
+Lemma adv_obs_0 e : adv_obs 0 e = e.
 Proof.
   apply functional_extensionality.
-  unfold advance_env. unfold plusZnat. rewrite Nat2Z.inj_0. reflexivity.
+  unfold adv_obs. unfold plusZnat. rewrite Nat2Z.inj_0. reflexivity.
 Qed.
 
-Lemma advance_env_iter d d' e : advance_env d (advance_env d' e) = advance_env (plus d' d) e.
+Lemma adv_obs_iter d d' e : adv_obs d (adv_obs d' e) = adv_obs (plus d' d) e.
 Proof.
   apply functional_extensionality. induction d'; intros.
-  simpl. rewrite advance_env_0. reflexivity.
-  simpl. unfold advance_env in *.  rewrite plusZnat_assoc. reflexivity.
+  simpl. rewrite adv_obs_0. reflexivity.
+  simpl. unfold adv_obs in *.  rewrite plusZnat_assoc. reflexivity.
 Qed.
 
 
-Lemma advance_env_swap d d' e : 
-  advance_env d (advance_env d' e) = advance_env d' (advance_env d e).
+Lemma adv_obs_swap d d' e : 
+  adv_obs d (adv_obs d' e) = adv_obs d' (adv_obs d e).
 Proof.
-  repeat rewrite advance_env_iter. rewrite plus_comm. reflexivity.
+  repeat rewrite adv_obs_iter. rewrite plus_comm. reflexivity.
 Qed.
 
 
@@ -108,7 +114,7 @@ Definition option_map2 {A B C :Type} (f:A->B->C) o1 o2 :=
 
 Reserved Notation "'R[|' e '|]' r" (at level 9).
 
-Fixpoint Rsem (e : rexp) : env -> option Q :=
+Fixpoint Rsem (e : rexp) : obs -> option Q :=
   fun rho => 
     match e with
       | RLit r => Some r
@@ -134,7 +140,7 @@ Definition RCompare (cmp : Cmp) : Q -> Q -> bool :=
 
 Reserved Notation "'B[|' e '|]' r" (at level 9).
 
-Fixpoint Bsem (e : bexp) : env -> option bool :=
+Fixpoint Bsem (e : bexp) : obs -> option bool :=
   fun rho => 
     match e with
       | BLit r => Some r
@@ -145,15 +151,17 @@ Fixpoint Bsem (e : bexp) : env -> option bool :=
       where "'B[|' e '|]' r" := (Bsem e r). 
 
 
-Definition transfers := party -> party -> currency -> Q.
+Definition transfers := option (party -> party -> currency -> Q).
 
-Definition empty_trans : transfers := fun p1 p2 c => 0.
+Local Open Scope Q_scope.
+Definition empty_trans : transfers := Some (fun p1 p2 c => 0).
+Definition bot_trans : transfers := None.
 Definition singleton_trans p1 p2 c r : transfers 
-  := fun p1' p2' c' => if andb (eq_str p1 p1') (andb (eq_str p2 p2') (eq_str c c')) then r else 0.
-Definition add_trans (t1 t2 : transfers) : transfers
-  := fun p1 p2 c => t1 p1 p2 c + t2 p1 p2 c.
-Definition scale_trans (s : Q) (t : transfers) : transfers 
-  := fun p1 p2 c => t p1 p2 c * s.
+  := Some (fun p1' p2' c' => if andb (eq_str p1 p1') (andb (eq_str p2 p2') (eq_str c c')) then r else 0).
+Definition add_trans : transfers -> transfers -> transfers
+  := option_map2 (fun t1 t2 p1 p2 c => (t1 p1 p2 c + t2 p1 p2 c)%Q).
+Definition scale_trans : option Q -> transfers -> transfers 
+  := option_map2 (fun s t p1 p2 c => (t p1 p2 c * s)%Q).
 
 Definition trace := nat -> transfers.
 
@@ -164,87 +172,267 @@ Definition singleton_trace (t : transfers) : trace
                 | O => t
                 | _ => empty_trans
               end.
-Definition scale_trace (s : Q) (t : trace) : trace
+Definition scale_trace (s : option Q) (t : trace) : trace
   := scale_trans s ∘ t.
 
 Definition delay_trace (d : nat) (t : trace) : trace :=
-  fun x => match nat_compare x d with
-               | Lt => empty_trans
-               | _ => t (minus x d)
-           end.
+  fun x => if leb d x
+           then t (minus x d)
+           else empty_trans.
+
+Lemma delay_trace_0 t : delay_trace 0 t = t.
+Proof.
+  apply functional_extensionality.
+  unfold delay_trace. simpl. intros. f_equal. omega.
+Qed.
+
+Lemma delay_trace_iter d d' t : delay_trace d (delay_trace d' t) = delay_trace (plus d' d) t.
+Proof.
+  apply functional_extensionality. induction d'; intros.
+  simpl. rewrite delay_trace_0. reflexivity.
+  simpl. unfold delay_trace in *. 
+  remember (leb d x) as L. destruct L;
+  remember (leb (S d') (x - d)) as L1; destruct L1;
+  remember (leb (S (d' + d)) x) as L2; destruct L2;
+  symmetry in HeqL; symmetry in HeqL1;  symmetry in HeqL2;
+ 
+  try apply leb_complete in HeqL; try apply leb_complete in HeqL1;
+  try apply leb_complete in HeqL2;
+  try apply leb_complete_conv in HeqL; try apply leb_complete_conv in HeqL1;
+  try apply leb_complete_conv in HeqL2; f_equal; try omega; try reflexivity.
+Qed.
+
+
+Lemma delay_trace_swap d d' e : 
+  delay_trace d (delay_trace d' e) = delay_trace d' (delay_trace d e).
+Proof.
+  repeat rewrite delay_trace_iter. rewrite plus_comm. reflexivity.
+Qed.
+
 
 Definition add_trace (t1 t2 : trace) : trace 
   := fun x => add_trans (t1 x) (t2 x).
 
 
-Fixpoint within_sem (c1 c2 : env -> option trace) (e : bexp) (r : env) (i : nat) : option trace 
+Fixpoint within_sem (c1 c2 : obs -> trace) (e : bexp) (r : obs) (i : nat) : trace 
             := match B[|e|]r with
                  | Some true => c1 r
                  | Some false => match i with
                                    | O => c2 r
-                                   | S j => within_sem c1 c2 e (advance_env 1 r) j
+                                   | S j => delay_trace 1 (within_sem c1 c2 e (adv_obs 1 r) j)
                                  end
-                 | None => None
+                 | None => const_trace bot_trans
                end.
+
 
 Reserved Notation "'C[|' e '|]'" (at level 9).
 
-Fixpoint Csem (c : contract) : env -> option trace :=
+Fixpoint Csem (c : contract) : obs -> trace :=
   fun rho => 
     match c with
-      | Zero => Some empty_trace
-      | TransfOne p1 p2 c => Some (singleton_trace (singleton_trans p1 p2 c 1))
-      | Scale e c' => option_map2 scale_trace (R[|e|]rho) (C[|c'|]rho) 
-      | Transl d c' => option_map (delay_trace d) (C[|c'|](advance_env d rho))
-      | Both c1 c2 => option_map2 add_trace (C[|c1|]rho) (C[|c2|]rho)
+      | Zero => empty_trace
+      | TransfOne p1 p2 c => singleton_trace (singleton_trans p1 p2 c  1)
+      | Scale e c' => scale_trace (R[|e|]rho) (C[|c'|]rho) 
+      | Transl d c' => (delay_trace d) (C[|c'|](adv_obs d rho))
+      | Both c1 c2 => add_trace (C[|c1|]rho) (C[|c2|]rho)
       | IfWithin e d c1 c2 => within_sem C[|c1|] C[|c2|] e rho d
     end
       where "'C[|' e '|]'" := (Csem e).
 
 
+Definition letrace (t1 t2 : trace) : Prop :=
+  forall i z , t1 i = Some z -> t2 i = Some z.
+
+Infix "⊆" := letrace (at level 40).
+
 Definition equiv (c1 c2 : contract) : Prop := 
-  forall rho : env, C[|c1|]rho = C[|c2|]rho.
+  forall rho : obs, C[|c1|]rho = C[|c2|]rho.
+
+Definition lequiv (c1 c2 : contract) : Prop := 
+  forall rho : obs, C[|c1|]rho ⊆ C[|c2|]rho.
+
+
+Definition total (t : trace) : Prop :=
+  forall i, t i <> None.
+
+Definition wequiv (c1 c2 : contract) : Prop := 
+  forall rho : obs, total (C[|c1|]rho) \/ total (C[|c2|]rho) -> 
+                    C[|c1|]rho = C[|c2|]rho.
 
 Infix "≡" := equiv (at level 40).
+Infix "≃" := wequiv (at level 40).
+Infix "⊑" := lequiv (at level 40).
 
-Fixpoint advance_rexp (d : nat) (e : rexp) : rexp :=
+
+Fixpoint adv_rexp (d : nat) (e : rexp) : rexp :=
   match e with
     | RLit r => RLit r
-    | RBin op e1 e2 => RBin op (advance_rexp d e1) (advance_rexp d e2)
-    | RNeg e' => RNeg (advance_rexp d e')
+    | RBin op e1 e2 => RBin op (adv_rexp d e1) (adv_rexp d e2)
+    | RNeg e' => RNeg (adv_rexp d e')
     | Obs o i => Obs o (plusZnat d i)
   end.
 
-Fixpoint advance_bexp (d : nat) (e : bexp) : bexp :=
+Fixpoint adv_bexp (d : nat) (e : bexp) : bexp :=
   match e with
     | BLit b => BLit b
-    | BOp op e1 e2 => BOp op (advance_bexp d e1) (advance_bexp d e2)
-    | RCmp op e1 e2 => RCmp op (advance_rexp d e1) (advance_rexp d e2)
-    | BNot e' => BNot (advance_bexp d e')
+    | BOp op e1 e2 => BOp op (adv_bexp d e1) (adv_bexp d e2)
+    | RCmp op e1 e2 => RCmp op (adv_rexp d e1) (adv_rexp d e2)
+    | BNot e' => BNot (adv_bexp d e')
   end.
 
-Lemma advance_rexp_env d e rho : R[|advance_rexp d e|]rho = R[|e|](advance_env d rho).
+Lemma adv_rexp_obs d e rho : R[|adv_rexp d e|]rho = R[|e|](adv_obs d rho).
 Proof.
   induction e; simpl; first [reflexivity | f_equal; assumption].
 Qed.
 
-Lemma advance_bexp_env d e rho : B[|advance_bexp d e|]rho = B[|e|](advance_env d rho).
+Lemma adv_bexp_obs d e rho : B[|adv_bexp d e|]rho = B[|e|](adv_obs d rho).
 Proof.
   induction e; simpl; try first [reflexivity | f_equal; assumption].
-  repeat rewrite advance_rexp_env. reflexivity.
+  repeat rewrite adv_rexp_obs. reflexivity.
 Qed.
 
+
+Lemma delay_trace_at d t : delay_trace d t d = t O.
+Proof.
+  unfold delay_trace. 
+  assert (leb d d = true) as E by (apply leb_correct; auto).
+  rewrite E. rewrite minus_diag. reflexivity.
+Qed.
 
 Theorem transl_ifwithin e d t c1 c2 : 
-  Transl d (IfWithin e t c1 c2) ≡
-  IfWithin (advance_bexp d e) t (Transl d c1) (Transl d c2).
+  IfWithin (adv_bexp d e) t (Transl d c1) (Transl d c2) ⊑
+  Transl d (IfWithin e t c1 c2).
 Proof.
-  unfold equiv. simpl. intros. generalize dependent rho. induction t; intros.
-  simpl. rewrite advance_bexp_env. remember (B[|e|](advance_env d rho)) as b.
-  destruct b. destruct b; reflexivity. reflexivity.
+  unfold lequiv, letrace. simpl. induction t; intros.
+  simpl in *. rewrite adv_bexp_obs in *. remember (B[|e|](adv_obs d rho)) as b.
+  destruct b. destruct b;  assumption. 
+  unfold const_trace, bot_trans in H. inversion H.
 
-  simpl. 
-  rewrite advance_bexp_env. 
-  remember (B[|e|](advance_env d rho)) as b. repeat destruct b. reflexivity. 
-  rewrite advance_env_swap. apply IHt. reflexivity.
+  simpl in *.  rewrite adv_bexp_obs in *. 
+  remember (B[|e|](adv_obs d rho)) as b. repeat destruct b. assumption. 
+  rewrite adv_obs_swap. rewrite delay_trace_swap. 
+  unfold delay_trace at 1.
+  unfold delay_trace at 1 in H. 
+  remember (leb 1 i) as L. destruct L.
+  apply IHt. apply H. assumption.
+
+  unfold const_trace, bot_trans in H. inversion H.
 Qed.
+
+
+(*********** Causality *************)
+
+Definition obs_until (d : nat) (r1 r2 : obs) : Prop :=
+  forall z, Z.le z (Z.of_nat d) -> r1 z = r2 z.
+
+  
+
+Definition causal (c : contract) : Prop :=
+  forall d r1 r2,  obs_until d r1 r2 -> (C[|c|]r1) d = (C[|c|]r2) d.
+
+(* Provable causality *)
+
+Reserved Notation "'R|-' c" (at level 20).
+
+Inductive rpc : rexp -> Prop:=
+| rpc_obs : forall o i, Z.le i 0 -> R|- Obs o i
+| rpc_lit : forall q, R|- (RLit q)
+| rpc_bin : forall op e1 e2, R|- e1 -> R|- e2 -> R|- RBin op e1 e2
+| rpc_neg : forall e, R|- e -> R|- RNeg e
+                                         where "'R|-' e" := (rpc e). 
+
+Reserved Notation "'B|-' c" (at level 20).
+
+Inductive bpc : bexp -> Prop:=
+| bpc_lit : forall b, B|- (BLit b)
+| bpc_cmp : forall cmp e1 e2, R|- e1 -> R|- e2 -> B|- RCmp cmp e1 e2
+| bpc_op : forall op e1 e2, B|- e1 -> B|- e2 -> B|- BOp op e1 e2
+| bpc_not : forall e, B|- e -> B|- BNot e
+                                         where "'B|-' e" := (bpc e). 
+
+
+
+Reserved Notation "'|-' c" (at level 20).
+
+Inductive pc : contract -> Prop :=
+| pc_transl : forall d c, |- c -> |- Transl d c
+| pc_transf : forall cur p1 p2, |- TransfOne cur p1 p2
+| pc_scale : forall e c, R|- e -> |- c -> |- Scale e c
+| pc_both : forall c1 c2, |- c1 -> |- c2 -> |- Both c1 c2
+| pc_zero : |- Zero
+| pc_if : forall c1 c2 b l, B|- b -> |- c1 -> |- c2 -> |- IfWithin b l c1 c2
+                                            where "'|-' c" := (pc c). 
+
+Local Open Scope Z_scope.
+
+Lemma obs_until_adv d t r1 r2: 
+  obs_until d (adv_obs t r1) (adv_obs t r2) <-> obs_until (plus t d) r1 r2.
+Proof.
+  split.
+  unfold obs_until in *. intros.
+  pose (H (z - Z.of_nat t)) as H'.
+  unfold adv_obs in H'. unfold plusZnat in H'.
+  assert (Z.of_nat t + (z - Z.of_nat t) = z) as E by omega.
+  rewrite E in H'. apply H'.
+  rewrite Nat2Z.inj_add in H0. omega.
+
+  unfold obs_until in *. intros.
+  unfold adv_obs. unfold plusZnat.
+
+  pose (H (Z.of_nat t + z)) as H'.  apply H'. rewrite Nat2Z.inj_add. omega.
+
+Qed.
+
+
+Lemma rpc_obs_until e d r1 r2 : R|-e -> obs_until d r1 r2 -> R[|e|]r1 = R[|e|]r2.
+Proof.
+  intros R O. induction R; simpl; try (f_equal; assumption).
+
+  unfold obs_until in O. rewrite O. reflexivity. 
+  eapply Z.le_trans. apply H. apply Nat2Z.is_nonneg.
+Qed.
+
+Lemma bpc_obs_until e d r1 r2 : B|-e -> obs_until d r1 r2 -> B[|e|]r1 = B[|e|]r2.
+Proof.
+  intros R O. induction R; simpl; try (f_equal; assumption).
+
+  f_equal; eapply rpc_obs_until; eassumption.
+Qed.
+  
+
+
+Theorem pc_causal c : |- c -> causal c.
+Proof.
+  intros. induction H; unfold causal in *; intros; simpl.
+
+  unfold delay_trace.
+  remember (leb d d0) as C. destruct C.
+    symmetry in HeqC. apply leb_complete in HeqC.
+    apply IHpc. rewrite obs_until_adv. assert (d + (d0 - d) = d0)%nat as D by omega.
+    rewrite D. assumption.
+    
+    reflexivity.
+
+  reflexivity.
+
+  unfold scale_trace, compose. erewrite IHpc by apply H1.
+  unfold scale_trans. rewrite rpc_obs_until with (r2:=r2) (d:=d) by assumption. reflexivity. 
+
+  unfold add_trace. f_equal; auto.
+
+  reflexivity.
+
+  generalize dependent d. generalize dependent r1. generalize dependent r2. 
+  induction l; intros; simpl.
+  
+  erewrite bpc_obs_until with (r2:=r2) by eassumption. 
+  remember (B[|b|]r2) as bl. destruct bl. destruct b0. eapply IHpc1; eassumption. 
+  eapply IHpc2; eassumption. reflexivity. 
+
+  erewrite bpc_obs_until with (r2:=r2) by eassumption. 
+  remember (B[|b|]r2) as bl. destruct bl. destruct b0.  eapply IHpc1; eassumption. 
+  unfold delay_trace. remember (leb 1 d) as L. destruct L.  apply IHl.
+  unfold obs_until, adv_obs. intros. unfold plusZnat. unfold obs_until in H2. apply H2.
+  rewrite Nat2Z.inj_sub in H3. omega. apply leb_complete. auto. reflexivity. reflexivity.
+Qed.
+
