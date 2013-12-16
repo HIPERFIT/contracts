@@ -3,6 +3,7 @@ Require Import String.
 Require Import FunctionalExtensionality.
 Require Import Basics.
 Require Import ZArith.
+Require Import LibTactics.
 Import Compare_dec.
 Local Open Scope Z_scope.
 
@@ -263,6 +264,13 @@ Infix "≡" := equiv (at level 40).
 Infix "≃" := wequiv (at level 40).
 Infix "⊑" := lequiv (at level 40).
 
+Lemma lequiv_total c1 c2 r : c1 ⊑ c2 -> total (C[|c1|]r) -> C[|c1|]r = C[|c2|]r.
+Proof.
+  unfold lequiv, total, letrace. intros.   apply functional_extensionality. intro.
+  remember (C[|c1|] r x) as C1. destruct C1. erewrite H. reflexivity. auto.
+  symmetry in HeqC1. apply H0 in HeqC1. contradiction.
+Qed.
+
 
 Fixpoint adv_rexp (d : nat) (e : rexp) : rexp :=
   match e with
@@ -319,6 +327,52 @@ Proof.
   unfold const_trace, bot_trans in H. inversion H.
 Qed.
 
+Lemma total_delay t d : total t <-> total (delay_trace d t).
+Proof.
+  split; unfold total, delay_trace; intros.
+  
+  remember (leb d i) as L. destruct L. apply H. unfold not. intro. tryfalse.
+
+  pose (H (i + d))%nat as H'.
+  assert (leb d (i + d) = true) as L by (apply leb_correct; omega).
+  rewrite L in H'. assert (i + d - d = i)%nat as E by omega. rewrite E in *. assumption.
+  
+Qed.
+
+  
+Lemma bot_trans_delay_at d : delay_trace d (const_trace bot_trans) d = None.
+Proof.
+  rewrite delay_trace_at. reflexivity.
+Qed.
+
+Lemma bot_trans_delay_total d : ~ total (delay_trace d (const_trace bot_trans)).
+Proof.
+  unfold not, total. intros.
+  contradiction (H d (bot_trans_delay_at d)). 
+Qed.
+
+
+Theorem transl_ifwithin_wequiv e d t c1 c2 : 
+  IfWithin (adv_bexp d e) t (Transl d c1) (Transl d c2) ≃
+  Transl d (IfWithin e t c1 c2). 
+Proof.
+  unfold wequiv. intros. destruct H. apply lequiv_total. apply transl_ifwithin. assumption.
+  
+  
+  unfold lequiv, letrace. simpl. generalize dependent rho. induction t; intros.
+  simpl in *. rewrite adv_bexp_obs in *. remember (B[|e|](adv_obs d rho)) as b.
+  destruct b. destruct b; reflexivity.
+  unfold total in H. 
+  contradiction (H d (bot_trans_delay_at d)). 
+
+  simpl in *.  rewrite adv_bexp_obs in *. 
+  remember (B[|e|](adv_obs d rho)) as b. repeat destruct b. reflexivity.
+  rewrite adv_obs_swap. rewrite delay_trace_swap. 
+  rewrite IHt. reflexivity. rewrite delay_trace_swap in H. rewrite adv_obs_swap.
+  apply total_delay in H. assumption. apply bot_trans_delay_total in H. contradiction.
+Qed.
+
+  
 
 (*********** Causality *************)
 
