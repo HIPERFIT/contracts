@@ -5,9 +5,11 @@ Require Import Basics.
 Require Import ZArith.
 Require Import LibTactics.
 Import Compare_dec.
-Local Open Scope Z_scope.
 
 Infix "∘" := compose (at level 40, left associativity).
+
+
+(********** Syntax **********)
 
 Definition observable := string.
 Definition currency := string.
@@ -61,29 +63,33 @@ Inductive contract : Set :=
  | Both : contract -> contract -> contract
  | IfWithin : bexp -> nat -> contract -> contract -> contract.
 
-(* Observations *)
+(********** Semantics **********)
+
+(* Observations: mapping observables to values *)
 
 Definition obs := Z -> observable -> option Q.
 
-Definition plusZnat (n : nat) (z : Z) : Z := Zplus (Z_of_nat n) z.
+Definition plusZnat (n : nat) (z : Z) : Z := (Z_of_nat n + z)%Z.
 
-Lemma plusZnat_assoc z n m : plusZnat n (plusZnat m z) = plusZnat (plus n m) z. 
+Infix "+#" := plusZnat (at level 60, right associativity).
+
+Lemma plusZnat_assoc z n m : n +# m +# z = (n + m +# z). 
 Proof.
-  unfold plusZnat. rewrite -> Z.add_assoc. rewrite <- Nat2Z.inj_add. reflexivity.
+  unfold "+#". rewrite -> Z.add_assoc. rewrite <- Nat2Z.inj_add. reflexivity.
 Qed.
 
 (* Move observations into the future. *)
 
 Definition adv_obs (d : nat) (e : obs) : obs 
-  := fun x => e (plusZnat d x).
+  := fun x => e (d +# x).
 
 Lemma adv_obs_0 e : adv_obs 0 e = e.
 Proof.
   apply functional_extensionality.
-  unfold adv_obs. unfold plusZnat. rewrite Nat2Z.inj_0. reflexivity.
+  unfold adv_obs. unfold "+#". rewrite Nat2Z.inj_0. reflexivity.
 Qed.
 
-Lemma adv_obs_iter d d' e : adv_obs d (adv_obs d' e) = adv_obs (plus d' d) e.
+Lemma adv_obs_iter d d' e : adv_obs d (adv_obs d' e) = adv_obs (d' + d) e.
 Proof.
   apply functional_extensionality. induction d'; intros.
   simpl. rewrite adv_obs_0. reflexivity.
@@ -97,6 +103,7 @@ Proof.
   repeat rewrite adv_obs_iter. rewrite plus_comm. reflexivity.
 Qed.
 
+(* Semantics of (real) binary operations. *)
 
 Definition RBinOp (op : BinOp) : Q -> Q -> Q :=
   match op with
@@ -107,11 +114,15 @@ Definition RBinOp (op : BinOp) : Q -> Q -> Q :=
     | Max => fun x y => if Qle_bool x y then y else x
   end.
 
+(* Lifts binary functions into [option] types. *)
+
 Definition option_map2 {A B C :Type} (f:A->B->C) o1 o2 :=
   match o1,o2 with
     | Some a, Some b => Some (f a b)
     | _,_ => None
   end.
+
+(* Semantics of real expressions. *)
 
 Reserved Notation "'R[|' e '|]' r" (at level 9).
 
@@ -125,11 +136,15 @@ Fixpoint Rsem (e : rexp) : obs -> option Q :=
     end
       where "'R[|' e '|]' r" := (Rsem e r). 
 
+(* Semantics of binary Boolean operations. *)
+
 Definition BBinOp (op : BoolOp) : bool -> bool -> bool :=
   match op with
     | And => andb
     | Or => orb
   end.
+
+(* Semantics of binary comparison operators. *)
 
 Definition RCompare (cmp : Cmp) : Q -> Q -> bool :=
   match cmp with
@@ -138,6 +153,7 @@ Definition RCompare (cmp : Cmp) : Q -> Q -> bool :=
     | LT => fun x y => negb (Qle_bool y x)
   end.
 
+(* Semantics of Boolean expressions *)
 
 Reserved Notation "'B[|' e '|]' r" (at level 9).
 
@@ -151,20 +167,32 @@ Fixpoint Bsem (e : bexp) : obs -> option bool :=
     end
       where "'B[|' e '|]' r" := (Bsem e r). 
 
+(* Semantic structures for contracts. *)
+
+(* An elemtn of type [transfers] represents a set of transfers that a
+ contract specifies at a particular point in time. It can also be
+ [None], which indicates that the set of transfers is undefined (read:
+ "bottom"). *)
 
 Definition transfers := option (party -> party -> currency -> Q).
 
-Local Open Scope Q_scope.
-Definition empty_trans : transfers := Some (fun p1 p2 c => 0).
+
+
+Definition empty_trans : transfers := Some (fun p1 p2 c => 0%Q).
 Definition bot_trans : transfers := None.
 Definition singleton_trans p1 p2 c r : transfers 
-  := Some (fun p1' p2' c' => if andb (eq_str p1 p1') (andb (eq_str p2 p2') (eq_str c c')) then r else 0).
+  := Some (fun p1' p2' c' => if andb (eq_str p1 p1') (andb (eq_str p2 p2') (eq_str c c')) then r else 0%Q).
 Definition add_trans : transfers -> transfers -> transfers
   := option_map2 (fun t1 t2 p1 p2 c => (t1 p1 p2 c + t2 p1 p2 c)%Q).
 Definition scale_trans : option Q -> transfers -> transfers 
   := option_map2 (fun s t p1 p2 c => (t p1 p2 c * s)%Q).
 
+(* Traces represent the sequence of obligations that a contract
+specifies. *)
+
 Definition trace := nat -> transfers.
+
+(* The following are combinators to contruct traces. *)
 
 Definition const_trace (t : transfers) : trace := fun x => t.
 Definition empty_trace : trace := const_trace empty_trans.
@@ -178,8 +206,13 @@ Definition scale_trace (s : option Q) (t : trace) : trace
 
 Definition delay_trace (d : nat) (t : trace) : trace :=
   fun x => if leb d x
-           then t (minus x d)
+           then t (x - d)
            else empty_trans.
+
+Definition add_trace (t1 t2 : trace) : trace 
+  := fun x => add_trans (t1 x) (t2 x).
+
+(* Some lemmas about [delay_trace]. *)
 
 Lemma delay_trace_0 t : delay_trace 0 t = t.
 Proof.
@@ -187,7 +220,7 @@ Proof.
   unfold delay_trace. simpl. intros. f_equal. omega.
 Qed.
 
-Lemma delay_trace_iter d d' t : delay_trace d (delay_trace d' t) = delay_trace (plus d' d) t.
+Lemma delay_trace_iter d d' t : delay_trace d (delay_trace d' t) = delay_trace (d' + d) t.
 Proof.
   apply functional_extensionality. induction d'; intros.
   simpl. rewrite delay_trace_0. reflexivity.
@@ -210,21 +243,20 @@ Proof.
   repeat rewrite delay_trace_iter. rewrite plus_comm. reflexivity.
 Qed.
 
-
-Definition add_trace (t1 t2 : trace) : trace 
-  := fun x => add_trans (t1 x) (t2 x).
-
+(* The following function is needed to define the semantics of [IfWithin]. *)
 
 Fixpoint within_sem (c1 c2 : obs -> trace) (e : bexp) (r : obs) (i : nat) : trace 
-            := match B[|e|]r with
-                 | Some true => c1 r
-                 | Some false => match i with
-                                   | O => c2 r
-                                   | S j => delay_trace 1 (within_sem c1 c2 e (adv_obs 1 r) j)
-                                 end
-                 | None => const_trace bot_trans
-               end.
+  := match B[|e|]r with
+       | Some true => c1 r
+       | Some false => match i with
+                         | O => c2 r
+                         | S j => delay_trace 1 (within_sem c1 c2 e (adv_obs 1 r) j)
+                       end
+       | None => const_trace bot_trans
+     end.
 
+
+(* Semantics of contracts. *)
 
 Reserved Notation "'C[|' e '|]'" (at level 9).
 
@@ -240,29 +272,46 @@ Fixpoint Csem (c : contract) : obs -> trace :=
     end
       where "'C[|' e '|]'" := (Csem e).
 
+(********** Equivalence of contracts **********)
+
+(* [t1 ⊆ t2] iff [t1] and [t2] coincide in all points that [t1] is
+defined. *)
 
 Definition letrace (t1 t2 : trace) : Prop :=
   forall i z , t1 i = Some z -> t2 i = Some z.
 
 Infix "⊆" := letrace (at level 40).
 
+(* Full equivalence. *)
+
 Definition equiv (c1 c2 : contract) : Prop := 
   forall rho : obs, C[|c1|]rho = C[|c2|]rho.
+Infix "≡" := equiv (at level 40).
+
+(* [c1 ⊑ c2] iff the semantics of [c1] and [c2] coincidese "in all
+places" that [c1]'s semantics is defined. *)
 
 Definition lequiv (c1 c2 : contract) : Prop := 
   forall rho : obs, C[|c1|]rho ⊆ C[|c2|]rho.
 
+Infix "⊑" := lequiv (at level 40).
 
 Definition total (t : trace) : Prop :=
   forall i, t i <> None.
+
+(* Partial equivalence: equivalence on the total fragment of the
+semantics. *)
 
 Definition wequiv (c1 c2 : contract) : Prop := 
   forall rho : obs, total (C[|c1|]rho) \/ total (C[|c2|]rho) -> 
                     C[|c1|]rho = C[|c2|]rho.
 
-Infix "≡" := equiv (at level 40).
+
 Infix "≃" := wequiv (at level 40).
-Infix "⊑" := lequiv (at level 40).
+
+(* We prove some equivalences. *)
+
+(* First some lemmas and auxiliary definitions. *)
 
 Lemma lequiv_total c1 c2 r : c1 ⊑ c2 -> total (C[|c1|]r) -> C[|c1|]r = C[|c2|]r.
 Proof.
@@ -277,7 +326,7 @@ Fixpoint adv_rexp (d : nat) (e : rexp) : rexp :=
     | RLit r => RLit r
     | RBin op e1 e2 => RBin op (adv_rexp d e1) (adv_rexp d e2)
     | RNeg e' => RNeg (adv_rexp d e')
-    | Obs o i => Obs o (plusZnat d i)
+    | Obs o i => Obs o (d +# i)
   end.
 
 Fixpoint adv_bexp (d : nat) (e : bexp) : bexp :=
@@ -333,9 +382,9 @@ Proof.
   
   remember (leb d i) as L. destruct L. apply H. unfold not. intro. tryfalse.
 
-  pose (H (i + d))%nat as H'.
+  pose (H (i + d)) as H'.
   assert (leb d (i + d) = true) as L by (apply leb_correct; omega).
-  rewrite L in H'. assert (i + d - d = i)%nat as E by omega. rewrite E in *. assumption.
+  rewrite L in H'. assert (i + d - d = i) as E by omega. rewrite E in *. assumption.
   
 Qed.
 
@@ -374,12 +423,14 @@ Qed.
 
   
 
-(*********** Causality *************)
+(********** Causality **********)
+
+(* [obs_until d r1 r2] iff [r1] [r2] coincide at [d] and earlier. *)
 
 Definition obs_until (d : nat) (r1 r2 : obs) : Prop :=
   forall z, Z.le z (Z.of_nat d) -> r1 z = r2 z.
 
-  
+(* Semantic causality *)
 
 Definition causal (c : contract) : Prop :=
   forall d r1 r2,  obs_until d r1 r2 -> (C[|c|]r1) d = (C[|c|]r2) d.
@@ -404,8 +455,6 @@ Inductive bpc : bexp -> Prop:=
 | bpc_not : forall e, B|- e -> B|- BNot e
                                          where "'B|-' e" := (bpc e). 
 
-
-
 Reserved Notation "'|-' c" (at level 20).
 
 Inductive pc : contract -> Prop :=
@@ -417,23 +466,24 @@ Inductive pc : contract -> Prop :=
 | pc_if : forall c1 c2 b l, B|- b -> |- c1 -> |- c2 -> |- IfWithin b l c1 c2
                                             where "'|-' c" := (pc c). 
 
-Local Open Scope Z_scope.
+(* Below follows the proof that provable causality is sound (i.e. it
+implies semantic causality). *)
 
 Lemma obs_until_adv d t r1 r2: 
-  obs_until d (adv_obs t r1) (adv_obs t r2) <-> obs_until (plus t d) r1 r2.
+  obs_until d (adv_obs t r1) (adv_obs t r2) <-> obs_until (t + d) r1 r2.
 Proof.
   split.
   unfold obs_until in *. intros.
-  pose (H (z - Z.of_nat t)) as H'.
-  unfold adv_obs in H'. unfold plusZnat in H'.
-  assert (Z.of_nat t + (z - Z.of_nat t) = z) as E by omega.
+  pose (H (z - Z.of_nat t)%Z) as H'.
+  unfold adv_obs in H'. unfold "+#" in H'.
+  assert (Z.of_nat t + (z - Z.of_nat t) = z)%Z as E by omega.
   rewrite E in H'. apply H'.
   rewrite Nat2Z.inj_add in H0. omega.
 
   unfold obs_until in *. intros.
-  unfold adv_obs. unfold plusZnat.
+  unfold adv_obs. unfold "+#".
 
-  pose (H (Z.of_nat t + z)) as H'.  apply H'. rewrite Nat2Z.inj_add. omega.
+  pose (H (Z.of_nat t + z)%Z) as H'.  apply H'. rewrite Nat2Z.inj_add. omega.
 
 Qed.
 
@@ -454,7 +504,6 @@ Proof.
 Qed.
   
 
-
 Theorem pc_causal c : |- c -> causal c.
 Proof.
   intros. induction H; unfold causal in *; intros; simpl.
@@ -462,7 +511,7 @@ Proof.
   unfold delay_trace.
   remember (leb d d0) as C. destruct C.
     symmetry in HeqC. apply leb_complete in HeqC.
-    apply IHpc. rewrite obs_until_adv. assert (d + (d0 - d) = d0)%nat as D by omega.
+    apply IHpc. rewrite obs_until_adv. assert (d + (d0 - d) = d0) as D by omega.
     rewrite D. assumption.
     
     reflexivity.
@@ -486,7 +535,7 @@ Proof.
   erewrite bpc_obs_until with (r2:=r2) by eassumption. 
   remember (B[|b|]r2) as bl. destruct bl. destruct b0.  eapply IHpc1; eassumption. 
   unfold delay_trace. remember (leb 1 d) as L. destruct L.  apply IHl.
-  unfold obs_until, adv_obs. intros. unfold plusZnat. unfold obs_until in H2. apply H2.
+  unfold obs_until, adv_obs. intros. unfold "+#". unfold obs_until in H2. apply H2.
   rewrite Nat2Z.inj_sub in H3. omega. apply leb_complete. auto. reflexivity. reflexivity.
 Qed.
 
