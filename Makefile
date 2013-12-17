@@ -5,7 +5,7 @@ MOSMLC=mosmlc
 MOSML=mosml
 
 # order matters here:
-SMLFILES=DateUtil.sml ListSort.sig ListSort.sml CURRENCY.sml Currency.sml ContractBase.sml ContractTransform.sml CONTRACT.sig Contract.sml Instruments.sml test.sml
+SMLFILES=DateUtil.sml ListSort.sig ListSort.sml CURRENCY.sig Currency.sml ContractBase.sml ContractTransform.sml CONTRACT.sig Contract.sml Instruments.sml test.sml
 
 all: contract.exe
 
