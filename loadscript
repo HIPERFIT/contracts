@@ -2,7 +2,7 @@
 (* load required modules *)
 app load ["Math", "Date", "Bool", "ListPair", "IntInf", "CharVector"];
 
-app use ["DateUtil.sml", "ListSort.sig", "ListSort.sml", "CURRENCY.sig", "Currency.sml", "ContractBase.sml", "CONTRACT.sig", "Contract.sml", "Instruments.sml", "ContractTransform.sml"];
+app use ["DateUtil.sml", "ListSort.sig", "ListSort.sml", "CURRENCY.sig", "Currency.sml", "ContractBase.sml", "CONTRACT.sig", "Contract.sml", "Instruments.sml", "ContractTransform.sml", "ContractMonad.sml"];
 
 (* bring contract "constructors" in direct scope *)
 open Currency Contract Instruments;

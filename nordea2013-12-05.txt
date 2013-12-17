@@ -37,6 +37,16 @@
  
  - Nordea portfolio
 
+* Formal treatment (semantics)
+
+ - Semantics
+
+ - Algebraic properties
+
+ - Causality
+
+ - Proofs in coq
+
 * Contract utilities
 
   - Finding cash flows
@@ -48,3 +58,9 @@
   - Applying fixings
 
   - Advancing a contract in time
+
+* Other Combinators
+
+  - monitors (Asian options)
+  - choice ()
+  - american optionality
