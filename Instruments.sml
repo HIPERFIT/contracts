@@ -37,7 +37,8 @@ datatype OptionKind = Call | Put
 fun vanillaFx Call 
         buyer seller (buyCurr,otherCurr) amount strike expiry =
     let val rate    = fxRate buyCurr otherCurr
-        val cond    = R strike !<! obs (rate, 0) 
+        val cond    = chosenBy (buyer ^ ":Call-option",0)
+                      (* R strike !<! obs (rate, 0) *)
                       (* option taken depending on price > strike *)
                       (* offset "0", Transl supposed to move obs date offset!*)
     in transl (expiry,iff (cond, fxForward buyer seller
@@ -47,7 +48,8 @@ fun vanillaFx Call
   | vanillaFx Put
         seller buyer (sellCurr,otherCurr) amount strike expiry =
     let val rate    = fxRate sellCurr otherCurr
-        val cond    = obs (rate, 0) !<! R strike
+        val cond    = chosenBy (seller ^ ":Put-option",0)
+                      (* obs (rate, 0) !<! R strike *)
                       (* option taken depending on price < strike *)
                       (* assumes transl moves obs date offset (see previous) *)
     in transl (expiry,iff (cond, fxForward buyer seller

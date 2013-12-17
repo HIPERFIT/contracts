@@ -22,6 +22,8 @@ signature CONTRACT = sig
   val !|!         : boolE * boolE -> boolE
   val not         : boolE -> boolE
   val obs         : string*int -> 'a exp
+  val chosenBy    : string*int -> boolE
+  val ifExpr      : boolE * 'a exp * 'a exp -> 'a exp
 
   (* Environments *)
   type date       = Date.date

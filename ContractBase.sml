@@ -8,6 +8,8 @@ datatype exp0 = I of int
               | BinOp of string * exp0 * exp0
               | UnOp of string * exp0
               | Obs of string * int
+              | ChosenBy of string * int (* label(incl party) and time *)
+              | Iff of exp0 * exp0 * exp0
 
 local open Currency
 in

@@ -33,6 +33,8 @@ fun hashExp (e,a) =
       | BinOp(s,e1,e2) => Hs(s,hashExp(e1,hashExp(e2,a)))
       | UnOp(s,e) => Hs(s,hashExp(e,a))
       | Obs(s,i) => H(13,Hs(s,H(i,a)))
+      | ChosenBy (p,i) => H(17,Hs(p,H(i,a)))
+      | Iff (b,e1,e2) => H(19,hashExp(b,hashExp(e1,hashExp(e2,a))))
 fun hashContr (c,a) = 
     case c of
         Zero => H(2,a)
@@ -64,6 +66,8 @@ fun max (x,y) = BinOp("max",x,y)
 fun min (x,y) = BinOp("min",x,y)
 
 val obs : (string*int) -> 'a exp = Obs
+val chosenBy : (string*int) -> boolE = ChosenBy
+val ifExpr : boolE * 'a exp * 'a exp -> 'a exp = Iff
 
 fun binopII opr i1 i2 =
     case opr of
@@ -143,6 +147,14 @@ fun eval (E:env,d:date) e =
              B b => B(Bool.not b)
            | e1 => UnOp("not",e1))
       | UnOp(opr,_) => raise Fail ("eval.UnOp: unsupported operator: " ^ opr)
+      | ChosenBy (p,i) => (case E (p,d,i) of
+                               SOME r => B (r <> 0.0) (* HAAAACK *)
+                             | NONE   => e)
+      | Iff(b,e1,e2) => (case eval (E,d) b of
+                             B true  => eval (E,d) e1
+                           | B false => eval (E,d) e2
+                           | other   => Iff (other, 
+                                             eval (E,d) e1, eval (E,d) e2))
 
 fun evalR E e = 
     case eval E e of R r => r
@@ -178,6 +190,8 @@ fun ppExp0 ppTime e =
            if notfixed opr then opr ^ par (ppExp e1 ^ "," ^ ppExp e2)
            else par(ppExp e1 ^ opr ^ ppExp e2)
          | UnOp(opr, e1) => opr ^ par (ppExp e1)
+         | ChosenBy (p,i) => "Chosen by " ^ p ^ " @ " ^ ppTime i
+         | Iff (b,e1,e2) => par (ppExp b ^ "? " ^ ppExp e1 ^ " : " ^ ppExp e2)
     end
 and ppExp e = ppExp0 Int.toString e
 val ppTimeExp = ppExp0 ppTime
@@ -201,6 +215,7 @@ fun translExp (e, 0) = e
         Obs (s,t) => obs (s,t+d)
       | BinOp(s,e1,e2) => BinOp (s, translExp (e1, d), translExp (e2, d))
       | UnOp(s,e1) => UnOp (s, translExp (e1, d))
+      | ChosenBy (p,t) => ChosenBy (p, t+d)
       | other => e (* rest unmodified *)
 
 fun ppContr c =
