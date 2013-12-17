@@ -90,6 +90,31 @@ use the If constructor.
 
 Or else, Choice(p, c1, c2) as a contract constructor?
 
+chosenBy : Party+Label -> boolE
+
+together with If, models non-rational choice.
+
+Semantic implications: none.
+
+Problem of causality: decision needs to be made before implications
+
+chosenBy : Party+Label -> Time -> boolE
+                           int
+Time denoting relative time when the decision must have been taken
+(i.e. must be available in the environment).
+
+Semantically can be seen as a value changing from _|_ to a constant.
+Assuming translate operations are all outside of the scoped contracts
+which uses a chosenBy, the time should always be non-positive.
+
+Also adding an if in the expression language?
+
+E [[ b: boolE "?" e1:expr a ":" e2:expr a ]] e = if E[[b]]e then E[[e1]]e else E[[e2]]e
+
+This enables choosing values that are not boolean (sizes, prices, ...)
+(could also be modeled by "multiplexing" the contracts that use it, though)
+
+
 =======================
 
 How the contract language differs from the LexiFi contract language
