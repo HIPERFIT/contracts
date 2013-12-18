@@ -211,42 +211,60 @@ In general, causality is now a dynamic property that for some
 contracts needs to be checked at runtime (during contract
 management). For many contracts, however, the property of causality
 can be established statically. We now define a conservative causality
-check. An expression e is causal (written |- e), if for all (s,d) in
-e, we have d <= 0. That is, the valuation of the expression depends
-only on values for underlyings in the past. A conservative causality
-check can now be defined for contracts, as follows.
+check. Given a non-negative integer b, an expression e is b-causal
+(written b |- e), if for all obs(s,i) in e, we have i <= b (and there
+is no smaller such b):
+
+     e is a literal
+   ----------------- (Lit)
+        0 |- e
+
+    
+   -------------------- (Obs)
+      b |- obs(s,b)
+
+
+       b1 |- e1  b2 |- e2
+   -------------------------- (BinOp)
+      max b1 b2 |- e1 o e1
+
+
+       b |- e
+   ------------- (UnOp)
+      b |- o e
+
+Given b a non-negative integer or inf, b-causality of a contract c
+(written b |- c) is defined as follows
  
-                                                           +------+
-Conservative contract causality                            | |- c |
-                                                           +------+
-       certain(d)  d >= 0    |- c/d
-       ---------------------------- (TL1)
-            |- transl(d,c)
+                                                           +--------+
+Conservative contract causality                            | b |- c |
+                                                           +--------+
+                b |- c 
+       ---------------------------- (TL)
+           b + d |- transl(d,c)
 
-          |- d    |- c
-         -------------- (TL2)
-         |- transl(d,c)
-should probably be removed, as it cannot state anything about value of d
-(d is causal but its value is unknown. It should be positive.)
 
-         --------------------- (TO)
-         |- transfOne(C,p1,p2)
+       --------------- (Zero)
+        inf |- zero
 
-         |- e   |- c
-        ------------- (Sc)
-        |- scale(e,c)
+       ------------------------- (TO)
+        0 |- transfOne(C,p1,p2)
 
-        |- e  |- c1  |- c2
-        ------------------ (If)
-         |- iff(e,c1,c2)
+        b1 |- e  b2 |- c  b1 <= b2
+      ----------------------------- (Sc)
+             b2 |- scale(e,c)
 
-          |- ci    i=1..n
-        ------------------- (Al)
-        |- all [c1,....,cn]
+         0 |- e  b1 |- c1  b1 |- c2
+       ----------------------------- (If)
+         min b1 b2 |- iff(e,c1,c2)
 
-         d >= 0  |- b  |- c2/d    |- c1
-       --------------------------------- (CW1)
-        |- checkWithin (b, d, c1, c2)
+              b1 |- c1  b1 |- c2
+        ----------------------------- (Both)
+           min b1 b2 |- both(c1,c2) 
+
+          0 |- e  b1 |- c1   b2 |- c1
+       --------------------------------------- (CW)
+        min b1 b2|- checkWithin (e, d, c1, c2)
 
 (This follows from an algebraic law which "unrolls" the check:
    checkWithin (b, d, c1, c2) == 
@@ -265,9 +283,12 @@ c1 is translated with i < d during unrolling.
 b is causal at present, but not necessarily in the future.)
 
 Proposition (Conservative Causality Soundness).
-If |- c then c is causal. 
+If d |- c (for some d) then c is causal. 
 
-Lemma: if |- c then |- c/i   for all i >= 0
+
+Corollary.
+If for all observables obs(s,i) in c, we have that i <= 0, then c is
+causal.
 
 
 =======================
