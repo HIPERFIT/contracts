@@ -148,7 +148,7 @@ fun eval (E:env,d:date) e =
            | e1 => UnOp("not",e1))
       | UnOp(opr,_) => raise Fail ("eval.UnOp: unsupported operator: " ^ opr)
       | ChosenBy (p,i) => (case E (p,d,i) of
-                               SOME r => B (r <> 0.0) (* HAAAACK *)
+                               SOME r => B (Real.!=(r, 0.0)) (* HAAAACK *)
                              | NONE   => e)
       | Iff(b,e1,e2) => (case eval (E,d) b of
                              B true  => eval (E,d) e1
@@ -205,7 +205,9 @@ fun certainExp e =
       | Obs _ => false
       | BinOp(_,e1,e2) => certainExp e1 andalso certainExp e2
       | UnOp(_,e1) => certainExp e1
-                              
+      | ChosenBy _ => true
+      | Iff(b,e1,e2) => certainExp b andalso certainExp e1 andalso certainExp e2
+
 fun simplifyExp P e =
     eval P e
 
