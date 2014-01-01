@@ -1,0 +1,318 @@
+\documentclass[xcolor=dvipsnames,12pt]{beamer} 
+
+\mode<presentation>
+{
+\usetheme{Malmoe}
+\useinnertheme{rounded}
+\usecolortheme{beaver} 
+\usecolortheme[named=Mahogany]{structure} 
+}
+
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+
+\usepackage{graphicx}
+
+\usepackage{listings}
+\usepackage{color}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\newcommand{\comment}[2]{{\tiny \color{Orange}{$\spadesuit${\bf #1: }{\sf #2}$\spadesuit$}}}
+%\renewcommand{\comment}[2]{}
+
+\newcommand{\jbcomment}[1]{\comment{JB}{#1}}
+\newcommand{\pbcomment}[1]{\comment{PB}{#1}}
+\newcommand{\mecomment}[1]{\comment{ME}{#1}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\lstloadlanguages{ML,C}
+% auto-colorisation with listings, handy for known languages...
+\lstdefinestyle{smlstyle}{
+      keywordstyle=\color{violet},
+      stringstyle=\color{gray},
+      identifierstyle=\color{blue},
+      commentstyle=\color{gray}\ttfamily,
+      language=ML
+}
+\lstnewenvironment{mlcode}
+   {\lstset{basicstyle=\scriptsize,style=smlstyle,frame=tlrb}}
+   {}
+\lstset{style=smlstyle,keepspaces=true,breaklines=false}\newcommand{\cd}[1]{\lstinline$#1$}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\renewcommand{\emph}[1]{\textcolor{structure!60}{#1}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\title{A Small Contract Language -- Semantics}
+\author[Bahr,Berthold,Elsman]{Patrick Bahr, Jost Berthold, Martin Elsman}
+
+\begin{document}
+
+\frame[plain]{\titlepage}
+
+\begin{frame}[fragile,t]
+    \frametitle{The Contract Language}
+\emph{Expressions}
+\begin{mlcode}
+type party = string
+                       
+datatype exp0 = I of int (* data structure for expressions 
+              | R of real   (algebraic or boolean) *)
+              | ...
+              | BinOp of string * exp0 * exp0
+              | ...
+              | Obs of string * int     (* observable *)
+              | ChosenBy of party * int (* active choice *)
+\end{mlcode}
+
+\emph{Contracts}
+\begin{mlcode}
+datatype contr =
+       Zero
+     | TransfOne of cur * party * party
+     | Scale of exp0 * contr
+     | Transl of int * contr
+     | Both of contr * contr
+     | If of exp0 * contr * contr
+     | CheckWithin of exp0 * int * contr * contr
+\end{mlcode}
+%datatype contr =
+%       Zero
+%     | TransfOne of cur * party * party (* immediate cash flow *)
+%     | Scale of exp0 * contr            (* scaling by an expr. *)
+%     | Transl of int * contr            (* postpone to later *)
+%     | Both of contr * contr            (* combine two contracts *)
+%     | If of exp0 * contr * contr       (* choice between two contracts *)
+%     | CheckWithin of exp0 * int * contr * contr
+%               (* monitoring of a condition (expr.) within a duration 
+%                  if true within time: first contract, otherwise second *)
+%
+\end{frame}
+
+\begin{frame}[fragile,t]
+    \frametitle{Contract Constructors and Intuitive Semantics}
+
+\begin{mlcode}
+  (* Contract Interface Functions *)
+  val zero        : contr
+  val transfOne   : cur * party * party -> contr
+  val scale       : realE * contr -> contr
+  val transl      : int * contr -> contr
+  val both        : contr * contr -> contr
+  val iff         : boolE * contr * contr -> contr
+  val checkWithin : boolE * int * contr * contr -> contr 
+\end{mlcode}
+
+\begin{description}
+\item[transfOne] is a cash flow (which happens immediately)
+\item[scale] scales a cash flow by an expression (of type \cd{realE})
+\item[transl] postpones a contract into the \emph{future}.
+
+    The \cd{int} argument must be positive!
+
+\item[checkWithin] repeatedly checks a condition (of type \cd{boolE}) for a number of days.
+    The \cd{int} arg. must be positive!
+\end{description}
+
+\end{frame}
+
+\jbcomment{Need to explain $ exp/d$ notation at this point.}
+
+
+% change here to change all
+\newcommand{\ttt}[1]{\mbox{\cd{#1}}}
+
+% smart constructors
+\newcommand{\zero}{\ttt{zero}}
+\newcommand{\transfOne}{\ttt{transfOne}}
+\newcommand{\scale}{\ttt{scale}}
+\newcommand{\transl}{\ttt{transl}}
+\newcommand{\both}{\ttt{both}}
+\newcommand{\ifff}{\ttt{iff}}
+\newcommand{\checkWithin}{\ttt{checkWithin}}
+
+\begin{frame}
+    \frametitle{Contract Semantics -- Equivalences}
+{\footnotesize
+
+\begin{columns}
+\column{0.35\textwidth}
+\begin{align*}
+    \transl(d,\zero)             &=  \zero\\
+    \scale(r,\zero)              &=  \zero\\
+    \both(\zero,\zero)           &=  \zero\\
+    \scale(0,c)                  &=  \zero\\
+\end{align*}
+
+\column{0.65\textwidth}
+\begin{align*}
+    \ifff(c,\zero,\zero)        &= \zero\\[0.5ex]
+    \ifff(T,c_1,c_2)            &=  c_1\\
+    \ifff(F,c_1,c_2)            &=  c_2\\[0.5ex]
+    \checkWithin(b,0,c_1,c_2)   &= \ifff(b,c_1,c_2) \ \ast\\
+\end{align*}
+\end{columns}
+
+\vspace*{-3ex}
+\pause
+\begin{align*}
+    \scale(s_1,\scale(s_2,c))    &=  \scale(s_1\cdot s_2,c)\\
+    \transl(d_1,\transl(d_2,c)   &=  \transl(d_1+d_2,c)\\[1ex]
+%\end{align*}
+%\begin{align*}
+    \transl(d,\scale(s,c))       &=  \scale(s/d,\transl(d,c))\\
+    \transl(d,\scale(s,c))       &=  \scale(s,\transl(d,c))\  \mbox{if } s \mbox{ is certain}\\
+    \transl(d,\both(c_1,c_2)     &=  \both(\transl(d,c_1),\transl(d,c_2))\\[1ex]
+%
+\transl(d,\checkWithin (b, e, c_1, c_2))  &=  \\
+                             \checkWithin &(b/d, e, \transl(d,c1), \transl(d,c2))\\[1ex]
+\mbox{with }\ast:\   \transl(d,\ifff(b,c_1,c_2))  &=  \ifff(b/d, transl(d,c_1), transl(d,c_2))\\
+\end{align*}
+
+}
+
+\end{frame}
+
+\newcommand{\crule}[3]{\frac{#2}{#3}\ \mbox{\scriptsize \it #1}}
+
+\begin{frame}[t]
+    \frametitle{Contract Causality}
+
+\emph{Causal Contracts, intention:}
+{\footnotesize
+\begin{quote}
+ A \emph{causal contract} is a contract with the property that during all
+   possible executions of the contract, a cash flow cannot depend on a
+   future fixing (of an observable).
+\end{quote}
+Goal: Establish static bound for many contracts.
+}
+\smallskip
+\hrule
+
+\pause
+
+\medskip
+
+\emph{$b$-causality} $ b \vdash e$ for \emph{expressions}:
+{\scriptsize $ (b \in \mathbb{Z}_0^+, \ e \in \ttt{expr0})$}
+
+\begin{columns}
+\column{0.3\textwidth}
+%\jbcomment{b non-negative to use 0 as lowest value: How about $\forall b\in\mathbb{Z}: b\vdash Literal$}
+\begin{align*}
+\crule{(Lit)}{e \mbox{ is a literal}}{0 \vdash e}&\\[1ex]
+ \crule{(Obs)}{}{b \vdash \ttt{obs}(s,b)}&\\
+\end{align*}
+
+\column{0.3\textwidth}
+\begin{align*}
+&\crule{(BinOp)}{b_1 \vdash e_1\ \ b_2 \vdash e_2 }{max(b_1,b_2) \vdash e_1 \otimes e_2}\\[1ex]
+&\crule{(UnOp)}{b \vdash e}{b \vdash \ominus e}\\
+\end{align*}
+\end{columns}
+Intuitive: smallest $i$ such that no observable is observed \emph{after more than $i$ days}.
+
+\end{frame}
+
+\begin{frame}[t]
+    \frametitle{Contract Causality (2)}
+
+\emph{$b$-causality} $ b \vdash c$ for contracts:
+{\scriptsize $ (b \in \mathbb{Z}_0^+, \ c \in \ttt{contr})$}
+
+\begin{columns}
+\column{0.3\textwidth}
+\begin{align*}
+\crule{(Zero)}{}{\infty \vdash \zero}&\\
+\crule{(TO)}{}{0 \vdash \transfOne(C,p_1,p_2)}&\\
+\crule{(TL)}{b \vdash c}{b + d \vdash \transl(d,c)}&\\
+\end{align*}
+
+\column{0.3\textwidth}
+\begin{align*}
+&\\
+&\crule{(Sc)}{b_1 \vdash e\ \ \ b_2\vdash c\ \ \ b_1 \leq b_2 }{b_2 \vdash \scale(e,c)}\\
+&\crule{(Both)}{b_1 \vdash c_1\ \ \ b_2 \vdash c_2}{min(b_1,b_2) \vdash \both(c_1,c_2)}\\
+\end{align*}
+\end{columns}
+$$ 
+\crule{(CW)}{0\vdash e\ \ \ b_1 \vdash c_1\ \ \ b_2 \vdash c_2}{min(b_1,b_2) \vdash \checkWithin(e,d,c_1,c_2)}
+$$
+
+\jbcomment{I would expect some different rules: (Zero) should use 0, not $\infty$,
+(TL) should use $b-d$ because c is translated by $d$ forward, (Both) and (CW) would use $max$.
+Maybe I misunderstood the directions here?
+
+}
+
+\end{frame}
+
+\newcommand{\sem}[1]{[\![#1]\!]}
+\newcommand{\csem}[3]{\mathcal{C}\sem{#1}#2 & = #3}
+
+\begin{frame}
+    \frametitle{Formal Semantics: Sequence of Cash Flow Sets}
+
+An environment $\ttt{env}$ stores all fixings for observables and choices, and is used in the \ldots
+
+
+\ldots semantics of an expression: $ \mathcal{E} : \ttt{exp0} \times \ttt{env} \rightarrow V$\\
+{\footnotesize
+(where $V$ is the set of all expression values, \cd{int}, \cd{real}, \cd{bool}).
+}
+
+
+\jbcomment{explain how to move the environment $ env/d$}
+
+\bigskip
+
+\hrule
+\bigskip
+
+Semantics of a contracts: $ \mathcal{C} : \ttt{contr} \times \ttt{env} 
+          \rightarrow \mathbb{P}(\ttt{flow})^\mathbb{N}$\\
+{\footnotesize
+(where $\ttt{flow}$ is a cash flow: \cd{(amount:real, c:currency, from,to:party)}
+}
+\jbcomment{explain flow sets as semantic domain}
+
+\end{frame}
+
+\begin{frame}
+    \frametitle{Formal Semantics: Contracts}
+
+Semantics of a contracts: $ \mathcal{C} : \ttt{contr} \times \ttt{env} 
+          \rightarrow \mathbb{P}(\ttt{flow})^\mathbb{N}$\\
+{\footnotesize
+(where $\ttt{flow}$ is a cash flow: \cd{(amount:real, c:currency, from,to:party)}
+}
+
+{\footnotesize
+\begin{align*}
+\csem{\zero}{e}{\ttt{repeat} \emptyset}\\
+\csem{\transfOne(c,p_1,p_2)}{e}{\{(1,c,p_1,p_2)\} : \ttt{repeat} \emptyset }\\
+\csem{\both(c_1,c_2)}{e}{\ttt{zipWith flowMerge }\ (\mathcal{C}\sem{c_1}e)\ (\mathcal{C}\sem{c_2}e)}\\
+\csem{\scale(exp,c)}{e}{}\\
+\ttt{mapmap}\ &(\lambda (a,c,f,t)\mapsto(a\cdot\mathcal{E}\sem{exp}e,c,f,t))\ (\mathcal{C}\sem{c}e)\\
+\csem{\transl(d,c)}{e}{\ttt{replicate }d \ \emptyset +\!\!\!+\  \mathcal{C}\sem{c}e/d}\\
+\csem{\checkWithin(b,d,c_1,c_2)}{e}{
+\left \{
+\begin{array}{rl}
+\mathcal{E}\sem{b}e: & \mathcal{C}\sem{c_1}e\\
+d = 0\ \wedge\ !\mathcal{E}\sem{b}e: & \mathcal{C}\sem{c_2}e\\
+d > 0\ \wedge\ !\mathcal{E}\sem{b}e:\\
+\emptyset : \mathcal{C}\sem{\checkWithin&(b,d\!-\!1,c1,c_2)}e/1\\
+\end{array}\right.
+}
+\end{align*}
+}
+
+\end{frame}
+
+\end{document}
