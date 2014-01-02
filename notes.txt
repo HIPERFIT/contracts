@@ -219,8 +219,8 @@ is no smaller such b):
    ----------------- (Lit)      (b non-negative because we use 0 here)
         0 |- e
     
-   -------------------- (Obs)
-      b |- obs(s,b)
+   ------------------------ (Obs)
+      max b 0 |- obs(s,b)
 
 
        b1 |- e1  b2 |- e2
@@ -233,11 +233,15 @@ is no smaller such b):
       b |- o e
 
 Given b a non-negative integer or inf, b-causality of a contract c
-(written b |- c) is defined as follows
+(written b |- c) is defined as follows:
  
                                                            +--------+
 Conservative contract causality                            | b |- c |
                                                            +--------+
+
+(Intuitively, b |- c means that c is causal and there are no transfers
+before d days have passed.)
+
                 b |- c 
        ---------------------------- (TL)
            b + d |- transl(d,c)
