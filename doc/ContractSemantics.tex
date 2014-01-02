@@ -1,4 +1,4 @@
-\documentclass[xcolor=dvipsnames,12pt]{beamer} 
+\documentclass[xcolor=dvipsnames,11pt]{beamer} 
 
 \mode<presentation>
 {
@@ -48,6 +48,20 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+% change here to change all
+\newcommand{\ttt}[1]{\mbox{\cd{#1}}}
+
+% smart constructors
+\newcommand{\zero}{\ttt{zero}}
+\newcommand{\transfOne}{\ttt{transfOne}}
+\newcommand{\scale}{\ttt{scale}}
+\newcommand{\transl}{\ttt{transl}}
+\newcommand{\both}{\ttt{both}}
+\newcommand{\ifff}{\ttt{iff}}
+\newcommand{\checkWithin}{\ttt{checkWithin}}
+
+
+
 \title{A Small Contract Language -- Semantics}
 \author[Bahr,Berthold,Elsman]{Patrick Bahr, Jost Berthold, Martin Elsman}
 
@@ -56,56 +70,76 @@
 \frame[plain]{\titlepage}
 
 \begin{frame}[fragile,t]
-    \frametitle{The Contract Language}
-\emph{Expressions}
+    \frametitle{Outline}
+
+todo:
+
+ - examples (vanilla option, barrier touch)                                     (mael)
+ - complete complex equivalences with advancement and notion of certainty       (jost)
+ - move causality to appendix and include example of non-causal contract        (jost)
+ - utility examples from interpreter (cash-flows for an instrument)             (mael)
+ - complete semantics slide                                                     (jost)
+
+\begin{itemize}
+\item Expressions and contracts
+\item Example contracts
+\item Contract equivalences
+\item Contract causality
+\item Contract utilities
+ \begin{itemize}
+  \item Finding cash flows
+  \item Eliminating transfers to and from a particular party
+  \item Merging parties
+  \item Applying fixings
+  \item Advancing a contract in time
+  \end{itemize}
+\item Appendix: Contract semantics
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile,t]
+    \frametitle{Expressions and Intuitive Semantics}
+
 \begin{mlcode}
-type party = string
-                       
-datatype exp0 = I of int (* data structure for expressions 
-              | R of real   (algebraic or boolean) *)
-              | ...
-              | BinOp of string * exp0 * exp0
-              | ...
-              | Obs of string * int     (* observable *)
-              | ChosenBy of party * int (* active choice *)
+  type 'a exp                     (* expressions *)
+  type boolE = bool exp           (* boolean expressions *)
+  type 'a num 
+  type 'a numE = 'a num exp       (* numeric expressions *)
+  type realE = real num exp       (*  real expressions *)
+  type intE = int num exp         (*  integer expressions *)
+ 
+  val I   : int -> intE
+  val R   : real -> realE
+  val B   : bool -> boolE
+  val +   : 'a numE * 'a numE -> 'a numE
+  ...
+  val obs : string * int -> realE
 \end{mlcode}
 
-\emph{Contracts}
-\begin{mlcode}
-datatype contr =
-       Zero
-     | TransfOne of cur * party * party
-     | Scale of exp0 * contr
-     | Transl of int * contr
-     | Both of contr * contr
-     | If of exp0 * contr * contr
-     | CheckWithin of exp0 * int * contr * contr
-\end{mlcode}
-%datatype contr =
-%       Zero
-%     | TransfOne of cur * party * party (* immediate cash flow *)
-%     | Scale of exp0 * contr            (* scaling by an expr. *)
-%     | Transl of int * contr            (* postpone to later *)
-%     | Both of contr * contr            (* combine two contracts *)
-%     | If of exp0 * contr * contr       (* choice between two contracts *)
-%     | CheckWithin of exp0 * int * contr * contr
-%               (* monitoring of a condition (expr.) within a duration 
-%                  if true within time: first contract, otherwise second *)
-%
+\begin{description}
+\item[I d] is the integer constant $d$.
+\item[R r] is the real (i.e., double) constant $r$.
+\item[$e_1$ + $e_2$] represents the result of adding the results of two subexpression.
+\item[obs(s,d)] represents the value of the underlying ``s'' in $d$ days.
+\end{description}
+
 \end{frame}
 
 \begin{frame}[fragile,t]
     \frametitle{Contract Constructors and Intuitive Semantics}
 
 \begin{mlcode}
-  (* Contract Interface Functions *)
-  val zero        : contr
+  type cur val EUR : cur val USD : cur    (* currencies *)
+  type party = string                     (* parties *)
+  type contr                              (* contracts *)
+  val zero        : contr             
   val transfOne   : cur * party * party -> contr
   val scale       : realE * contr -> contr
   val transl      : int * contr -> contr
   val both        : contr * contr -> contr
   val iff         : boolE * contr * contr -> contr
-  val checkWithin : boolE * int * contr * contr -> contr 
+  val checkWithin : boolE * int * contr * contr -> contr
 \end{mlcode}
 
 \begin{description}
@@ -121,24 +155,7 @@ datatype contr =
 
 \end{frame}
 
-\jbcomment{Need to explain $ exp/d$ notation at this point.}
-
-
-% change here to change all
-\newcommand{\ttt}[1]{\mbox{\cd{#1}}}
-
-% smart constructors
-\newcommand{\zero}{\ttt{zero}}
-\newcommand{\transfOne}{\ttt{transfOne}}
-\newcommand{\scale}{\ttt{scale}}
-\newcommand{\transl}{\ttt{transl}}
-\newcommand{\both}{\ttt{both}}
-\newcommand{\ifff}{\ttt{iff}}
-\newcommand{\checkWithin}{\ttt{checkWithin}}
-
-\begin{frame}
-    \frametitle{Contract Semantics -- Equivalences}
-{\footnotesize
+\begin{frame}\frametitle{Basic Contract Equivalences}{\footnotesize
 
 \begin{columns}
 \column{0.35\textwidth}
@@ -154,29 +171,33 @@ datatype contr =
     \ifff(c,\zero,\zero)        &= \zero\\[0.5ex]
     \ifff(T,c_1,c_2)            &=  c_1\\
     \ifff(F,c_1,c_2)            &=  c_2\\[0.5ex]
-    \checkWithin(b,0,c_1,c_2)   &= \ifff(b,c_1,c_2) \ \ast\\
+    \checkWithin(b,0,c_1,c_2)   &= \ifff(b,c_1,c_2) \\
 \end{align*}
 \end{columns}
 
-\vspace*{-3ex}
-\pause
 \begin{align*}
     \scale(s_1,\scale(s_2,c))    &=  \scale(s_1\cdot s_2,c)\\
     \transl(d_1,\transl(d_2,c)   &=  \transl(d_1+d_2,c)\\[1ex]
-%\end{align*}
-%\begin{align*}
-    \transl(d,\scale(s,c))       &=  \scale(s/d,\transl(d,c))\\
-    \transl(d,\scale(s,c))       &=  \scale(s,\transl(d,c))\  \mbox{if } s \mbox{ is certain}\\
     \transl(d,\both(c_1,c_2)     &=  \both(\transl(d,c_1),\transl(d,c_2))\\[1ex]
-%
-\transl(d,\checkWithin (b, e, c_1, c_2))  &=  \\
-                             \checkWithin &(b/d, e, \transl(d,c1), \transl(d,c2))\\[1ex]
-\mbox{with }\ast:\   \transl(d,\ifff(b,c_1,c_2))  &=  \ifff(b/d, transl(d,c_1), transl(d,c_2))\\
 \end{align*}
 
-}
+}\end{frame}
 
-\end{frame}
+
+\begin{frame}[t] \frametitle{Complex Contract Equivalences} {\footnotesize
+
+\textbf{Need to explain $ exp/d$ notation at this point.}
+
+\begin{align*}
+    \transl(d,\scale(s,c))       &=  \scale(s/d,\transl(d,c))\\
+    \transl(d,\scale(s,c))       &=  \scale(s,\transl(d,c))\  \mbox{if } s \mbox{ is certain}\\
+%
+  \transl(d,\checkWithin (b, e, c_1, c_2))  &=  \\
+                             \checkWithin &(b/d, e, \transl(d,c_1), \transl(d,c_2))\\[1ex]
+  \transl(d,\ifff(b,c_1,c_2))  &=  \ifff(b/d, \transl(d,c_1), \transl(d,c_2))\\
+\end{align*}
+
+}\end{frame}
 
 \newcommand{\crule}[3]{\frac{#2}{#3}\ \mbox{\scriptsize \it #1}}
 
@@ -195,9 +216,8 @@ Goal: Establish static bound for many contracts.
 \smallskip
 \hrule
 
-\pause
-
 \medskip
+\emph{\textbf{Expression Causality}}
 
 \emph{$b$-causality} $ b \vdash e$ for \emph{expressions}:
 {\scriptsize $ (b \in \mathbb{Z}_0^+, \ e \in \ttt{expr0})$}
@@ -207,7 +227,7 @@ Goal: Establish static bound for many contracts.
 %\jbcomment{b non-negative to use 0 as lowest value: How about $\forall b\in\mathbb{Z}: b\vdash Literal$}
 \begin{align*}
 \crule{(Lit)}{e \mbox{ is a literal}}{0 \vdash e}&\\[1ex]
- \crule{(Obs)}{}{b \vdash \ttt{obs}(s,b)}&\\
+ \crule{(Obs)}{}{max(0,i) \vdash \ttt{obs}(s,i)}&\\
 \end{align*}
 
 \column{0.3\textwidth}
@@ -259,14 +279,14 @@ Maybe I misunderstood the directions here?
 \begin{frame}
     \frametitle{Formal Semantics: Sequence of Cash Flow Sets}
 
-An environment $\ttt{env}$ stores all fixings for observables and choices, and is used in the \ldots
+An environment $\ttt{env}$ contains fixings for observables and choices.
 
-
-\ldots semantics of an expression: $ \mathcal{E} : \ttt{exp0} \times \ttt{env} \rightarrow V$\\
-{\footnotesize
-(where $V$ is the set of all expression values, \cd{int}, \cd{real}, \cd{bool}).
-}
-
+Expression Semantics: 
+\begin{align*}
+  \mathcal{E} & : \ttt{boolE} \times \ttt{env} \rightarrow \ttt{bool}\\
+  \mathcal{E} & : \ttt{intE} \times \ttt{env} \rightarrow \ttt{int}\\
+  \mathcal{E} & : \ttt{realE} \times \ttt{env} \rightarrow \ttt{real}\\
+\end{align*}
 
 \jbcomment{explain how to move the environment $ env/d$}
 
@@ -314,5 +334,46 @@ d > 0\ \wedge\ !\mathcal{E}\sem{b}e:\\
 }
 
 \end{frame}
+
+\begin{frame}[fragile,t]
+    \frametitle{Contract Language Implementation in Standard ML}
+\emph{Expression Datatype}
+\begin{mlcode}
+type party = string
+                       
+datatype exp0 = I of int  (* data structure for expressions *)
+              | R of real (*  - numeric or boolean *)
+              | ...
+              | BinOp of string * exp0 * exp0
+              | ...
+              | Obs of string * int     (* observable *)
+              | ChosenBy of party * int (* active choice *)
+\end{mlcode}
+
+\emph{Contract Datatype}
+\begin{mlcode}
+datatype contr =
+       Zero
+     | TransfOne of cur * party * party
+     | Scale of exp0 * contr
+     | Transl of int * contr
+     | Both of contr * contr
+     | If of exp0 * contr * contr
+     | CheckWithin of exp0 * int * contr * contr
+\end{mlcode}
+%datatype contr =
+%       Zero
+%     | TransfOne of cur * party * party (* immediate cash flow *)
+%     | Scale of exp0 * contr            (* scaling by an expr. *)
+%     | Transl of int * contr            (* postpone to later *)
+%     | Both of contr * contr            (* combine two contracts *)
+%     | If of exp0 * contr * contr       (* choice between two contracts *)
+%     | CheckWithin of exp0 * int * contr * contr
+%               (* monitoring of a condition (expr.) within a duration 
+%                  if true within time: first contract, otherwise second *)
+%
+\end{frame}
+
+
 
 \end{document}
