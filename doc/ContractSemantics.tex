@@ -38,6 +38,7 @@
       stringstyle=\color{gray},
       identifierstyle=\color{blue},
       commentstyle=\color{red}\ttfamily,
+      mathescape,
       language=ML
 }
 \lstnewenvironment{mlcode}
@@ -62,8 +63,6 @@
 \newcommand{\ifff}{\ttt{iff}}
 \newcommand{\checkWithin}{\ttt{checkWithin}}
 
-
-
 \title{A Small Contract Language -- Semantics}
 \author[Bahr,Berthold,Elsman]{Patrick Bahr, Jost Berthold, Martin Elsman}
 
@@ -77,9 +76,13 @@
 todo:
 
  - examples (vanilla option, barrier touch)                                     (mael)
+
  - complete complex equivalences with advancement and notion of certainty       (jost)
+
  - move causality to appendix and include example of non-causal contract        (jost)
+
  - utility examples from interpreter (cash-flows for an instrument)             (mael)
+
  - complete semantics slide                                                     (jost)
 
 \begin{itemize}
@@ -132,25 +135,24 @@ Contracts can be analyzed in a variety of ways...
     \frametitle{Expressions and Intuitive Semantics}
 
 \begin{mlcode}
-  type 'a exp                     (* expressions *)
-  type boolE = bool exp           (* boolean expressions *)
+  type 'a exp                     (* Expressions          *)
+  type boolE = bool exp           (* Boolean expressions  *)
   type 'a num 
-  type 'a numE = 'a num exp       (* numeric expressions *)
-  type realE = real num exp       (*  real expressions *)
+  type 'a numE = 'a num exp       (* Numeric expressions  *)
+  type realE = real num exp       (*  real expressions    *)
   type intE = int num exp         (*  integer expressions *)
  
   val I   : int -> intE
   val R   : real -> realE
   val B   : bool -> boolE
-  val +   : 'a numE * 'a numE -> 'a numE
-  ...
+  val $\oplus$  : 'a numE * 'a numE -> 'a numE  (* max, +, ... *)
   val obs : string * int -> realE
 \end{mlcode}
 
 \begin{description}
 \item[I d] is the integer constant $d$.
 \item[R r] is the real (i.e., double) constant $r$.
-\item[$e_1$ + $e_2$] represents the result of adding the results of two subexpression.
+\item[$e_1$ !-! $e_2$] represents the result of subtracting the results of two subexpression.
 \item[obs(s,d)] represents the value of the underlying ``s'' in $d$ days.
 \end{description}
 
@@ -182,7 +184,63 @@ Contracts can be analyzed in a variety of ways...
 \item[checkWithin] repeatedly checks a condition (of type \cd{boolE}) for a number of days.
     The \cd{int} arg. must be positive!
 \end{description}
+\end{frame}
 
+\begin{frame}[fragile,t]\frametitle{Example --- Vanilla Option}
+
+\begin{mlcode}
+val equity = "Carlsberg"  (* Carlsberg stock call option *)
+val maturity = 12 * 30
+val ex4 =
+    let val strike = 50.0
+        val nominal = 1000.0
+        val obs = max(R 0.0, obs(equity,0) !-! R strike)
+    in scale(R nominal,
+             transl(maturity,
+                    scale(obs,transfOne(EUR,"you","me"))))
+    end
+\end{mlcode}
+
+\textbf{Cash flows in 360 days:}
+
+\begin{scriptsize}
+\begin{verbatim}
+Cashflows:
+2013-12-26 Certain [you->me] EUR (1000.0*max(0.0,(Obs(Carlsberg@0)-50.0)))
+\end{verbatim}
+\end{scriptsize}
+\end{frame}
+
+\begin{frame}[fragile,t]\frametitle{Example --- Barrier Touch Option}
+\textbf{Instrument:}
+\begin{mlcode}
+datatype kind = Up | Down
+fun fxBarrierTouch buyer seller curSettle amount
+                   (cur1,cur2) barrier kind expiry =
+  let val rate = fxRate cur1 cur2
+      val cond = case kind of
+                    Up   => R barrier !<! obs (rate,0)
+                  | Down => obs (rate,0) !<! R barrier
+      val tr   = transfOne (curSettle, buyer, seller)
+  in checkWithin (cond, expiry,
+                  scale (R amount, tr),
+                  zero)    (* pay only if barrier is hit *)
+  end
+\end{mlcode}
+
+\textbf{I buy a EUR 1000 1Y EUR/USD barrier touch Up-option:}
+\begin{mlcode}
+val touch =
+ fxBarrierTouch "me" "you" EUR 1000.0 (EUR,USD) 1.0 Up Y1
+\end{mlcode}
+
+\textbf{Contract simplifies to:}
+\begin{scriptsize}
+\begin{verbatim}
+CheckWithin(1.0 < Obs(FX EUR/USD@0), 1y, 
+            Scale(1000.0,TransfOne(EUR,me,you)), zero)
+\end{verbatim}
+\end{scriptsize}
 \end{frame}
 
 \begin{frame}\frametitle{Basic Contract Equivalences}{\footnotesize
