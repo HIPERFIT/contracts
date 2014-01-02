@@ -7,8 +7,8 @@ app use ["DateUtil.sml", "ListSort.sig", "ListSort.sml", "CURRENCY.sig", "Curren
 (* bring contract "constructors" in direct scope *)
 open Currency Contract Instruments;
 
-print "vanillaFx Put \"F\" \"Nordea\" (USD,SEK) 30E6 6.3 365:\n";
+print "vanillaFx Put \"F\" \"us\" (USD,SEK) 30E6 6.3 365:\n";
 
-val fxput = vanillaFx Put "F" "Nordea" (USD,SEK) 30E6 6.3 365;
+val fxput = vanillaFx Put "F" "us" (USD,SEK) 30E6 6.3 365;
 
 

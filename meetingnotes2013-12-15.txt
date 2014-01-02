@@ -6,7 +6,7 @@
 			by Martin Elsman, DIKU
 		 with Patrick Bahr and Jost Berthold
 
-			Presentation at Nordea
+                            Presentation
 
 
 -----
@@ -35,7 +35,7 @@
 
  - vanilla call option
  
- - Nordea portfolio
+ - Example portfolio
 
 * Formal treatment (semantics)
 
