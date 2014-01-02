@@ -47,7 +47,7 @@
 \lstset{style=smlstyle,keepspaces=true,breaklines=false}\newcommand{\cd}[1]{\lstinline$#1$}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\renewcommand{\emph}[1]{\textcolor{structure!60}{#1}}
+\renewcommand{\emph}[1]{\textcolor{structure!90}{#1}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -63,8 +63,8 @@
 \newcommand{\ifff}{\ttt{iff}}
 \newcommand{\checkWithin}{\ttt{checkWithin}}
 
-\title{A Small Contract Language -- Semantics}
-\author[Bahr,Berthold,Elsman]{Patrick Bahr, Jost Berthold, Martin Elsman}
+\title{A Small Multi-Party Contract Language}
+\author[Bahr,Berthold,Elsman,Henglein]{Patrick Bahr, Jost Berthold, Martin Elsman, Fritz Henglein}
 
 \begin{document}
 
@@ -73,37 +73,19 @@
 \begin{frame}[fragile,t]
     \frametitle{Outline}
 
-todo:
-
- - examples (vanilla option, barrier touch)                                     (mael)
-
- - complete complex equivalences with advancement and notion of certainty       (jost)
-
- - move causality to appendix and include example of non-causal contract        (jost)
-
- - utility examples from interpreter (cash-flows for an instrument)             (mael)
-
- - complete semantics slide                                                     (jost)
-
 \begin{itemize}
 \item Expressions and contracts
 \item Example contracts
-\item Contract equivalences
+\item Contract equivalences and semantics
 \item Contract causality
 \item Contract utilities
- \begin{itemize}
-  \item Finding cash flows
-  \item Eliminating transfers to and from a particular party
-  \item Merging parties
-  \item Applying fixings
-  \item Advancing a contract in time
-  \end{itemize}
+\item Discussion of future work\\
 \item Appendix: Contract semantics
 \end{itemize}
 \end{frame}
 
 \begin{frame}[fragile,t]
-    \frametitle{Contract Language Features}
+    \frametitle{Contract Language Goals}
 
 \textbf{Compositionality}. 
 \begin{quote}
@@ -272,10 +254,33 @@ CheckWithin(1.0 < Obs(FX EUR/USD@0), 1y,
 }\end{frame}
 
 
-\begin{frame}[t] \frametitle{Complex Contract Equivalences} {\footnotesize
+\begin{frame}[t] \frametitle{Complex Contract Equivalences}
 
-\textbf{Need to explain $ exp/d$ notation at this point.}
+\emph{\textbf{Advancing expressions:}}
 
+Expressions which involve observables can be translated (similar to \cd{transl} for contracts).
+%
+\hfill {\footnotesize $(e \in \ttt{intE} \cup \ttt{realE} \cup \ttt{boolE},\ d \in \mathbb{Z})$}
+
+{\footnotesize 
+$$ e / d = \left \{
+\begin{array}{ll}
+obs(s,\emph{d+i}) :& e = \emph{obs(s,i)}\\
+e_1/d \oplus e_2/d :& e = e_1 \oplus e_2\\
+\ldots
+\end{array}
+\right .$$
+}
+
+An expression is \emph{certain} if it does not depend on observables.
+\medskip
+
+\hrule
+\medskip
+
+\emph{\textbf{\ldots enables equivalences with \cd{transl}}}
+
+{\footnotesize
 \begin{align*}
     \transl(d,\scale(s,c))       &=  \scale(s/d,\transl(d,c))\\
     \transl(d,\scale(s,c))       &=  \scale(s,\transl(d,c))\  \mbox{if } s \mbox{ is certain}\\
@@ -284,83 +289,11 @@ CheckWithin(1.0 < Obs(FX EUR/USD@0), 1y,
                              \checkWithin &(b/d, e, \transl(d,c_1), \transl(d,c_2))\\[1ex]
   \transl(d,\ifff(b,c_1,c_2))  &=  \ifff(b/d, \transl(d,c_1), \transl(d,c_2))\\
 \end{align*}
+}
 
-}\end{frame}
+\end{frame}
 
 \newcommand{\crule}[3]{\frac{#2}{#3}\ \mbox{\scriptsize \it #1}}
-
-\begin{frame}[t]
-    \frametitle{Contract Causality}
-
-\emph{Causal Contracts, intention:}
-{\footnotesize
-\begin{quote}
- A \emph{causal contract} is a contract with the property that during all
-   possible executions of the contract, a cash flow cannot depend on a
-   future fixing (of an observable).
-\end{quote}
-Goal: Establish static bound for many contracts.
-}
-\smallskip
-\hrule
-
-\medskip
-\emph{\textbf{Expression Causality}}
-
-\emph{$b$-causality} $ b \vdash e$ for \emph{expressions}:
-{\scriptsize $ (b \in \mathbb{Z}_0^+, \ e \in \ttt{expr0})$}
-
-\begin{columns}
-\column{0.3\textwidth}
-%\jbcomment{b non-negative to use 0 as lowest value: How about $\forall b\in\mathbb{Z}: b\vdash Literal$}
-\begin{align*}
-\crule{(Lit)}{e \mbox{ is a literal}}{0 \vdash e}&\\[1ex]
- \crule{(Obs)}{}{max(0,i) \vdash \ttt{obs}(s,i)}&\\
-\end{align*}
-
-\column{0.3\textwidth}
-\begin{align*}
-&\crule{(BinOp)}{b_1 \vdash e_1\ \ b_2 \vdash e_2 }{max(b_1,b_2) \vdash e_1 \otimes e_2}\\[1ex]
-&\crule{(UnOp)}{b \vdash e}{b \vdash \ominus e}\\
-\end{align*}
-\end{columns}
-Intuitive: smallest $i$ such that no observable is observed \emph{after more than $i$ days}.
-
-\end{frame}
-
-\begin{frame}[t]
-    \frametitle{Contract Causality (2)}
-
-\emph{$b$-causality} $ b \vdash c$ for contracts:
-{\scriptsize $ (b \in \mathbb{Z}_0^+, \ c \in \ttt{contr})$}
-
-\begin{columns}
-\column{0.3\textwidth}
-\begin{align*}
-\crule{(Zero)}{}{\infty \vdash \zero}&\\
-\crule{(TO)}{}{0 \vdash \transfOne(C,p_1,p_2)}&\\
-\crule{(TL)}{b \vdash c}{b + d \vdash \transl(d,c)}&\\
-\end{align*}
-
-\column{0.3\textwidth}
-\begin{align*}
-&\\
-&\crule{(Sc)}{b_1 \vdash e\ \ \ b_2\vdash c\ \ \ b_1 \leq b_2 }{b_2 \vdash \scale(e,c)}\\
-&\crule{(Both)}{b_1 \vdash c_1\ \ \ b_2 \vdash c_2}{min(b_1,b_2) \vdash \both(c_1,c_2)}\\
-\end{align*}
-\end{columns}
-$$ 
-\crule{(CW)}{0\vdash e\ \ \ b_1 \vdash c_1\ \ \ b_2 \vdash c_2}{min(b_1,b_2) \vdash \checkWithin(e,d,c_1,c_2)}
-$$
-
-\jbcomment{I would expect some different rules: (Zero) should use 0, not $\infty$,
-(TL) should use $b-d$ because c is translated by $d$ forward, (Both) and (CW) would use $max$.
-Maybe I misunderstood the directions here?
-
-}
-
-\end{frame}
-
 \newcommand{\sem}[1]{[\![#1]\!]}
 \newcommand{\csem}[3]{\mathcal{C}\sem{#1}#2 & = #3}
 
@@ -369,31 +302,101 @@ Maybe I misunderstood the directions here?
 
 An environment $\ttt{env}$ contains fixings for observables and choices.
 
-Expression Semantics: 
+\emph{Expression semantics} looks up these fixings when required
+and computes derived values
+\vspace*{-2ex}
+
+{\footnotesize
 \begin{align*}
   \mathcal{E} & : \ttt{boolE} \times \ttt{env} \rightarrow \ttt{bool}\\
-  \mathcal{E} & : \ttt{intE} \times \ttt{env} \rightarrow \ttt{int}\\
-  \mathcal{E} & : \ttt{realE} \times \ttt{env} \rightarrow \ttt{real}\\
-\end{align*}
+    \mathcal{E} & : \ttt{intE} \times \ttt{env} \rightarrow \ttt{int}\\
+  \mathcal{E} & : \ttt{realE} \times \ttt{env} \rightarrow \ttt{real}
+\end{align*}}
 
-\jbcomment{explain how to move the environment $ env/d$}
+\vspace*{-2ex}
+Advancing expressions is generalised to environments: 
 
-\bigskip
+\hfill $ \ttt{env/d}$ advances all fixings by $d$ days.
+
+\medskip
 
 \hrule
-\bigskip
+\medskip
 
-Semantics of a contracts: $ \mathcal{C} : \ttt{contr} \times \ttt{env} 
-          \rightarrow \mathbb{P}(\ttt{flow})^\mathbb{N}$\\
-{\footnotesize
-(where $\ttt{flow}$ is a cash flow: \cd{(amount:real, c:currency, from,to:party)}
-}
-\jbcomment{explain flow sets as semantic domain}
+\emph{Contract Semantics}:
+evaluates a contract to a series of cash flow sets,
+given an environment with the required fixings:
+%
+\vspace*{-1ex}
+$$ \mathcal{C} : \ttt{contr} \times \ttt{env} 
+          \rightarrow \mathbb{P}(\ttt{flow})^\mathbb{N}$$
+
+\cd{flow} is a cash flow: \cd{(amount: real, c: currency, from,to: party)}
+
+\vfill
+{\scriptsize Full definition of contract semantics: see appendix}
 
 \end{frame}
 
+\begin{frame}[fragile,t]
+    \frametitle{Contract Causality}
+
+\emph{Causal Contracts, intention:}
+{%\footnotesize
+\begin{quote}
+ A \emph{causal contract} is a contract with the property that during all
+   possible executions of the contract, a cash flow cannot depend on a
+   future fixing (of an observable).
+\end{quote}}
+
+\emph{Example of a non-causal contract:}
+
+\begin{mlcode}
+iff( obs("CarlsbergDKR",2) !>! R 50.0,
+                              transfOne(EUR, me, you), zero)
+\end{mlcode}
+{\footnotesize
+\begin{quote}
+  If \emph{the day after tomorrow}, 
+           the Carlsberg stock is worth more than 50~kr.,
+           I give you one EUR \emph{today}.
+\end{quote}}
+
+\medskip
+\hrule
+\medskip
+
+\emph{Goal}: Establish static bound and check for many contracts.
+
+\vfill
+{\scriptsize Expression causality, contract causality: see appendix}
+\end{frame}
+
 \begin{frame}
-    \frametitle{Formal Semantics: Contracts}
+\frametitle{Utilities / Future Work}
+
+\textbf{Available features}:
+\begin{itemize}
+  \item Applying fixings
+  \item Advancing a contract in time
+  \item Finding cash flows
+  \item Eliminating transfers to and from a particular party
+  \item Merging parties
+\end{itemize}
+
+\textbf{Next steps}:
+\begin{itemize}
+  \item Focusing / Defocusing  (e.g., resolution: day-week-month).
+  \item Pattern matching to identify standard contracts.
+  \item Finding ``branch-boundaries'' in conditionals.
+
+      \emph{Goal:} generate tree of scenarios with fixings.
+\end{itemize}
+\end{frame}
+
+\frame{\Huge APPENDIX}
+\begin{frame}
+    \frametitle{Appendix: Formal Semantics: Contracts}
 
 Semantics of a contracts: $ \mathcal{C} : \ttt{contr} \times \ttt{env} 
           \rightarrow \mathbb{P}(\ttt{flow})^\mathbb{N}$\\
@@ -423,12 +426,79 @@ d > 0\ \wedge\ !\mathcal{E}\sem{b}e:\\
 
 \end{frame}
 
+\begin{frame}
+    \frametitle{Appendix: Expression Causality}
+
+\emph{$b$-causality} $ b \vdash e$ for \emph{expressions}:
+{\scriptsize $ (b \in \mathbb{Z}_0^+, \ e \in \ttt{expr0})$}
+
+\begin{columns}
+\column{0.1\textwidth}
+\emph{Axioms:}
+\column{0.35\textwidth}
+$$\crule{(Obs)}{}{max(0,i) \vdash \ttt{obs}(s,i)}$$
+%\jbcomment{b non-negative to use 0 as lowest value: How about $\forall b\in\mathbb{Z}: b\vdash Literal$}
+\column{0.2\textwidth}
+$$\crule{(Lit)}{e \mbox{ is a literal}}{0 \vdash e}$$
+\end{columns}
+
+
+\begin{columns}
+\column{0.1\textwidth}
+\emph{Propagation:}
+\column{0.35\textwidth}
+$$\crule{(BinOp)}{b_1 \vdash e_1\ \ b_2 \vdash e_2 }{max(b_1,b_2) \vdash e_1 \otimes e_2}$$
+
+\column{0.2\textwidth}
+$$\crule{(UnOp)}{b \vdash e}{b \vdash \ominus e}$$
+\end{columns}
+
+\medskip
+\hrule
+\medskip
+
+\emph{Intuition:} $i \vdash e$ indicates the smallest $i$ such that no observable in $e$ is observed \emph{after more than $i$ days}.
+
+\end{frame}
+
+\begin{frame}[t]
+    \frametitle{Appendix: Contract Causality}
+
+\emph{$d$-causality} $ d \vdash c$ for contracts:
+{\scriptsize $ (d \in \mathbb{Z}_0^+, \ c \in \ttt{contr})$}
+
+\begin{columns}
+\column{0.3\textwidth}
+\begin{align*}
+\crule{(Zero)}{}{\infty \vdash \zero}&\\[1ex]
+\crule{(TO)}{}{0 \vdash \transfOne(C,p_1,p_2)}&\\[1ex]
+\crule{(TL)}{b \vdash c}{b + d \vdash \transl(d,c)}&\\[1ex]
+\end{align*}
+
+\column{0.3\textwidth}
+\begin{align*}
+&\\[1ex]
+&\crule{(Sc)}{b_1 \vdash e\ \ \ b_2\vdash c\ \ \ b_1 \leq b_2 }{b_2 \vdash \scale(e,c)}\\[1ex]
+&\crule{(Both)}{b_1 \vdash c_1\ \ \ b_2 \vdash c_2}{min(b_1,b_2) \vdash \both(c_1,c_2)}%\\[1ex]
+\end{align*}
+\end{columns}
+$$ 
+\crule{(CW)}{0\vdash e\ \ \ b_1 \vdash c_1\ \ \ b_2 \vdash c_2}{min(b_1,d+b_2) \vdash \checkWithin(e,d,c_1,c_2)}
+$$
+
+\medskip
+\hrule
+\medskip
+
+\emph{Intuition:} $i \vdash c$ means c is causal (\textit{SC} rule) and there are no transfers before $i$ days have passed (\textit{TL} rule and using \textit{min}).
+
+\end{frame}
+
 \begin{frame}[fragile,t]
-    \frametitle{Contract Language Implementation in Standard ML}
+    \frametitle{Appendix: Contract Language Implementation}
 \emph{Expression Datatype}
 \begin{mlcode}
-type party = string
-                       
+type party = string                       
 datatype exp0 = I of int  (* data structure for expressions *)
               | R of real (*  - numeric or boolean *)
               | ...
@@ -438,7 +508,8 @@ datatype exp0 = I of int  (* data structure for expressions *)
               | ChosenBy of party * int (* active choice *)
 \end{mlcode}
 
-\emph{Contract Datatype}
+\emph{Contract Datatype}\footnote{Interface functions are ``smart constructor'' version of the above
+constructors.}
 \begin{mlcode}
 datatype contr =
        Zero
@@ -460,8 +531,8 @@ datatype contr =
 %               (* monitoring of a condition (expr.) within a duration 
 %                  if true within time: first contract, otherwise second *)
 %
+
+
 \end{frame}
-
-
 
 \end{document}
