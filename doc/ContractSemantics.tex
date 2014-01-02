@@ -77,9 +77,7 @@
 todo:
 
  - examples (vanilla option, barrier touch)                                     (mael)
- - complete complex equivalences with advancement and notion of certainty       (jost)
  - utility examples from interpreter (cash-flows for an instrument)             (mael)
- - complete semantics slide                                                     (jost)
 
 \begin{itemize}
 \item Expressions and contracts
@@ -213,10 +211,33 @@ Contracts can be analyzed in a variety of ways...
 }\end{frame}
 
 
-\begin{frame}[t] \frametitle{Complex Contract Equivalences} {\footnotesize
+\begin{frame}[t] \frametitle{Complex Contract Equivalences}
 
-\textbf{Need to explain $ exp/d$ notation at this point.}
+\emph{\textbf{Advancing expressions:}}
 
+Expressions which involve observables can be translated (similar to \cd{transl} for contracts).
+%
+\hfill {\footnotesize $(e \in \ttt{intE} \cup \ttt{realE} \cup \ttt{boolE},\ d \in \mathbb{Z})$}
+
+{\footnotesize 
+$$ e / d = \left \{
+\begin{array}{ll}
+obs(s,\emph{d+i}) :& e = \emph{obs(s,i)}\\
+e_1/d \oplus e_2/d :& e = e_1 \oplus e_2\\
+\ldots
+\end{array}
+\right .$$
+}
+
+A expression is \emph{certain} if it does not depend on observables.
+\medskip
+
+\hrule
+\medskip
+
+\emph{\textbf{\ldots enables equivalences with \cd{transl}}}
+
+{\footnotesize
 \begin{align*}
     \transl(d,\scale(s,c))       &=  \scale(s/d,\transl(d,c))\\
     \transl(d,\scale(s,c))       &=  \scale(s,\transl(d,c))\  \mbox{if } s \mbox{ is certain}\\
@@ -225,8 +246,9 @@ Contracts can be analyzed in a variety of ways...
                              \checkWithin &(b/d, e, \transl(d,c_1), \transl(d,c_2))\\[1ex]
   \transl(d,\ifff(b,c_1,c_2))  &=  \ifff(b/d, \transl(d,c_1), \transl(d,c_2))\\
 \end{align*}
+}
 
-}\end{frame}
+\end{frame}
 
 \newcommand{\crule}[3]{\frac{#2}{#3}\ \mbox{\scriptsize \it #1}}
 
@@ -272,26 +294,39 @@ iff( obs("CarlsbergDKR",2) !>! R 50.0,
 
 An environment $\ttt{env}$ contains fixings for observables and choices.
 
-Expression Semantics: 
+\emph{Expression semantics} looks up these fixings when required
+and computes derived values
+\vspace*{-2ex}
+
+{\footnotesize
 \begin{align*}
   \mathcal{E} & : \ttt{boolE} \times \ttt{env} \rightarrow \ttt{bool}\\
-  \mathcal{E} & : \ttt{intE} \times \ttt{env} \rightarrow \ttt{int}\\
-  \mathcal{E} & : \ttt{realE} \times \ttt{env} \rightarrow \ttt{real}\\
-\end{align*}
+    \mathcal{E} & : \ttt{intE} \times \ttt{env} \rightarrow \ttt{int}\\
+  \mathcal{E} & : \ttt{realE} \times \ttt{env} \rightarrow \ttt{real}
+\end{align*}}
 
-\jbcomment{explain how to move the environment $ env/d$}
+\vspace*{-2ex}
+Advancing expressions is generalised to environments: 
 
-\bigskip
+\hfill $ \ttt{env/d}$ advances all fixings by $d$ days.
+
+\medskip
 
 \hrule
-\bigskip
+\medskip
 
-Semantics of a contracts: $ \mathcal{C} : \ttt{contr} \times \ttt{env} 
-          \rightarrow \mathbb{P}(\ttt{flow})^\mathbb{N}$\\
-{\footnotesize
-(where $\ttt{flow}$ is a cash flow: \cd{(amount:real, c:currency, from,to:party)}
-}
-\jbcomment{explain flow sets as semantic domain}
+\emph{Contract Semantics}:
+evaluates a contract to a series of cash flow sets,
+given an environment with the required fixings:
+%
+\vspace*{-1ex}
+$$ \mathcal{C} : \ttt{contr} \times \ttt{env} 
+          \rightarrow \mathbb{P}(\ttt{flow})^\mathbb{N}$$
+
+$\ttt{flow}$ is a cash flow: \cd{(amount: real, c: currency, from,to: party)}
+
+\vfill
+{\scriptsize Full definition of contract semantics: see appendix}
 
 \end{frame}
 
