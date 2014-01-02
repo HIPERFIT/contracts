@@ -32,10 +32,12 @@
 \lstloadlanguages{ML,C}
 % auto-colorisation with listings, handy for known languages...
 \lstdefinestyle{smlstyle}{
+      basicstyle=\ttfamily\scriptsize,
       keywordstyle=\color{violet},
+      literate={->}{$\rightarrow$}1,
       stringstyle=\color{gray},
       identifierstyle=\color{blue},
-      commentstyle=\color{gray}\ttfamily,
+      commentstyle=\color{red}\ttfamily,
       language=ML
 }
 \lstnewenvironment{mlcode}
@@ -97,6 +99,34 @@ todo:
 \end{itemize}
 \end{frame}
 
+\begin{frame}[fragile,t]
+    \frametitle{Contract Language Features}
+
+\textbf{Compositionality}. 
+\begin{quote}
+Contracts are time-relative, which makes compositionality
+straightforward.
+\end{quote}
+
+\textbf{Multi-party}.
+\begin{quote}
+A contract specifies the contractual obligations and benefits for
+multiple parties, which opens up the possibility for specifying
+portfolios.
+\end{quote}
+
+\textbf{Contract management}.
+\begin{quote}
+Contracts can be managed; gradually, a contract reduces to the ``empty
+contract''.
+\end{quote}
+
+\textbf{Contract utilities}.
+\begin{quote}
+Contracts can be analyzed in a variety of ways...
+\end{quote}
+
+\end{frame} 
 
 \begin{frame}[fragile,t]
     \frametitle{Expressions and Intuitive Semantics}
