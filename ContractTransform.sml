@@ -5,9 +5,10 @@ local open Currency Contract ContractBase in
 infix !+! !*! !-!
 
 (* Contract normalisation:
-o gather Transl outside of If, All and Scale inside 
+o gather Transl outside of If, CheckWithin. Both and Scale inside 
 o multiply Scale, add Transl, cutting them when empty below 
-o CheckWithin is a very special case, stays pinned wrt. Transl.
+
+TODO: use (temporary) tag to avoid repeated traversals!!!
 *)
 fun normalise (Transl (i,c)) = (case normalise c of
    (* aggregate several Transl *)   Transl (i',c') => transl (i + i', c')
@@ -18,15 +19,25 @@ fun normalise (Transl (i,c)) = (case normalise c of
          (Zero,Zero) => Zero
          (* lift Transl constr.s to top *) 
        | (Transl (i1,c1'),Transl (i2,c2'))
-         => if i1 =i2 then transl(i1, iff (b, c1', c2'))
+         => if i1 =i2 then transl(i1, normalise (iff (b, c1', c2')))
             else let val iMin = Int.min (i1, i2)
                      val i1' = i1 - iMin
                      val i2' = i2 - iMin
                  in transl(iMin, iff (translExp (b, ~iMin),
-                                      transl(i1',c1'), transl(i2', c2')))
+                                      transl(i1', normalise c1'), 
+                                      transl(i2', normalise c2')))
                  end
-       | (Transl (i1,c1'),Zero) => transl (i1, iff (b, c1', zero))
-       | (Zero,Transl (i2,c2')) => transl (i2, iff (b, zero, c2'))
+       | (Transl (i1,c1'),Zero) => transl (i1, normalise (iff (b, c1', zero)))
+       | (Zero,Transl (i2,c2')) => transl (i2, normalise (iff (b, zero, c2')))
+       | (c1' as If(b',c11,_),c2') => 
+         if eqExp (b, b') then normalise (iff (b, c11, c2'))
+                          else iff (b, c1', c2')
+       | (c1',c2' as If(b',_,c22)) => 
+         if eqExp (b, b') then normalise (iff (b, c1', c22))
+                          else iff (b, c1', c2')
+       | (c1' as CheckWithin(b',_,c11,_),c2') => 
+         if eqExp (b, b') then normalise (iff (b, c11, c2'))
+                          else iff (b, c1', c2')
        | (c1',c2') => iff (b, c1', c2'))
   | normalise (CheckWithin (b, i, c1, c2)) =
     (case (normalise c1, normalise c2) of
@@ -43,6 +54,15 @@ fun normalise (Transl (i,c)) = (case normalise c of
                  end
        | (Transl (i1,c1'),Zero) => transl (i1, checkWithin (translExp (b, ~i1), i, c1', zero))
        | (Zero,Transl (i2,c2')) => transl (i2, checkWithin (translExp (b, ~i2), i, zero, c2'))
+       | (c1' as If(b',c11,_),c2') => 
+         if eqExp (b, b') then normalise (checkWithin (b, i, c11, c2'))
+                          else checkWithin (b, i, c1', c2')
+       | (c1',c2' as If(b',_,c22)) => 
+         if eqExp (b, b') then normalise (checkWithin (b, i, c1', c22))
+                          else checkWithin (b, i, c1', c2')
+       | (c1' as CheckWithin(b',_,c11,_),c2') => 
+         if eqExp (b, b') then normalise (checkWithin (b, i, c11, c2'))
+                          else checkWithin (b, i, c1', c2')
        | (c1', c2') => checkWithin (b, i, c1', c2'))
   | normalise (Both (c1,c2)) =
     (case (normalise c1, normalise c2) of
@@ -77,8 +97,8 @@ fun normalise (Transl (i,c)) = (case normalise c of
        | CheckWithin (e,i,c1,c2) =>
          checkWithin (e, i, 
                       normalise (scale (e,c1)), normalise (scale (e,c2)))
-       | Both (c1,c2) => (* Both out. need repeated normalisation to
-         merge chains of "scale" *)
+       | Both (c1,c2) => 
+         (* repeated normalisation to merge chains of "scale" *)
          both (normalise (scale (e,c1)), normalise (scale (e,c2)))
        | other         => scale (e, other))
   | normalise a = a (* zero and flows stay *)

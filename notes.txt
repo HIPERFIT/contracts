@@ -465,3 +465,37 @@ Example:
         iff(cb > cb0,
             scale(cb - cb0, transfOne(DK, "you", "me")),
             zero))))
+
+===================
+
+More contract equivalences:
+(basis for new simplification rules for "If" )
+
+if (b, if (b, c11, c12), c2) == if (b1, c11, c2)
+   ---    --- same b
+
+if (b, c1, if (b, c21, c22)) == if (b1, c1, c22)
+   ---        --- same b
+
+Both equations follow immediately from semantics of if (evaluate same b).
+
+if (b, CheckWithin(b,i,c11,c12), c2) == if (b, c11, c2)
+   ---            --- same b
+
+Follows from CheckWithin semantics: b is known to be true from the start.
+
+NB This needs a normalisation of boolean expressions for full impact
+(equivalent expressions are sufficient, also syntactically unequal).
+This is easy for booleans (we only have "not" and "|", must identify
+branches of "|" in hash, as done for "Both" constructor). In contrast,
+it is very cumbersome to implement for arithmetic expressions (needs
+to use distribution laws).
+
+Analogous:
+
+CheckWithin(b,i,If(b,c11,c12), c2) == CheckWithin(b,i,c11,c2)
+           ---    ---
+CheckWithin(b,i1,CheckWithin(b,i2,c11,c12), c2) == CheckWithin(b,i,c11,c2)
+           ---              ---
+CheckWithin(b,i1,c1,If(b,c21,c22)) == CheckWithin(b,i1,c1,c22)
+           ---        ---
