@@ -203,9 +203,9 @@ fun certainExp e =
       | R _ => true
       | B _ => true
       | Obs _ => false
+      | ChosenBy _ => false
       | BinOp(_,e1,e2) => certainExp e1 andalso certainExp e2
       | UnOp(_,e1) => certainExp e1
-      | ChosenBy _ => true
       | Iff(b,e1,e2) => certainExp b andalso certainExp e1 andalso certainExp e2
 
 fun simplifyExp P e =
@@ -301,7 +301,8 @@ fun simplify P t =
             val c2 = simplify P c2
         in iff(e,c1,c2)
         end
-      | CheckWithin (e, i, c1, c2) => checkWithin (simplifyExp P e, i, c1, simplify P c2)
+      | CheckWithin (e, i, c1, c2) => 
+        checkWithin (simplifyExp P e, i, simplify P c1, simplify P c2)
 
 type cashflow   = date * cur * party * party * bool * realE
 fun ppCashflow w (d,cur,p1,p2,certain,e) =
@@ -343,11 +344,10 @@ fun cashflows d c : cashflow list =
                 end
               | If(b,c1,c2) => cf(d,c1,s,false) @ cf(d,c2,s,false)
               | CheckWithin(e,i,c1,c2) =>
-                if i <= 0 then nil
+                if i < 0 then cf(d,c1,s,false) @ cf(d,c2,s,false)
                 else cf(d,c1,s,false) @
-                     cf(d,c2,s,false) @
                      cf(DateUtil.addDays 1 d,
-                        checkWithin(translExp(e,i),i-1,c1,c2),s,certain)
+                        checkWithin(translExp(e,1),i-1,c1,c2),s,certain)
         val flows = cf(d,c,R 1.0,true)
     in ListSort.sort (fn ((d1,_,_,_,_,_),(d2,_,_,_,_,_)) => Date.compare (d1,d2)) flows
     end
