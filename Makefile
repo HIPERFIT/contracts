@@ -4,10 +4,28 @@ MLCOMP=mlkit
 MOSMLC=mosmlc
 MOSML=mosml
 
-# order matters here:
-SMLFILES=DateUtil.sml ListSort.sig ListSort.sml CURRENCY.sig Currency.sml ContractBase.sml ContractTransform.sml CONTRACT.sig Contract.sml Instruments.sml Instruments_test.sml ContractMonad.sml test.sml
+# All infrastructure modules (not tests). Order matters here:
+MOSMLFILES=DateUtil.sml ListSort.sig ListSort.sml CURRENCY.sig Currency.sml ContractBase.sml CONTRACT.sig Contract.sig Contract.sml ContractTransform.sml Instruments.sml
+
+SMLFILES= $(MOSMLFILES) Instruments_test.sml ContractMonad.sml test.sml
 
 all: contract.exe
+
+.PHONY: help clean
+help:
+	@echo " Target             Purpose                                remarks"
+	@echo "-------------------------------------------------------------------"
+	@echo "contractmos         runs loadscript in interpreter         mosml"
+	@echo "                    (loading some essential modules)"
+	@echo "mosmodules          compiles all basic modules with data   mosml"
+	@echo "                    types and manipulation functions)"
+	@echo "portfolio           compiles portfolio module              mosml"
+	@echo "                    (depends on above modules)"
+	@echo "pftest              portfolio test program                 mosml"
+	@echo "contract.exe        compiles contracts mlb                 mlkit"
+	@echo "                    (Instruments_test.sml)"
+	@echo ""
+	@echo "multicontracts.exe  multiparty contracts mlb               old"
 
 contract.exe: contract.mlb $(SMLFILES)
 	$(MLCOMP) -output $@ contract.mlb
@@ -15,10 +33,22 @@ contract.exe: contract.mlb $(SMLFILES)
 multicontracts.exe: multicontracts.mlb multicontracts.sml $(SMLFILES)
 	$(MLCOMP) -output $@ multicontracts.mlb
 
-multimos: $(SMLFILES) multicontracts.sml test.sml 
-	$(MOSMLC) -o multimos $^
+#multimos: $(MOSMLFILES) test.sml 
+#	$(MOSMLC) -o multimos $^
 
-contractmos: $(SMLFILES)
+contractmos: $(MOSMLFILES)
 	$(MOSML) loadscript
 clean:
 	rm -rf MLB *~ *.exe *.ui *.uo multimos run
+
+mosmodules: $(MOSMLFILES)
+	for F in  $(MOSMLFILES); do $(MOSMLC) -c $${F}; done
+
+portfolio.uo: mosmodules portfolio.sml
+	$(MOSMLC) -c portfolio.sml
+
+pftest:	portfolio.uo pftest.sml
+	$(MOSMLC) -o pftest pftest.sml
+
+
+# TODO add documentation here

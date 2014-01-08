@@ -71,7 +71,3 @@ signature CONTRACT = sig
   val ppCashflows : cashflow list -> string
   val cashflows   : date -> contr -> cashflow list
 end
-
-signature CONTRACT_UNSAFE =
-CONTRACT where type 'a exp = ContractBase.exp0
-           and type contr = ContractBase.contr 

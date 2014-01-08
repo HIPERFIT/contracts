@@ -1,4 +1,4 @@
-structure Contract :> CONTRACT_UNSAFE = struct
+structure Contract :> Contract = struct
 open ContractBase Currency
 type 'a exp = exp0
 type boolE = bool exp
