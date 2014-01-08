@@ -3,11 +3,12 @@ local
    DateUtil.sml
    ListSort.sig
    ListSort.sml
+   CONTRACTSIG.sig
 in 
    CURRENCY.sig
    Currency.sml
    ContractBase.sml
-   CONTRACT.sig
+   Contract.sig
    Contract.sml
    Instruments.sml
    ContractTransform.sml

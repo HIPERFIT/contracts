@@ -24,8 +24,8 @@ fun normalise (Transl (i,c)) = (case normalise c of
                      val i1' = i1 - iMin
                      val i2' = i2 - iMin
                  in transl(iMin, iff (translExp (b, ~iMin),
-                                      transl(i1', normalise c1'), 
-                                      transl(i2', normalise c2')))
+                                      transl(i1', c1'), 
+                                      transl(i2', c2')))
                  end
        | (Transl (i1,c1'),Zero) => transl (i1, normalise (iff (b, c1', zero)))
        | (Zero,Transl (i2,c2')) => transl (i2, normalise (iff (b, zero, c2')))
