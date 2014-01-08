@@ -1,4 +1,4 @@
-structure Instruments_Test = struct
+structure Instruments_test = struct
 open Currency Contract Instruments
 fun pr s c = print (s ^ ":\n " ^ ppContr c ^ "\n")              
 
