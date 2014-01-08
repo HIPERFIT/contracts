@@ -471,10 +471,10 @@ Example:
 More contract equivalences:
 (basis for new simplification rules for "If" )
 
-if (b, if (b, c11, c12), c2) == if (b1, c11, c2)
+if (b, if (b, c11, c12), c2) == if (b, c11, c2)
    ---    --- same b
 
-if (b, c1, if (b, c21, c22)) == if (b1, c1, c22)
+if (b, c1, if (b, c21, c22)) == if (b, c1, c22)
    ---        --- same b
 
 Both equations follow immediately from semantics of if (evaluate same b).
