@@ -67,6 +67,7 @@ signature CONTRACTSIG = sig
   val eqContr     : contr * contr -> bool
   val simplify    : env * date -> contr -> contr
 
+  (* Managed contracts *)
   type mcontr = date * contr
   val advance     : int -> mcontr -> mcontr
 

@@ -115,7 +115,6 @@ fun not x = UnOp("not",x)
 fun max (x,y) = binop "max" x y
 fun min (x,y) = binop "min" x y
 
-
 type date = Date.date
 
 type env = string*date*int -> real option   (* int is a date offset *)
@@ -303,8 +302,11 @@ fun simplify P t =
             val c2 = simplify P c2
         in iff(e,c1,c2)
         end
-      | CheckWithin (e, i, c1, c2) => 
-        checkWithin (simplifyExp P e, i, simplify P c1, simplify P c2)
+      | CheckWithin (e, i, c1, c2) =>
+        case simplifyExp P e of
+            B true => simplify P c1
+          | B false => simplify P (transl(1,checkWithin(e,i-1,c1,c2)))
+          | _ => checkWithin (e, i, c1, c2)
 
 type cashflow   = date * cur * party * party * bool * realE
 fun ppCashflow w (d,cur,p1,p2,certain,e) =
@@ -369,8 +371,7 @@ fun adv i c : contr =
            | TransfOne _ => zero
            | If(b,c1,c2) => iff(translExp(b,~i),adv i c1, adv i c2)
            | CheckWithin(e,i',c1,c2) =>
-             if i <= i' then checkWithin(translExp(e,~i),i'-i,c1,c2)
-             else adv (i-i') c2
+             raise Fail "adv: you cannot advance into a CheckWithin construct - fixings are needed using simplify"
 
 fun advance i (d,c) =
     (DateUtil.addDays i d,
