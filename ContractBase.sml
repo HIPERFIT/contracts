@@ -7,7 +7,8 @@ datatype exp0 = I of int
               | Var of var
               | BinOp of string * exp0 * exp0
               | UnOp of string * exp0
-              | Obs of string * int
+              | Obs of string * int      (* Obs(s,i): the value of s in i days; negative
+                                          * values refer to the past... *)
               | ChosenBy of string * int (* label(incl party) and time *)
               | Iff of exp0 * exp0 * exp0
 

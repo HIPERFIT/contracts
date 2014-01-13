@@ -67,7 +67,10 @@ signature CONTRACTSIG = sig
   val eqContr     : contr * contr -> bool
   val simplify    : env * date -> contr -> contr
 
+  type mcontr = date * contr
+  val advance     : int -> mcontr -> mcontr
+
   type cashflow   = date * cur * party * party * bool * realE
   val ppCashflows : cashflow list -> string
-  val cashflows   : date -> contr -> cashflow list
+  val cashflows   : mcontr -> cashflow list
 end

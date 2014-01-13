@@ -54,17 +54,6 @@ fun eqContr (c1,c2) =
     IntInf.compare(hashContr(c1,IntInf.fromInt 0),
                    hashContr(c2,IntInf.fromInt 0)) = EQUAL
 
-infix !+! !-! !*! !<! !=! !|!
-fun x !+! y = BinOp("+",x,y)
-fun x !-! y = BinOp("-",x,y)
-fun x !*! y = BinOp("*",x,y)
-fun x !<! y = BinOp("<",x,y)
-fun x !=! y = BinOp("=",x,y)
-fun x !|! y = BinOp("|",x,y)
-fun not x = UnOp("not",x)
-fun max (x,y) = BinOp("max",x,y)
-fun min (x,y) = BinOp("min",x,y)
-
 val obs : (string*int) -> 'a exp = Obs
 val chosenBy : (string*int) -> boolE = ChosenBy
 val ifExpr : boolE * 'a exp * 'a exp -> 'a exp = Iff
@@ -99,7 +88,12 @@ fun binopBB opr b1 b2 =
 
 fun binop opr e1 e2 =
     let fun mk() = BinOp(opr,e1,e2)
-    in case opr of
+    in case (e1, e2) of
+           (I i1, I i2) => binopII opr i1 i2
+         | (R r1, R r2) => binopRR opr r1 r2
+         | (B b1, B b2) => binopBB opr b1 b2
+         | _ => 
+       case opr of
            "-" => if eqExp(e1,e2) then I 0 else mk()
          | "min" => if eqExp(e1,e2) then e1 else mk()
          | "max" => if eqExp(e1,e2) then e1 else mk()
@@ -108,6 +102,19 @@ fun binop opr e1 e2 =
          | "|" => if eqExp(e1,e2) then e1 else mk()
          | _ => mk()
     end
+
+infix !+! !-! !*! !<! !=! !|!
+fun x !+! y = binop "+" x y
+fun x !-! y = binop "-" x y
+fun x !*! y = binop "*" x y
+fun x !<! y = binop "<" x y
+fun x !=! y = binop "=" x y
+fun x !|! y = binop "|" x y
+
+fun not x = UnOp("not",x)
+fun max (x,y) = binop "max" x y
+fun min (x,y) = binop "min" x y
+
 
 type date = Date.date
 
@@ -136,12 +143,7 @@ fun eval (E:env,d:date) e =
         (case E (s,d,off) of
              SOME r => R r
            | NONE => e)
-      | BinOp(opr,e1,e2) => 
-        (case (eval (E,d) e1, eval (E,d) e2) of
-               (I i1, I i2) => binopII opr i1 i2
-             | (R r1, R r2) => binopRR opr r1 r2
-             | (B b1, B b2) => binopBB opr b1 b2
-             | (e1,e2) => binop opr e1 e2)
+      | BinOp(opr,e1,e2) => binop opr (eval (E,d) e1) (eval (E,d) e2)
       | UnOp("not", e1) => 
         (case eval (E,d) e1 of
              B b => B(Bool.not b)
@@ -326,7 +328,7 @@ fun ppCashflows [] = "no cashflows"
     in String.concatWith "\n" (List.map (ppCashflow sz) l)
     end
 
-fun cashflows d c : cashflow list =
+fun cashflows (d,c) : cashflow list =
     let fun cf (d,c,s,certain) =
             case c of
                 Zero => nil
@@ -352,4 +354,25 @@ fun cashflows d c : cashflow list =
     in ListSort.sort (fn ((d1,_,_,_,_,_),(d2,_,_,_,_,_)) => Date.compare (d1,d2)) flows
     end
 
+type mcontr = date * contr
+(* Remove the next i days from a contract *)
+fun adv i c : contr =
+    if i < 0 then raise Fail "adv: expecting a positive number of days"
+    else if i = 0 then c
+    else case c of
+             Zero => zero
+           | Both(c1,c2) => both(adv i c1, adv i c2)
+           | Transl(i',c) =>
+             if i <= i' then transl(i'-i,c)
+             else adv (i-i') c
+           | Scale(s,c) => scale(translExp(s,~i),adv i c)
+           | TransfOne _ => zero
+           | If(b,c1,c2) => iff(translExp(b,~i),adv i c1, adv i c2)
+           | CheckWithin(e,i',c1,c2) =>
+             if i <= i' then checkWithin(translExp(e,~i),i'-i,c1,c2)
+             else adv (i-i') c2
+
+fun advance i (d,c) =
+    (DateUtil.addDays i d,
+     adv i c)
 end

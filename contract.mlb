@@ -15,5 +15,6 @@ in
    Instruments_test.sml
    ContractMonad.sml
    portfolio.sml
-   pftest.sml
+(*   pftest.sml *)
+   test.sml
 end

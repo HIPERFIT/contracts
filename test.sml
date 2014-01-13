@@ -18,11 +18,11 @@ fun Y n = (n*360)
 
 val me2you = dual o you2me
 
-fun report d s c =
+fun report s (d,c) =
     (println "";
      println(s ^ " - Contract:\n  " ^ ppContr c);
      println "\nCashflows:";
-     println (ppCashflows(cashflows d c)))
+     println (ppCashflows(cashflows (d,c))))
 
 (* Simple amortized loan *)
 val ex1 =
@@ -34,7 +34,7 @@ val ex1 =
             me2you(M 3,coupon,EUR)]
     end
 
-val () = report today "Ex1 (swap)" ex1
+val () = report "Ex1 (swap)" (today,ex1)
 
 (* Cross currency swap *)
 val ex2 =
@@ -49,12 +49,12 @@ val ex2 =
             me2you(M 2,coupon_eur,EUR)]
     end    
 
-val () = report today "Ex2 (Fx-swap)" ex2
+val ex2m = (today,ex2)
+val () = report "Ex2 (Fx-swap)" ex2m
 
-
-(* val ex3 = advance (I 15) ex2 *)
+val ex3 = advance 15 ex2m
 val _ = println "\nEx3: Cross-currency swap advanced half a month:"
-(*val _ = println (cashflows noE ex3) *)
+val _ = println (ppCashflows(cashflows ex3))
 
 (* Call option on "Carlsberg" stock *)
 val equity = "Carlsberg"
@@ -68,9 +68,13 @@ val ex4 =
                     scale(obs,transfOne(EUR,"you","me"))))
     end
 
-val () = report today "Ex4 (call option)" ex4
+val ex4m = (today, ex4)
+val () = report "Ex4 (call option)" ex4m
 val _ = println "\nEx4 - Cashflows on 1000 Stock options (Strike:50,Price:79):"
-(* val _ = println (cashflows (fn _ => 79.0) ex4) *)
+val e = addFixing ((equity,DateUtil.addDays maturity today,79.0),emptyEnv)
+val ex4m' = (today, simplify(e,today) ex4)
+val ex4m'' = advance maturity ex4m'
+val () = report "Ex4 (call option - price=79 and advanced)" ex4m''
 
 (* same call option, expressed with If *)
 val ex4if =
