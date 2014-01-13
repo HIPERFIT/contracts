@@ -95,7 +95,7 @@ straightforward.
 
 \textbf{Multi-party}.
 \begin{quote}
-A contract specifies the contractual obligations and benefits for
+A contract specifies the contractual obligations and opportunities for
 multiple parties, which opens up the possibility for specifying
 portfolios.
 \end{quote}
@@ -118,17 +118,17 @@ Contracts can be analyzed in a variety of ways...
 
 \begin{mlcode}
   type 'a exp                     (* Expressions          *)
-  type boolE = bool exp           (* Boolean expressions  *)
+  type bexp = bool exp            (* Boolean expressions  *)
   type 'a num 
-  type 'a numE = 'a num exp       (* Numeric expressions  *)
-  type realE = real num exp       (*  real expressions    *)
-  type intE = int num exp         (*  integer expressions *)
+  type 'a nexp = 'a num exp       (* Numeric expressions  *)
+  type rexp = real nexp           (*  real expressions    *)
+  type iexp = int nexp            (*  integer expressions *)
  
-  val I   : int -> intE
-  val R   : real -> realE
-  val B   : bool -> boolE
-  val $\oplus$  : 'a numE * 'a numE -> 'a numE  (* max, +, ... *)
-  val obs : string * int -> realE
+  val I   : int -> iexp
+  val R   : real -> rexp
+  val B   : bool -> bexp
+  val $\oplus$  : 'a nexp * 'a nexp -> 'a nexp  (* max, +, ... *)
+  val obs : string * int -> rexp
 \end{mlcode}
 
 \begin{description}
@@ -149,21 +149,21 @@ Contracts can be analyzed in a variety of ways...
   type contr                              (* contracts *)
   val zero        : contr             
   val transfOne   : cur * party * party -> contr
-  val scale       : realE * contr -> contr
+  val scale       : rexp * contr -> contr
   val transl      : int * contr -> contr
   val both        : contr * contr -> contr
-  val iff         : boolE * contr * contr -> contr
-  val checkWithin : boolE * int * contr * contr -> contr
+  val iff         : bexp * contr * contr -> contr
+  val checkWithin : bexp * int * contr * contr -> contr
 \end{mlcode}
 
 \begin{description}
 \item[transfOne] is a cash flow (which happens immediately)
-\item[scale] scales a cash flow by an expression (of type \cd{realE})
+\item[scale] scales a cash flow by an expression (of type \cd{rexp})
 \item[transl] postpones a contract into the \emph{future}.
 
     The \cd{int} argument must be positive!
 
-\item[checkWithin] repeatedly checks a condition (of type \cd{boolE}) for a number of days.
+\item[checkWithin] repeatedly checks a condition (of type \cd{bexp}) for a number of days.
     The \cd{int} arg. must be positive!
 \end{description}
 \end{frame}
@@ -256,11 +256,11 @@ CheckWithin(1.0 < Obs(FX EUR/USD@0), 1y,
 
 \begin{frame}[t] \frametitle{Complex Contract Equivalences}
 
-\emph{\textbf{Advancing expressions:}}
+\emph{\textbf{Expression promotion:}}
 
-Expressions which involve observables can be translated (similar to \cd{transl} for contracts).
+Expressions involving observables can be \emph{promoted} from a time later to a time earlier:
 %
-\hfill {\footnotesize $(e \in \ttt{intE} \cup \ttt{realE} \cup \ttt{boolE},\ d \in \mathbb{Z})$}
+\hfill {\footnotesize $(e \in \ttt{iexp} \cup \ttt{rexp} \cup \ttt{bexp},\ d \in \mathbb{Z})$}
 
 {\footnotesize 
 $$ e / d = \left \{
@@ -300,54 +300,41 @@ An expression is \emph{certain} if it does not depend on observables.
 \begin{frame}
     \frametitle{Formal Semantics: Sequence of Cash Flow Sets}
 
-An environment $\ttt{env}$ contains fixings for observables and choices.
-
-\emph{Expression semantics} looks up these fixings when required
-and computes derived values
+The \emph{semantics of an expression} is (partially) defined with
+respect to an environment ($\ttt{env}$), containing fixings for
+observables and choices:
 \vspace*{-2ex}
 
 {\footnotesize
 \begin{align*}
-  \mathcal{E} & : \ttt{boolE} \times \ttt{env} \rightarrow \ttt{bool}\\
-    \mathcal{E} & : \ttt{intE} \times \ttt{env} \rightarrow \ttt{int}\\
-  \mathcal{E} & : \ttt{realE} \times \ttt{env} \rightarrow \ttt{real}
+  \mathcal{E} & : \ttt{bexp} \times \ttt{env} \rightarrow \ttt{bool}\\
+    \mathcal{E} & : \ttt{iexp} \times \ttt{env} \rightarrow \ttt{int}\\
+  \mathcal{E} & : \ttt{rexp} \times \ttt{env} \rightarrow \ttt{real}
 \end{align*}}
-
 \vspace*{-2ex}
-Advancing expressions is generalised to environments: 
 
-\hfill $ \ttt{env/d}$ advances all fixings by $d$ days.
+A \emph{cash flow} is a tuple \cd{(amount:real, c:currency, from:party, to:party)}.
 
-\medskip
+\vfill 
+The \emph{semantics of a contract} is (partially) defined, with respect
+to an environment, as a series of cash flow sets:
 
-\hrule
-\medskip
-
-\emph{Contract Semantics}:
-evaluates a contract to a series of cash flow sets,
-given an environment with the required fixings:
-%
-\vspace*{-1ex}
 $$ \mathcal{C} : \ttt{contr} \times \ttt{env} 
           \rightarrow \mathbb{P}(\ttt{flow})^\mathbb{N}$$
 
-\cd{flow} is a cash flow: \cd{(amount: real, c: currency, from,to: party)}
-
 \vfill
-{\scriptsize Full definition of contract semantics: see appendix}
+See appendix for a full definition of contract semantics.
 
 \end{frame}
 
 \begin{frame}[fragile,t]
     \frametitle{Contract Causality}
 
-\emph{Causal Contracts, intention:}
-{%\footnotesize
-\begin{quote}
  A \emph{causal contract} is a contract with the property that during all
    possible executions of the contract, a cash flow cannot depend on a
    future fixing (of an observable).
-\end{quote}}
+
+\vfill
 
 \emph{Example of a non-causal contract:}
 
@@ -357,19 +344,15 @@ iff( obs("CarlsbergDKR",2) !>! R 50.0,
 \end{mlcode}
 {\footnotesize
 \begin{quote}
-  If \emph{the day after tomorrow}, 
+  If, \emph{on the day after tomorrow}, 
            the Carlsberg stock is worth more than 50~kr.,
            I give you one EUR \emph{today}.
 \end{quote}}
 
-\medskip
-\hrule
-\medskip
-
-\emph{Goal}: Establish static bound and check for many contracts.
-
 \vfill
-{\scriptsize Expression causality, contract causality: see appendix}
+
+\emph{Goal}: Define a static contract causality analysis that, for many useful contracts,
+guarantees causality (see appendix).
 \end{frame}
 
 \begin{frame}
@@ -398,27 +381,34 @@ iff( obs("CarlsbergDKR",2) !>! R 50.0,
 \begin{frame}
     \frametitle{Appendix: Formal Semantics: Contracts}
 
-Semantics of a contracts: $ \mathcal{C} : \ttt{contr} \times \ttt{env} 
-          \rightarrow \mathbb{P}(\ttt{flow})^\mathbb{N}$\\
+Expression promotion is generalised to environments: 
 {\footnotesize
-(where $\ttt{flow}$ is a cash flow: \cd{(amount:real, c:currency, from,to:party)}
-}
+\begin{center}
+$\ttt{env/d}$ promotes all fixings by $d$ days.
+\end{center}}
 
+Cash flows ($\ttt{flow}$): \cd{(amount:real, c:currency, from:party, to:party)}.
+
+\vfill
+
+Contract semantics \hfill \framebox{$ \mathcal{C} : \ttt{contr} \times \ttt{env} 
+          \rightarrow \mathbb{P}(\ttt{flow})^\mathbb{N}$}
+
+\vspace{-2ex}
 {\footnotesize
 \begin{align*}
-\csem{\zero}{e}{\ttt{repeat} \emptyset}\\
-\csem{\transfOne(c,p_1,p_2)}{e}{\{(1,c,p_1,p_2)\} : \ttt{repeat} \emptyset }\\
+\csem{\zero}{e}{\ttt{repeat}\ \emptyset}\\
+\csem{\transfOne(c,p_1,p_2)}{e}{\{(1,c,p_1,p_2)\} : \ttt{repeat}\ \emptyset }\\
 \csem{\both(c_1,c_2)}{e}{\ttt{zipWith flowMerge }\ (\mathcal{C}\sem{c_1}e)\ (\mathcal{C}\sem{c_2}e)}\\
-\csem{\scale(exp,c)}{e}{}\\
-\ttt{mapmap}\ &(\lambda (a,c,f,t)\mapsto(a\cdot\mathcal{E}\sem{exp}e,c,f,t))\ (\mathcal{C}\sem{c}e)\\
-\csem{\transl(d,c)}{e}{\ttt{replicate }d \ \emptyset +\!\!\!+\  \mathcal{C}\sem{c}e/d}\\
+\csem{\scale(s,c)}{e}{\ttt{mapmap}\ (\lambda (a,c,f,t)\mapsto(a\cdot\mathcal{E}\sem{s}e,c,f,t))\ (\mathcal{C}\sem{c}e)}\\
+\csem{\transl(d,c)}{e}{\ttt{replicate}\ d \ \emptyset +\!\!\!+\  \mathcal{C}\sem{c}(e/d)}\\
 \csem{\checkWithin(b,d,c_1,c_2)}{e}{
 \left \{
 \begin{array}{rl}
-\mathcal{E}\sem{b}e: & \mathcal{C}\sem{c_1}e\\
-d = 0\ \wedge\ !\mathcal{E}\sem{b}e: & \mathcal{C}\sem{c_2}e\\
-d > 0\ \wedge\ !\mathcal{E}\sem{b}e:\\
-\emptyset : \mathcal{C}\sem{\checkWithin&(b,d\!-\!1,c1,c_2)}e/1\\
+\mathcal{C}\sem{c_1}e & \mbox{iff}\ \mathcal{E}\sem{b}e \\
+\mathcal{C}\sem{c_2}e & \mbox{iff}\ d = 0\ \wedge\ !\mathcal{E}\sem{b}e  \\
+\emptyset : L & \mbox{iff}\ d > 0\ \wedge\ !\mathcal{E}\sem{b}e \ \wedge \\
+& L = \mathcal{C}\sem{\checkWithin(b,d\!-\!1,c1,c_2)}(e/1)
 \end{array}\right.
 }
 \end{align*}
