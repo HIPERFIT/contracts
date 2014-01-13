@@ -28,7 +28,7 @@ fun transf (e, c, p1, p2) k i =
 fun ifm (b,m1,m2) k i = iff (b,m1 k i, m2 k i)
 fun wait i' k i = transl(i', k () i)
 fun terminate () k i = zero
-val skip = ret ()
+val skip : unit m = ret ()
 fun toContr m = m (fn _ => fn _ => zero) 0
 end
 

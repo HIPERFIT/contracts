@@ -1,16 +1,19 @@
 local 
    $(SML_LIB)/basis/basis.mlb
+in 
    DateUtil.sml
    ListSort.sig
    ListSort.sml
-   CONTRACTSIG.sig
-in 
    CURRENCY.sig
    Currency.sml
+   CONTRACTSIG.sig
    ContractBase.sml
    Contract.sig
    Contract.sml
    Instruments.sml
    ContractTransform.sml
    Instruments_test.sml
+   ContractMonad.sml
+   portfolio.sml
+   pftest.sml
 end

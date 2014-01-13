@@ -38,8 +38,9 @@ multicontracts.exe: multicontracts.mlb multicontracts.sml $(SMLFILES)
 
 contractmos: $(MOSMLFILES)
 	$(MOSML) loadscript
+
 clean:
-	rm -rf MLB *~ *.exe *.ui *.uo multimos run
+	rm -rf MLB *~ *.exe *.ui *.uo multimos run doc/*~
 
 mosmodules: $(MOSMLFILES)
 	for F in  $(MOSMLFILES); do $(MOSMLC) -c $${F}; done
