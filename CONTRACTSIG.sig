@@ -29,7 +29,10 @@ signature CONTRACTSIG = sig
   type date       = Date.date
   type env
   val emptyEnv    : env
+  val emptyFrom   : date -> env
+  val fromEnv     : env -> (string * int) * date -> real option
   val addFixing   : (string * date * real) * env -> env
+  val addFixings  : (string * date) -> real list -> env -> env
 
   (* Evaluation *)
   val evalR       : env * date -> realE -> real

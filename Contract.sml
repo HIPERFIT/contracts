@@ -118,29 +118,61 @@ fun min (x,y) = binop "min" x y
 
 type date = Date.date
 
-type env = string*date*int -> real option   (* int is a date offset *)
+(*
+env: is a partial function string*date*int -> real
 
-val emptyEnv : env = fn _ => NONE
+It is represented as a pair of "env.date" and partial function
+string*offset -> real, where offset is an int. This is to obtain
+more efficient code for modifying (translating) an env.
 
+- whenever using an env, a base date is provided.
+- Looking up an obs fixing: 
+      (obs,base_d) = ((str,offset),base_d)
+      env          = (env_d, f )
+     => value of (obs,base date) in env: f ( string, offset + dayDiff base_d env_d) 
+- Advancing an env means to change its start date
+- adding a fixing to an env: adjust base date to env date (mod.offset)
+
+For efficiency, we can later implement string*int -> real option as a
+hash table (or binary search tree or alike...). At the moment, we
+carry around partial functions constructed in the heap.
+
+*)
+
+datatype env = Env of date * (string*int -> real option)
+
+val emptyEnv : env = Env (DateUtil.?"2012-01-01", fn _ => NONE) (* arbitrary start date *)
+
+(* we do want a function that sets the start date to something convenient... *)
+fun emptyFrom d = Env (d,fn _ => NONE)
+
+(* value lookup: uses a base date and the observable's (string,offset) pair *)
+fun fromEnv (Env (e_d,e_f)) ((str,off), d ) =
+    e_f (str, off + DateUtil.dateDiff e_d d )
+
+(* new values silently take precedence with this definition *)
+fun addFixing ((s,d,r), Env (e_d, e_f) : env) : env =
+    Env (e_d, fn x => if s = #1 x andalso #2 x = DateUtil.dateDiff e_d d
+                      then SOME r else e_f x)
+
+fun addFixings (s,d) [] e = e
+  | addFixings (s,d) vs e = 
+    ListPair.foldl (fn (d,v,e) => addFixing ((s,d,v),e))
+      e (List.tabulate (length vs, fn i => DateUtil.addDays i d), vs)
+
+(* not used, commented out...
 fun eqDate d1 d2 =
     Date.compare (d1,d2) = EQUAL
-                                                                                      
-fun addFixing ((s,d,r),e:env) : env = 
-    fn k => 
-       let val off = #3 k
-       in if s = #1 k andalso off >= 0 andalso eqDate d (DateUtil.addDays off (#2 k)) then SOME r
-          else if s = #1 k andalso off < 0 andalso eqDate (DateUtil.addDays (~off) d) (#2 k) then SOME r
-          else e k
-       end
+*)
 
-fun eval (E:env,d:date) e =
+fun eval (E : env, d : date) e =
     case e of
         Var s => e
       | I _ => e
       | R _ => e
       | B _ => e
-      | Obs (s,off) =>
-        (case E (s,d,off) of
+      | Obs obs =>
+        (case fromEnv E (obs, d) of
              SOME r => R r
            | NONE => e)
       | BinOp(opr,e1,e2) => binop opr (eval (E,d) e1) (eval (E,d) e2)
@@ -149,7 +181,7 @@ fun eval (E:env,d:date) e =
              B b => B(Bool.not b)
            | e1 => UnOp("not",e1))
       | UnOp(opr,_) => raise Fail ("eval.UnOp: unsupported operator: " ^ opr)
-      | ChosenBy (p,i) => (case E (p,d,i) of
+      | ChosenBy ch => (case fromEnv E (ch, d) of
                                SOME r => B (Real.!=(r, 0.0)) (* HAAAACK *)
                              | NONE   => e)
       | Iff(b,e1,e2) => (case eval (E,d) b of
@@ -301,10 +333,11 @@ fun simplify P t =
         let val e = simplifyExp P e
             val c1 = simplify P c1
             val c2 = simplify P c2
-        in iff(e,c1,c2)
+        in iff(e,c1,c2) (* if e is known, iff constr. will shorten *)
         end
       | CheckWithin (e, i, c1, c2) => 
         checkWithin (simplifyExp P e, i, simplify P c1, simplify P c2)
+             (* wrong: e will be advanced successively. We could unroll, though *)
 
 type cashflow   = date * cur * party * party * bool * realE
 fun ppCashflow w (d,cur,p1,p2,certain,e) =
@@ -354,7 +387,7 @@ fun cashflows (d,c) : cashflow list =
     in ListSort.sort (fn ((d1,_,_,_,_,_),(d2,_,_,_,_,_)) => Date.compare (d1,d2)) flows
     end
 
-type mcontr = date * contr
+type mcontr = date * contr (* "managed contract", with a start date *)
 (* Remove the next i days from a contract *)
 fun adv i c : contr =
     if i < 0 then raise Fail "adv: expecting a positive number of days"
