@@ -62,9 +62,10 @@ fun vanillaFx Call
    Notional value unnecessary, only the fixed coupon of it is used.
    buyer, seller, settling currency, amount, FX cross, barrier, up/down, expiry
 
-   Note that this code also triggers the option when the price fixes
-   exactly _at_ (not above/below) the given barrier, which is what the
-   word "touch" suggests.
+   Note that this code does _not_ trigger the option when the price
+   fixes exactly _at_ (not above/below) the given barrier, which is
+   what the word "touch" would probably suggest. See commented
+   predicates for other version.
 *)
 datatype BarrierKind = Up | Down
 
@@ -73,10 +74,13 @@ fun fxBarrierTouchBAD
     buyer seller curSettle amount (cur1,cur2) barrier kind expiry
   = let val rate = fxRate cur1 cur2
         val cond = case kind of 
-                           Up   => not (obs (rate, 0) !<! R barrier)
-                         | Down => not (R barrier !<! obs (rate, 0))
+                       Up   => R barrier !<! obs (rate,0)
+                     | Down => obs (rate,0) !<! R barrier
                       (* next steps depend on whether barrier hit today *)
                       (* note that Transl below leads to checking every day *)
+(* when including !=!:
+                       Up   => not (obs (rate, 0) !<! R barrier)
+                     | Down => not (R barrier !<! obs (rate, 0)) *)
         fun fxTLoop day = 
             transl (day, 
                     iff (cond,
@@ -94,9 +98,12 @@ fun fxBarrierTouch
     buyer seller curSettle amount (cur1,cur2) barrier kind expiry
   = let val rate = fxRate cur1 cur2
         val cond = case kind of
-                       Up   => not (obs (rate, 0) !<! R barrier)
-                     | Down => not (R barrier !<! obs (rate, 0))
+                       Up   => R barrier !<! obs (rate,0)
+                     | Down => obs (rate,0) !<! R barrier
                       (* next steps depend on whether barrier hit today *)
+(* when including !=!:
+                       Up   => not (obs (rate, 0) !<! R barrier)
+                     | Down => not (R barrier !<! obs (rate, 0)) *)
     in checkWithin (cond, expiry,
                     scale (R amount, transfOne (curSettle, buyer, seller)),
                     zero) (* if barrier hit: payment. Otherwise: zero *)
@@ -113,8 +120,11 @@ fun fxBarrierNoTouchBAD
     buyer seller curSettle amount (cur1,cur2) barrier kind expiry
   = let val rate = fxRate cur1 cur2
         val cond = case kind of (* same code as above, but condition swapped *)
+                       Up   => obs (rate, 0) !<! R barrier
+                     | Down => R barrier !<! obs (rate, 0)
+(* when including !=!:
                        Up   => not (R barrier !<! obs (rate, 0))
-                     | Down => not (obs (rate, 0) !<! R barrier)
+                     | Down => not (obs (rate, 0) !<! R barrier) *)
         fun fxTLoop day = 
             transl (day,
                     iff (cond, 
@@ -128,9 +138,12 @@ fun fxBarrierNoTouch
     buyer seller curSettle amount (cur1,cur2) barrier kind expiry
   = let val rate = fxRate cur1 cur2
         val cond = case kind of
-                       Up   => not (obs (rate, 0) !<! R barrier)
-                     | Down => not (R barrier !<! obs (rate, 0))
+                       Up   => R barrier !<! obs (rate, 0)
+                     | Down => obs (rate, 0) !<! R barrier
                       (* intention: exit when barrier hit today *)
+(* when including !=!: 
+                       Up   => not (obs (rate, 0) !<! R barrier)
+                     | Down => not (R barrier !<! obs (rate, 0)) *)
     in checkWithin (cond, expiry,
                     zero, (* if barrier hit: zero, otherwise: payment *)
                     scale (R amount, transfOne (curSettle, buyer, seller)))
