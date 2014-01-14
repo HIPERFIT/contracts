@@ -61,6 +61,10 @@ fun vanillaFx Call
    daily fixings. 
    Notional value unnecessary, only the fixed coupon of it is used.
    buyer, seller, settling currency, amount, FX cross, barrier, up/down, expiry
+
+   Note that this code also triggers the option when the price fixes
+   exactly _at_ (not above/below) the given barrier, which is what the
+   word "touch" suggests.
 *)
 datatype BarrierKind = Up | Down
 
@@ -154,7 +158,7 @@ fun fxDoubleBarrierOut
   = let val rate = fxRate cur1 cur2
         val cond = (obs (rate,0) !<! R loBarr)
                    !|! (R hiBarr !<! obs (rate,0))
-                    (* "in" if price below lower || above upper *)
+                    (* "out" if price below lower || above upper *)
     in checkWithin (cond, expiry,
                     zero,  (* if barrier hit: zero, otherwise option *)
                     vanillaFx kind buyer seller (cur1,cur2)
