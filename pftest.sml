@@ -13,7 +13,7 @@ val today = DateUtil.?"2014-01-01"
 (* simple test for addFixings *)
 
 val env = addFixings ("FX USD/SEK",today) 
-                     [6.6,6.7,6.8,6.9,6.8,6.7,6.6,6.5,6.4,6.3,6.2,6.1]
+                     [6.6,6.7,6.8,6.91,6.8,6.7,6.6,6.5,6.4,6.3,6.2,6.1]
                      (emptyFrom today)
    (* two touchOptions will be triggered (barriers up 6.9, down 6.15)
       two noTouchOptions will be canceled (barriers up 6.7, down 6.25) *)
@@ -22,7 +22,9 @@ val allTouch' = simplify (env,today) allTouch
 
 val () = (ppCs today allTouch;
           print "------------------\n and with fixings:\n";
-          ppCs today allTouch')
+          ppCs today allTouch';
+          print ("Contract was: \n" ^ ppContr allTouch ^ "\n");
+          print ("Simplified contract is:\n" ^ ppContr allTouch' ^ "\n"))
 
 (* 
 val () = ppCs today fxPortfolio

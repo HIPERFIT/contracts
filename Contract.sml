@@ -118,19 +118,25 @@ fun min (x,y) = binop "min" x y
 type date = Date.date
 
 (*
-env: is a partial function string*date*int -> real
+env: is a partial function string*int -> real
 
-It is represented as a pair of "env.date" and partial function
-string*offset -> real, where offset is an int. This is to obtain
-more efficient code for modifying (translating) an env.
+In analogy to contracts having no explicit date, environments should in
+theory be relative. A "management environment" = date*env would then be
+used later to handle managed contacts.
 
-- whenever using an env, a base date is provided.
-- Looking up an obs fixing: 
-      (obs,base_d) = ((str,offset),base_d)
-      env          = (env_d, f )
-     => value of (obs,base date) in env: f ( string, offset + dayDiff base_d env_d) 
-- Advancing an env means to change its start date
-- adding a fixing to an env: adjust base date to env date (mod.offset)
+It is unclear at the moment how to add a fixing in this variant... 
+One could keep it relative as well to have opportunity for "simplify",
+but it is counter-intuitive to have fixings which are not attached
+to absolute dates.
+
+Therefore, at the moment, environments have an absolute date to refer to,
+and require a reference date for lookups (fromEnv function).
+
+The internal representation of an environment is a pair of a "reference
+date" (of the env) and a lookup function with only relative dates (int).
+
+To translate an entire environment in time ("promotion") then means
+just to modify the reference date, not all function values.
 
 For efficiency, we can later implement string*int -> real option as a
 hash table (or binary search tree or alike...). At the moment, we
