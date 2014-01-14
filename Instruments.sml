@@ -69,8 +69,8 @@ fun fxBarrierTouchBAD
     buyer seller curSettle amount (cur1,cur2) barrier kind expiry
   = let val rate = fxRate cur1 cur2
         val cond = case kind of 
-                           Up   => R barrier !<! obs (rate, 0)
-                         | Down => obs (rate, 0) !<! R barrier
+                           Up   => not (obs (rate, 0) !<! R barrier)
+                         | Down => not (R barrier !<! obs (rate, 0))
                       (* next steps depend on whether barrier hit today *)
                       (* note that Transl below leads to checking every day *)
         fun fxTLoop day = 
@@ -90,8 +90,8 @@ fun fxBarrierTouch
     buyer seller curSettle amount (cur1,cur2) barrier kind expiry
   = let val rate = fxRate cur1 cur2
         val cond = case kind of
-                       Up   => R barrier !<! obs (rate,0)
-                     | Down => obs (rate,0) !<! R barrier
+                       Up   => not (obs (rate, 0) !<! R barrier)
+                     | Down => not (R barrier !<! obs (rate, 0))
                       (* next steps depend on whether barrier hit today *)
     in checkWithin (cond, expiry,
                     scale (R amount, transfOne (curSettle, buyer, seller)),
@@ -109,8 +109,8 @@ fun fxBarrierNoTouchBAD
     buyer seller curSettle amount (cur1,cur2) barrier kind expiry
   = let val rate = fxRate cur1 cur2
         val cond = case kind of (* same code as above, but condition swapped *)
-                           Up   => obs (rate, 0) !<! R barrier
-                         | Down => R barrier !<! obs (rate, 0)
+                       Up   => not (R barrier !<! obs (rate, 0))
+                     | Down => not (obs (rate, 0) !<! R barrier)
         fun fxTLoop day = 
             transl (day,
                     iff (cond, 
@@ -124,8 +124,8 @@ fun fxBarrierNoTouch
     buyer seller curSettle amount (cur1,cur2) barrier kind expiry
   = let val rate = fxRate cur1 cur2
         val cond = case kind of
-                       Up   => R barrier !<! obs (rate, 0)
-                     | Down => obs (rate, 0) !<! R barrier
+                       Up   => not (obs (rate, 0) !<! R barrier)
+                     | Down => not (R barrier !<! obs (rate, 0))
                       (* intention: exit when barrier hit today *)
     in checkWithin (cond, expiry,
                     zero, (* if barrier hit: zero, otherwise: payment *)
