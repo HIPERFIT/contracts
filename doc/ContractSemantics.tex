@@ -44,6 +44,9 @@
 \lstnewenvironment{mlcode}
    {\lstset{basicstyle=\scriptsize,style=smlstyle,frame=tlrb}}
    {}
+\lstnewenvironment{mlcodesmall}
+   {\lstset{basicstyle=\tiny,style=smlstyle,frame=tlrb}}
+   {}
 \lstset{style=smlstyle,keepspaces=true,breaklines=false}\newcommand{\cd}[1]{\lstinline$#1$}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -197,7 +200,7 @@ Cashflows:
 \textbf{Instrument:}
 \begin{mlcode}
 datatype kind = Up | Down
-fun fxBarrierTouch buyer seller curSettle amount
+fun fxTouch buyer seller curSettle amount
                    (cur1,cur2) barrier kind expiry =
   let val rate = fxRate cur1 cur2
       val cond = case kind of
@@ -213,13 +216,13 @@ fun fxBarrierTouch buyer seller curSettle amount
 \textbf{I buy a EUR 1000 1Y EUR/USD barrier touch Up-option:}
 \begin{mlcode}
 val touch =
- fxBarrierTouch "me" "you" EUR 1000.0 (EUR,USD) 1.0 Up Y1
+ fxTouch "me" "you" EUR 1000.0 (EUR,USD) 1.0 Up y1
 \end{mlcode}
 
 \textbf{Contract simplifies to:}
 \begin{scriptsize}
 \begin{verbatim}
-CheckWithin(1.0 < Obs(FX EUR/USD@0), 1y, 
+CheckWithin(1.0 < Obs(FX EUR/USD@0), y1, 
             Scale(1000.0,TransfOne(EUR,me,you)), zero)
 \end{verbatim}
 \end{scriptsize}
@@ -356,7 +359,19 @@ guarantees causality (see appendix).
 \end{frame}
 
 \begin{frame}
-\frametitle{Utilities / Future Work}
+\frametitle{Supported Instruments}
+\begin{itemize}
+\item Basic swaps, fx-swaps
+\item Fx-forwards
+\item Vanilla options, fx-options, fx-barrier-touch options, fx-barrier-no-touch options, fx-double-barrier-in/out, fx-single-barrier-in/out
+\item Asian options (not yet supported; observable average computation needed)
+\item American options (supported using $\ttt{checkWithin}$)
+\item Barrier options with fixed maturity (not yet supported)
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Utilities}
 
 \textbf{Available features}:
 \begin{itemize}
@@ -366,11 +381,49 @@ guarantees causality (see appendix).
   \item Eliminating transfers to and from a particular party
   \item Merging parties
 \end{itemize}
+\end{frame}
+
+
+\begin{frame}[fragile,t]
+\frametitle{Example Portfolio of Touch Options}
+
+\begin{mlcodesmall}
+val touchOptions = all
+ [fxTouch   "C" "us" USD  400000.0 (USD,SEK) 6.90 Up   m6
+ ,fxTouch   "D" "us" USD  600000.0 (USD,SEK) 6.15 Down m12
+ ,fxNoTouch "A" "us" USD 1400000.0 (USD,SEK) 6.70 Up   m6
+ ,fxNoTouch "B" "us" USD 1600000.0 (USD,SEK) 6.25 Down m12]
+
+val env = fixings ("FX USD/SEK",today) 
+   [6.6,6.7,6.8,6.9,6.8,6.7,6.6,6.5,6.4,6.3,6.2,6.1]
+
+val allTouch = simplify (env,today) allTouch
+val () = ppCashflows (today, allTouch)
+\end{mlcodesmall}
+
+{\scriptsize
+Two touch options will be triggered (barriers up 6.9, down 6.15).
+
+Two no-touch options will be canceled (barriers up 6.7, down 6.25).
+}
+\vfill
+\emph{Result:}
+\begin{verbatim}
+2014-01-03 Certain [C->us] USD 400000.0
+2014-01-11 Certain [D->us] USD 600000.0
+\end{verbatim}
+
+\end{frame}
+
+\begin{frame}
+\frametitle{Future Work}
 
 \textbf{Next steps}:
 \begin{itemize}
   \item Focusing / Defocusing  (e.g., resolution: day-week-month).
   \item Pattern matching to identify standard contracts.
+  \item Adding strategies (at another level)
+  \item CVA
   \item Finding ``branch-boundaries'' in conditionals.
 
       \emph{Goal:} generate tree of scenarios with fixings.
@@ -408,7 +461,7 @@ Contract semantics \hfill \framebox{$ \mathcal{C} : \ttt{contr} \times \ttt{env}
 \mathcal{C}\sem{c_1}e & \mbox{iff}\ \mathcal{E}\sem{b}e \\
 \mathcal{C}\sem{c_2}e & \mbox{iff}\ d = 0\ \wedge\ !\mathcal{E}\sem{b}e  \\
 \emptyset : L & \mbox{iff}\ d > 0\ \wedge\ !\mathcal{E}\sem{b}e \ \wedge \\
-& L = \mathcal{C}\sem{\checkWithin(b,d\!-\!1,c1,c_2)}(e/1)
+& L = \mathcal{C}\sem{\checkWithin(b,d\!-\!1,c_1,c_2)}(e/1)
 \end{array}\right.
 }
 \end{align*}
