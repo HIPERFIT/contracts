@@ -120,23 +120,24 @@ type date = Date.date
 (*
 env: is a partial function string*int -> real
 
-In analogy to contracts having no explicit date, environments should in
-theory be relative. A "management environment" = date*env would then be
-used later to handle managed contacts.
+In analogy to contracts having no explicit date, environments use
+relative time in days.
 
-It is unclear at the moment how to add a fixing in this variant... 
-One could keep it relative as well to have opportunity for "simplify",
-but it is counter-intuitive to have fixings which are not attached
-to absolute dates.
+A "management environment" = date*env is used later to handle managed
+contacts, adding a "reference date". Likewise, we have "managed
+contracts" with a start date.
 
-Therefore, at the moment, environments have an absolute date to refer to,
-and require a reference date for lookups (fromEnv function).
+Contract simplification works with relative environments and relative
+contracts, assuming identical reference dates, and aligning the
+environment to the contract start date.
 
-The internal representation of an environment is a pair of a "reference
-date" (of the env) and a lookup function with only relative dates (int).
+It is counter-intuitive to have fixings which are not attached to
+absolute dates. Fixings are always added to managed environments, but
+enter the simplify routine as a relative environment (aligned to the
+contract).
 
-To translate an entire environment in time ("promotion") then means
-just to modify the reference date, not all function values.
+To translate an entire environment in time ("promotion") can mean just
+to modify the reference date, or else to offset the lookup function.
 
 For efficiency, we can later implement string*int -> real option as a
 hash table (or binary search tree or alike...). At the moment, we
@@ -144,56 +145,60 @@ carry around partial functions constructed in the heap.
 
 *)
 
-datatype env = Env of date * (string*int -> real option)
+type env = string * int -> real option
 
-val emptyEnv : env = Env (DateUtil.?"2012-01-01", fn _ => NONE) (* arbitrary start date *)
+datatype menv = Env of date * env
+
+val emptyEnv : env = fn _ => NONE
 
 (* we do want a function that sets the start date to something convenient... *)
-fun emptyFrom d = Env (d,fn _ => NONE)
+fun emptyFrom d = Env (d, emptyEnv)
 
-(* value lookup: uses a base date and the observable's (string,offset) pair *)
-fun fromEnv (Env (e_d,e_f)) ((str,off), d ) =
-    e_f (str, off + DateUtil.dateDiff e_d d )
+fun promote (e:env) (i:int) : env = e o (fn (s,x) => (s,x+i))
+
+fun promoteEnv (Env (d,e) : menv) (i:int) : menv = Env (d,promote e i)
 
 (* new values silently take precedence with this definition *)
-fun addFixing ((s,d,r), Env (e_d, e_f) : env) : env =
-    Env (e_d, fn x => if s = #1 x andalso #2 x = DateUtil.dateDiff e_d d
-                      then SOME r else e_f x)
+fun addFixing ((s,d,r), Env (e_d, e_f) : menv) : menv =
+    let val off = DateUtil.dateDiff e_d d
+    in Env (e_d,
+         fn x => if s = #1 x andalso #2 x = off then SOME r else e_f x)
+    end
 
 fun addFixings (s,d) [] e = e
+(* inefficient
   | addFixings (s,d) vs e = 
     ListPair.foldl (fn (d,v,e) => addFixing ((s,d,v),e))
       e (List.tabulate (length vs, fn i => DateUtil.addDays i d), vs)
-
-(* not used, commented out...
-fun eqDate d1 d2 =
-    Date.compare (d1,d2) = EQUAL
 *)
+  | addFixings (s,d) vs (Env (e_d,e_f)) =
+    let val l = length vs
+        fun f (s',n) = if s = s' andalso  n >= 0 andalso n < l 
+                     then SOME (List.nth (vs,n)) else e_f (s',n)
+    in Env (e_d, f)
+    end 
 
-fun eval (E : env, d : date) e =
+fun eval (E : env) (e : exp0) =
     case e of
         Var s => e
       | I _ => e
       | R _ => e
       | B _ => e
       | Obs obs =>
-        (case fromEnv E (obs, d) of
-             SOME r => R r
-           | NONE => e)
-      | BinOp(opr,e1,e2) => binop opr (eval (E,d) e1) (eval (E,d) e2)
+        (case E obs of SOME r => R r
+                     | NONE => e)
+      | BinOp(opr,e1,e2) => binop opr (eval E e1) (eval E e2)
       | UnOp("not", e1) => 
-        (case eval (E,d) e1 of
+        (case eval E e1 of
              B b => B(Bool.not b)
            | e1 => UnOp("not",e1))
       | UnOp(opr,_) => raise Fail ("eval.UnOp: unsupported operator: " ^ opr)
-      | ChosenBy ch => (case fromEnv E (ch, d) of
-                               SOME r => B (Real.!=(r, 0.0)) (* HAAAACK *)
-                             | NONE   => e)
-      | Iff(b,e1,e2) => (case eval (E,d) b of
-                             B true  => eval (E,d) e1
-                           | B false => eval (E,d) e2
-                           | other   => Iff (other, 
-                                             eval (E,d) e1, eval (E,d) e2))
+      | ChosenBy ch => (case E ch of SOME r => B (Real.!=(r, 0.0)) (* HAAAACK *)
+                                   | NONE   => e)
+      | Iff(b,e1,e2) => (case eval E b of
+                             B true  => eval E e1
+                           | B false => eval E e2
+                           | other   => Iff (other, eval E e1, eval E e2))
 
 fun evalR E e = 
     case eval E e of R r => r
@@ -321,30 +326,36 @@ val rec dual =
   | CheckWithin (e, i, c1, c2) => checkWithin (e, i, dual c1, dual c2)
 
 (* Contract Management *)
-fun simplify P t =
+(* internal simplify, assumes c and env have same reference date *)
+fun simplify0 P t =
     case t of
         Zero => zero
-      | Both(c1,c2) => both(simplify P c1, simplify P c2)
-      | Scale(obs,Both(c1,c2)) => simplify P (both(scale(obs,c1),scale(obs,c2)))
-      | Scale(r,t) => scale(simplifyExp P r,simplify P t)
+      | Both(c1,c2) => both(simplify0 P c1, simplify0 P c2)
+      | Scale(obs,Both(c1,c2)) => 
+        simplify0 P (both(scale(obs,c1),scale(obs,c2)))
+      | Scale(r,t) => scale(simplifyExp P r,simplify0 P t)
       | Transl(i,t') =>
-        let val (E,d) = P
-            val P' = (E, DateUtil.addDays i d)
-            val t' = simplify P' t'
-        in transl(i,t')
+        let val P' =  promote P i (* P o (fn (s,n) => (s,n+i)) *)
+        in transl(i,simplify0 P' t')
         end
       | TransfOne _ => t
       | If (e, c1, c2) => 
         let val e = simplifyExp P e
-            val c1 = simplify P c1
-            val c2 = simplify P c2
+            val c1 = simplify0 P c1
+            val c2 = simplify0 P c2
         in iff(e,c1,c2) (* if e is known, iff constr. will shorten *)
         end
       | CheckWithin (e, i, c1, c2) =>
         case simplifyExp P e of
-            B true => simplify P c1
-          | B false => simplify P (transl(1,checkWithin(e,i-1,c1,c2)))
+            B true => simplify0 P c1
+          | B false => simplify0 P (transl(1,checkWithin(e,i-1,c1,c2)))
           | _ => checkWithin (e, i, c1, c2)
+
+fun simplify (Env (e_d,e_f)) (c_d,c) =
+    let val off = DateUtil.dateDiff e_d c_d
+        val P   = promote e_f off (* e_f o (fn (s,x) => (s,x+off)) *)
+    in (c_d, simplify0 P c)
+    end
 
 type cashflow   = date * cur * party * party * bool * realE
 fun ppCashflow w (d,cur,p1,p2,certain,e) =
@@ -358,7 +369,7 @@ fun ppCashflow w (d,cur,p1,p2,certain,e) =
         ppCertain certain,
         pad w (sq(p1 ^ "->" ^ p2)),
         ppCur cur,
-        ppExp (simplifyExp (emptyEnv,d) e)]
+        ppExp (simplifyExp emptyEnv e)]
     end
 
 fun ppCashflows [] = "no cashflows"

@@ -5,8 +5,8 @@ in
 (* compact function for computing and printing all cashflows
    startdate is the start date of the contract.
  *)
-fun ppCs startdate contract = 
-    print (ppCashflows (cashflows (startdate, contract)) ^ "\n")
+fun ppCs mcontract = 
+    print (ppCashflows (cashflows mcontract) ^ "\n")
 
 val today = DateUtil.?"2014-01-01"
 
@@ -17,14 +17,16 @@ val env = addFixings ("FX USD/SEK",today)
                      (emptyFrom today)
    (* two touchOptions will be triggered (barriers up 6.9, down 6.15)
       two noTouchOptions will be canceled (barriers up 6.7, down 6.25) *)
-val allTouch = all touchOptions
-val allTouch' = simplify (env,today) allTouch
+val allTouch = (today,all touchOptions) : mcontr
+val allTouch' = simplify env allTouch : mcontr
 
-val () = (ppCs today allTouch;
+fun contr (_,c) = c
+
+val () = (ppCs allTouch;
           print "------------------\n and with fixings:\n";
-          ppCs today allTouch';
-          print ("Contract was: \n" ^ ppContr allTouch ^ "\n");
-          print ("Simplified contract is:\n" ^ ppContr allTouch' ^ "\n"))
+          ppCs allTouch';
+          print ("Contract was: \n" ^ ppContr (contr allTouch) ^ "\n");
+          print ("Simplified contract is:\n" ^ ppContr (contr allTouch') ^ "\n"))
 
 (* 
 val () = ppCs today fxPortfolio

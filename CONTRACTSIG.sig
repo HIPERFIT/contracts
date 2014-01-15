@@ -28,20 +28,21 @@ signature CONTRACTSIG = sig
   (* Environments *)
   type date       = Date.date
   type env
+  type menv
   val emptyEnv    : env
-  val emptyFrom   : date -> env
-  val fromEnv     : env -> (string * int) * date -> real option
-  val addFixing   : (string * date * real) * env -> env
-  val addFixings  : (string * date) -> real list -> env -> env
+  val emptyFrom   : date -> menv
+  val addFixing   : (string * date * real) * menv -> menv
+  val addFixings  : (string * date) -> real list -> menv -> menv
+  val promoteEnv  : menv -> int -> menv
 
   (* Evaluation *)
-  val evalR       : env * date -> realE -> real
-  val evalI       : env * date -> intE  -> int
-  val evalB       : env * date -> boolE -> bool
+  val evalR       : env -> realE -> real
+  val evalI       : env -> intE  -> int
+  val evalB       : env -> boolE -> bool
 
   (* Expression utilities *)
   val certainExp  : 'a exp -> bool
-  val simplifyExp : env * date -> 'a exp -> 'a exp
+  val simplifyExp : env -> 'a exp -> 'a exp
   val ppExp       : 'a exp -> string
   val eqExp       : 'a exp * 'a exp -> bool
   val hashExp     : 'a exp * IntInf.int -> IntInf.int
@@ -68,11 +69,11 @@ signature CONTRACTSIG = sig
   val ppContr     : contr -> string
   val hashContr   : contr * IntInf.int -> IntInf.int
   val eqContr     : contr * contr -> bool
-  val simplify    : env * date -> contr -> contr
 
   (* Managed contracts *)
   type mcontr = date * contr
   val advance     : int -> mcontr -> mcontr
+  val simplify    : menv -> mcontr -> mcontr
 
   type cashflow   = date * cur * party * party * bool * realE
   val ppCashflows : cashflow list -> string
