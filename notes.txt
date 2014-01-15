@@ -499,3 +499,50 @@ CheckWithin(b,i1,CheckWithin(b,i2,c11,c12), c2) == CheckWithin(b,i,c11,c2)
            ---              ---
 CheckWithin(b,i1,c1,If(b,c21,c22)) == CheckWithin(b,i1,c1,c22)
            ---        ---
+
+------------------------
+Jost + Martin Meeting Jan 15, 2014
+
+Action points:
+
+  - Add concept of managed environment to CONTRACTSIG. Simplify
+    simplify - externally, it should work on managed
+    environments. Ordinary environments should probably be hidden for
+    the user (together with the associated functions that use ordinary
+    environments (type env). Doing so allows us to work with relative
+    environments internally (for simplicity) and managed environments
+    externally.
+
+  - Add support for accumulation as an expression:
+
+      e ::= ... | Acc(\v.e,i,a)
+ 
+    Here i is an integer and a is the initial accumulated value. The
+    meaning of Acc(f,i,a) is given as f/i(...f/1(f(a))...). Notice
+    here that we have extended the notion of promotion to work on
+    functions in the obvious way: (\x.e)/i = \x.(e/i).
+
+    This feature allows us to construct a barrier contract that pays a
+    EUR at maturity if a boundary has been reached within a period:
+
+      iff(Acc(\x.x !|! (obs("Carlsberg",0) !>! 50.0), y1, B false),
+          transl(y1,transfOne(EUR,"me","you")),
+          zero)
+
+    This contract can easily be proven to be causal. The feature also
+    allows us to define Asian options.
+
+  - We found out that by assuming an observable "Time" : int -> intE,
+    we can construct a version of transl that takes an integer
+    expression as argument instead of simply an integer:
+
+      fun translE(e,c) =
+        CheckWithin(obs("Time",0) !=! e, maxInt, c, zero)
+
+    Proving causality for such a construct, may prove to be difficult...
+
+  - It may turn out to be useful to be able to extract a specification
+    of what underlyings it will make use of for the next N days, say...
+
+  - Other features:
+     + compute the horizon for a contract...
