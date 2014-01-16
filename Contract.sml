@@ -237,6 +237,23 @@ fun certainExp e =
       | Snd e => certainExp e
       | Acc((v,e),i,a) => certainExp e andalso certainExp a
 
+fun translExp (e,0) = e
+  | translExp (e,d) =
+    case e of
+        Obs (s,t) => obs (s,t+d)
+      | BinOp(s,e1,e2) => BinOp(s,translExp(e1,d),translExp(e2,d))
+      | UnOp(s,e) => UnOp(s,translExp(e,d))
+      | ChosenBy(p,t) => ChosenBy(p,t+d)
+      | Iff(b,e1,e2) => Iff(translExp(b,d),translExp(e1,d),translExp(e2,d))
+      | Fst e => fst(translExp(e,d))
+      | Snd e => snd(translExp(e,d))
+      | Pair(e1,e2) => pair(translExp(e1,d),translExp(e2,d))
+      | Acc((v,e),i,a) => acc((v,translExp(e,d)),i,translExp(a,d))
+      | I _=> e
+      | R _ => e
+      | B _ => e
+      | V _ => e
+
 fun eval (E : env * VE) (e : exp0) =
     case e of
         V v => (case lookupVE(#2 E,v) of
@@ -267,11 +284,7 @@ fun eval (E : env * VE) (e : exp0) =
         let val a = eval E a
         in if i <= 0 then a 
            else if certainExp a then
-             let val e' = eval (#1 E,addVE(#2 E,v,a)) e            (* memo: probably we should promote e in \v.e - not the env ... *)
-             in if certainExp e' then
-                  eval (promote (#1 E) 1,addVE(#2 E,v,a)) (acc((v,e),i-1,e'))
-                else Acc((v,e),i,e')
-             end
+             eval (#1 E,addVE(#2 E,v,a)) (acc((v,translExp(e,1)),i-1,e))
            else Acc((v,e),i,a)
         end
 
@@ -322,15 +335,6 @@ val ppExp = ppExp0 Int.toString
 val ppTimeExp = ppExp0 ppTime
 
 fun simplifyExp E e = eval (E,emptyVE) e
-
-fun translExp (e, 0) = e
-  | translExp (e, d) =
-    case e of
-        Obs (s,t) => obs (s,t+d)
-      | BinOp(s,e1,e2) => BinOp (s, translExp (e1, d), translExp (e2, d))
-      | UnOp(s,e1) => UnOp (s, translExp (e1, d))
-      | ChosenBy (p,t) => ChosenBy (p, t+d)
-      | other => e (* rest unmodified *)
 
 fun ppContr c =
     let fun par s = "(" ^ s ^ ")"
