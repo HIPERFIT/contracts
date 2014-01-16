@@ -548,7 +548,7 @@ $$
 \begin{align*}
 \crule{(H-Zero)}{}{\zero \dashv 0}&\\[1ex]
 \crule{(H-TO)}{}{\transfOne(C,p_1,p_2)\dashv 0}&\\[1ex]
-\crule{(H-TL)}{c \dashv i }{\transl(d,c) \dashv i + d }&\\[1ex]
+\crule{(H-TL)}{c \dashv i }{\transl(d,c) \dashv (i + d) }&\\[1ex]
 \end{align*}
 
 \column{0.3\textwidth}
@@ -559,7 +559,7 @@ $$
 \end{align*}
 \end{columns}
 $$ 
-\crule{(H-CW)}{0\vdash e\ \ \ c_1 \dashv b_1 \ \ \ c_2 \dashv b_2 }{\checkWithin(e,d,c_1,c_2) \dashv max(b_1,d+b_2) }
+\crule{(H-CW)}{0\vdash e\ \ \ c_1 \dashv b_1 \ \ \ c_2 \dashv b_2 }{\checkWithin(e,d,c_1,c_2) \dashv (d + max(b_1,b_2)) }
 $$
 
 \medskip

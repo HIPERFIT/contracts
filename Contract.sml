@@ -405,6 +405,15 @@ fun cashflows (d,c) : cashflow list =
     in ListSort.sort (fn ((d1,_,_,_,_,_),(d2,_,_,_,_,_)) => Date.compare (d1,d2)) flows
     end
 
+(* horizon of a contract. Never returns negative number *)
+fun horizon     Zero       = 0
+  | horizon (TransfOne _ ) = 0
+  | horizon (Scale(_,c))   = horizon c
+  | horizon (Both (c1,c2)) = Int.max(horizon c1, horizon c2)
+  | horizon (Transl(i,c))  = i + horizon c (* maybe negative if i < 0 *)
+  | horizon (If(_,c1,c2))  = Int.max (horizon c1, horizon c2)
+  | horizon (CheckWithin (_,i,c1,c2)) = i + Int.max (horizon c1, horizon c2)
+
 type mcontr = date * contr (* "managed contract", with a start date *)
 (* Remove the next i days from a contract *)
 fun adv i c : contr =
