@@ -451,7 +451,7 @@ Contract semantics \hfill \framebox{$ \mathcal{C} : \ttt{contr} \times \ttt{env}
 {\footnotesize
 \begin{align*}
 \csem{\zero}{e}{\ttt{repeat}\ \emptyset}\\
-\csem{\transfOne(c,p_1,p_2)}{e}{\{(1,c,p_1,p_2)\} : \ttt{repeat}\ \emptyset }\\
+\csem{\transfOne(c,p_1,p_2)}{e}{\{(1,c,p_1,p_2)\} :: \ttt{repeat}\ \emptyset }\\
 \csem{\both(c_1,c_2)}{e}{\ttt{zipWith flowMerge }\ (\mathcal{C}\sem{c_1}e)\ (\mathcal{C}\sem{c_2}e)}\\
 \csem{\scale(s,c)}{e}{\ttt{mapmap}\ (\lambda (a,c,f,t)\mapsto(a\cdot\mathcal{E}\sem{s}e,c,f,t))\ (\mathcal{C}\sem{c}e)}\\
 \csem{\transl(d,c)}{e}{\ttt{replicate}\ d \ \emptyset +\!\!\!+\  \mathcal{C}\sem{c}(e/d)}\\
@@ -460,7 +460,7 @@ Contract semantics \hfill \framebox{$ \mathcal{C} : \ttt{contr} \times \ttt{env}
 \begin{array}{rl}
 \mathcal{C}\sem{c_1}e & \mbox{iff}\ \mathcal{E}\sem{b}e \\
 \mathcal{C}\sem{c_2}e & \mbox{iff}\ d = 0\ \wedge\ !\mathcal{E}\sem{b}e  \\
-\emptyset : L & \mbox{iff}\ d > 0\ \wedge\ !\mathcal{E}\sem{b}e \ \wedge \\
+\emptyset :: L & \mbox{iff}\ d > 0\ \wedge\ !\mathcal{E}\sem{b}e \ \wedge \\
 & L = \mathcal{C}\sem{\checkWithin(b,d\!-\!1,c_1,c_2)}(e/1)
 \end{array}\right.
 }
@@ -534,6 +534,39 @@ $$
 \medskip
 
 \emph{Intuition:} $i \vdash c$ means c is causal (\textit{SC} rule) and there are no transfers before $i$ days have passed (\textit{TL} rule and using \textit{min}).
+
+\end{frame}
+
+\begin{frame}[fragile,t]
+    \frametitle{Appendix: Contract Horizon}
+
+\emph{$d$ is the horizon} of a contract: $ c \dashv d$:
+{\scriptsize $ (c \in \ttt{contr},\ d \in \mathbb{Z}_0^+) $}
+
+\begin{columns}
+\column{0.3\textwidth}
+\begin{align*}
+\crule{(H-Zero)}{}{\zero \dashv 0}&\\[1ex]
+\crule{(H-TO)}{}{\transfOne(C,p_1,p_2)\dashv 0}&\\[1ex]
+\crule{(H-TL)}{c \dashv i }{\transl(d,c) \dashv i + d }&\\[1ex]
+\end{align*}
+
+\column{0.3\textwidth}
+\begin{align*}
+&\\[1ex]
+&\crule{(H-Sc)}{b_1 \vdash e\ \ \ c \dashv b_2\ \ \ b_1 \leq b_2 }{\scale(e,c) \dashv b_2 }\\[1ex]
+&\crule{(H-Both)}{c_1 \dashv b_1 \ \ \ c_2 \dashv b_2 }{\both(c_1,c_2) \dashv max(b_1,b_2) }\\[1ex]
+\end{align*}
+\end{columns}
+$$ 
+\crule{(H-CW)}{0\vdash e\ \ \ c_1 \dashv b_1 \ \ \ c_2 \dashv b_2 }{\checkWithin(e,d,c_1,c_2) \dashv max(b_1,d+b_2) }
+$$
+
+\medskip
+\hrule
+\medskip
+
+\emph{Intuition:} $c \dashv i$ means the last transfer may happen after no more than $i$ days (\textit{H-TL} and \textit{max}). c may or may not be causal (\textit{H-SC}).
 
 \end{frame}
 
