@@ -1,5 +1,10 @@
 structure Contract :> Contract = struct
 open ContractBase Currency
+
+type 'a var = var0
+local val c = ref 0
+in fun new s = s ^ "-" ^ (Int.toString (!c before c := !c + 1))
+end
 type 'a exp = exp0
 type boolE = bool exp
 type 'a num = unit
@@ -29,12 +34,16 @@ fun hashExp (e,a) =
       | R r => H(3,Hs(Real.toString r, a))
       | B true => H(5,a)
       | B false => H(7,a)
-      | Var v => H(11, Hs(v,a))
+      | V v => H(11, Hs(v,a))
       | BinOp(s,e1,e2) => Hs(s,hashExp(e1,hashExp(e2,a)))
       | UnOp(s,e) => Hs(s,hashExp(e,a))
       | Obs(s,i) => H(13,Hs(s,H(i,a)))
       | ChosenBy (p,i) => H(17,Hs(p,H(i,a)))
       | Iff (b,e1,e2) => H(19,hashExp(b,hashExp(e1,hashExp(e2,a))))
+      | Pair(e1,e2) => H(23,hashExp(e1,hashExp(e2,a)))
+      | Fst e => H(29,hashExp(e,a))
+      | Snd e => H(31,hashExp(e,a))
+      | Acc((v,e1),i,e2) => H(37,Hs(v,H(i,hashExp(e1,hashExp(e2,a)))))
 fun hashContr (c,a) = 
     case c of
         Zero => H(2,a)
@@ -94,12 +103,22 @@ fun binop opr e1 e2 =
          | (B b1, B b2) => binopBB opr b1 b2
          | _ => 
        case opr of
-           "-" => if eqExp(e1,e2) then I 0 else mk()
+           "-" => if eqExp(e1,e2) then I 0
+                  else if eqExp(e2,I 0) orelse eqExp(e2,R 0.0) then e1
+                  else mk()
          | "min" => if eqExp(e1,e2) then e1 else mk()
          | "max" => if eqExp(e1,e2) then e1 else mk()
          | "<" => if eqExp(e1,e2) then B false else mk()
          | "=" => if eqExp(e1,e2) then B true else mk()
          | "|" => if eqExp(e1,e2) then e1 else mk()
+         | "*" => if eqExp(e1,R 1.0) orelse eqExp(e1,I 1) then e2
+                  else if eqExp(e2,R 1.0) orelse eqExp(e2,I 1) then e1
+                  else if eqExp(e1,R 0.0) orelse eqExp(e2,R 0.0) then R 0.0
+                  else if eqExp(e1,I 0) orelse eqExp(e2,I 0) then I 0
+                  else mk()
+         | "+" => if eqExp(e1,R 0.0) orelse eqExp(e1,I 0) then e2
+                  else if eqExp(e2,R 0.0) orelse eqExp(e2,I 0) then e1
+                  else mk()
          | _ => mk()
     end
 
@@ -110,10 +129,21 @@ fun x !*! y = binop "*" x y
 fun x !<! y = binop "<" x y
 fun x !=! y = binop "=" x y
 fun x !|! y = binop "|" x y
-
-fun not x = UnOp("not",x)
 fun max (x,y) = binop "max" x y
 fun min (x,y) = binop "min" x y
+fun not (B b) = B (Bool.not b)
+  | not x = UnOp("not",x)
+
+fun pair (e1,e2) = Pair(e1,e2)
+fun fst (Pair(e,_)) = e
+  | fst e = Fst e
+fun snd (Pair(_,e)) = e
+  | snd e = Fst e
+
+(* Functions *)
+type ('a,'b)Fun = 'a var * 'b exp
+fun acc (_,0,a) = a
+  | acc (f,i,a) = Acc(f,i,a)
 
 type date = Date.date
 
@@ -147,6 +177,12 @@ Every environment contains bindings to a value "days since started"
 (called "Time); which are 0 to infinity in the relative environment.
 
 *)
+
+(* Variable environments map variables to certain (ground) expressions *)
+type VE = var0 -> exp0 option
+val emptyVE : VE = fn _ => NONE
+fun addVE (VE,v,e) = fn x => if v = x then SOME e else VE x
+fun lookupVE (VE,v) = VE v
 
 type env = string * int -> real option
 
@@ -182,37 +218,65 @@ fun addFixings (s,d) [] e = e
     in Env (e_d, f)
     end 
 
-fun eval (E : env) (e : exp0) =
+fun certainExp e =
     case e of
-        Var s => e
+        V _ => false       (* if variables are used only for functions in Acc, we could return true here! *)
+      | I _ => true
+      | R _ => true
+      | B _ => true
+      | Obs _ => false
+      | ChosenBy _ => false
+      | BinOp(_,e1,e2) => certainExp e1 andalso certainExp e2
+      | UnOp(_,e1) => certainExp e1
+      | Iff(b,e1,e2) => certainExp b andalso certainExp e1 andalso certainExp e2
+      | Pair(e1,e2) => certainExp e1 andalso certainExp e2
+      | Fst e => certainExp e
+      | Snd e => certainExp e
+      | Acc((v,e),i,a) => certainExp e andalso certainExp a
+
+fun eval (E : env * VE) (e : exp0) =
+    case e of
+        V v => (case lookupVE(#2 E,v) of
+                    SOME e => e
+                  | NONE => e)
       | I _ => e
       | R _ => e
       | B _ => e
-      | Obs obs =>
-        (case E obs of SOME r => R r
-                     | NONE => e)
+      | Obs obs => (case #1 E obs of
+                        SOME r => R r
+                      | NONE => e)
       | BinOp(opr,e1,e2) => binop opr (eval E e1) (eval E e2)
       | UnOp("not", e1) => 
         (case eval E e1 of
              B b => B(Bool.not b)
            | e1 => UnOp("not",e1))
       | UnOp(opr,_) => raise Fail ("eval.UnOp: unsupported operator: " ^ opr)
-      | ChosenBy ch => (case E ch of SOME r => B (Real.!=(r, 0.0)) (* HAAAACK *)
-                                   | NONE   => e)
+      | ChosenBy ch => (case #1 E ch of SOME r => B (Real.!=(r, 0.0)) (* HAAAACK *)
+                                      | NONE => e)
       | Iff(b,e1,e2) => (case eval E b of
                              B true  => eval E e1
                            | B false => eval E e2
                            | other   => Iff (other, eval E e1, eval E e2))
+      | Fst e => fst(eval E e)
+      | Snd e => snd(eval E e)
+      | Pair(e1,e2) => pair(eval E e1,eval E e2)
+      | Acc((v,e),i,a) =>
+        let val a = eval E a
+        in if i <= 0 then a 
+           else if certainExp a then
+             eval (#1 E,addVE(#2 E,v,a)) (acc((v,e),i-1,e))
+           else Acc((v,e),i,a)
+        end
 
 fun evalR E e = 
-    case eval E e of R r => r
-                   | _ => raise Fail "evalR: expecting real"
+    case eval (E,emptyVE) e of R r => r
+                             | _ => raise Fail "evalR: expecting real"
 fun evalI E e =
-    case eval E e of I i => i
-                   | _ => raise Fail "evalI: expecting int"
+    case eval (E,emptyVE) e of I i => i
+                             | _ => raise Fail "evalI: expecting int"
 fun evalB E e =
-    case eval E e of B b => b
-                   | _ => raise Fail "evalB: expecting bool"
+    case eval (E,emptyVE) e of B b => b
+                             | _ => raise Fail "evalB: expecting bool"
          
 fun ppTime t = 
     let val months = t div 30
@@ -228,8 +292,10 @@ fun ppTime t =
 fun ppExp0 ppTime e = 
     let fun par s = "(" ^ s ^ ")"
         fun notfixed opr = opr = "max" orelse opr = "min"
+        fun ppExp e = ppExp0 ppTime e
+        fun ppFun (v,e) = "fn " ^ v ^ " => " ^ ppExp e
     in case e of 
-           Var s => "Var" ^ par s
+           V s => s
          | I i => ppTime i
          | R r => Real.toString r
          | B b => Bool.toString b
@@ -240,24 +306,15 @@ fun ppExp0 ppTime e =
          | UnOp(opr, e1) => opr ^ par (ppExp e1)
          | ChosenBy (p,i) => "Chosen by " ^ p ^ " @ " ^ ppTime i
          | Iff (b,e1,e2) => par (ppExp b ^ "? " ^ ppExp e1 ^ " : " ^ ppExp e2)
+         | Pair(e1,e2) => par (ppExp e1 ^ "," ^ ppExp e2)
+         | Fst e => "fst" ^ par(ppExp e)
+         | Snd e => "snd" ^ par(ppExp e)
+         | Acc(f,i,e) => "acc" ^ par(ppFun f ^ "," ^ Int.toString i ^ "," ^ ppExp e)
     end
-and ppExp e = ppExp0 Int.toString e
+val ppExp = ppExp0 Int.toString
 val ppTimeExp = ppExp0 ppTime
 
-fun certainExp e =
-    case e of
-        Var _ => false
-      | I _ => true
-      | R _ => true
-      | B _ => true
-      | Obs _ => false
-      | ChosenBy _ => false
-      | BinOp(_,e1,e2) => certainExp e1 andalso certainExp e2
-      | UnOp(_,e1) => certainExp e1
-      | Iff(b,e1,e2) => certainExp b andalso certainExp e1 andalso certainExp e2
-
-fun simplifyExp P e =
-    eval P e
+fun simplifyExp E e = eval (E,emptyVE) e
 
 fun translExp (e, 0) = e
   | translExp (e, d) =
@@ -331,34 +388,34 @@ val rec dual =
 
 (* Contract Management *)
 (* internal simplify, assumes c and env have same reference date *)
-fun simplify0 P t =
+fun simplify0 E t =
     case t of
         Zero => zero
-      | Both(c1,c2) => both(simplify0 P c1, simplify0 P c2)
+      | Both(c1,c2) => both(simplify0 E c1, simplify0 E c2)
       | Scale(obs,Both(c1,c2)) => 
-        simplify0 P (both(scale(obs,c1),scale(obs,c2)))
-      | Scale(r,t) => scale(simplifyExp P r,simplify0 P t)
+        simplify0 E (both(scale(obs,c1),scale(obs,c2)))
+      | Scale(r,t) => scale(simplifyExp E r,simplify0 E t)
       | Transl(i,t') =>
-        let val P' =  promote P i (* P o (fn (s,n) => (s,n+i)) *)
-        in transl(i,simplify0 P' t')
+        let val E' =  promote E i (* E o (fn (s,n) => (s,n+i)) *)
+        in transl(i,simplify0 E' t')
         end
       | TransfOne _ => t
       | If (e, c1, c2) => 
-        let val e = simplifyExp P e
-            val c1 = simplify0 P c1
-            val c2 = simplify0 P c2
+        let val e = simplifyExp E e
+            val c1 = simplify0 E c1
+            val c2 = simplify0 E c2
         in iff(e,c1,c2) (* if e is known, iff constr. will shorten *)
         end
       | CheckWithin (e, i, c1, c2) =>
-        case simplifyExp P e of
-            B true => simplify0 P c1
-          | B false => simplify0 P (transl(1,checkWithin(e,i-1,c1,c2)))
+        case simplifyExp E e of
+            B true => simplify0 E c1
+          | B false => simplify0 E (transl(1,checkWithin(e,i-1,c1,c2)))
           | _ => checkWithin (e, i, c1, c2)
 
 fun simplify (Env (e_d,e_f)) (c_d,c) =
     let val off = DateUtil.dateDiff e_d c_d
-        val P   = promote e_f off (* e_f o (fn (s,x) => (s,x+off)) *)
-    in (c_d, simplify0 P c)
+        val E   = promote e_f off (* e_f o (fn (s,x) => (s,x+off)) *)
+    in (c_d, simplify0 E c)
     end
 
 type cashflow   = date * cur * party * party * bool * realE

@@ -71,8 +71,9 @@ val ex4 =
 val ex4m = (today, ex4)
 val () = report "Ex4 (call option)" ex4m
 val _ = println "\nEx4 - Cashflows on 1000 Stock options (Strike:50,Price:79):"
-val e = addFixing ((equity,DateUtil.addDays maturity today,79.0),emptyEnv)
-val ex4m' = (today, simplify(e,today) ex4)
+val ME0 = emptyFrom today
+val ME = addFixing ((equity,DateUtil.addDays maturity today,79.0),ME0)
+val ex4m' = simplify ME ex4m
 val ex4m'' = advance maturity ex4m'
 val () = report "Ex4 (call option - price=79 and advanced)" ex4m''
 

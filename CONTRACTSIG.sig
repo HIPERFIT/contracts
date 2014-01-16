@@ -1,5 +1,8 @@
 signature CONTRACTSIG = sig
-  type var
+
+  (* Variables *)
+  type 'a var
+  val new : string -> 'a var
 
   (* Expressions *)
   type 'a num
@@ -8,7 +11,7 @@ signature CONTRACTSIG = sig
   type intE       = int num exp
   type realE      = real num exp
 
-  val Var         : var -> 'a exp
+  val V           : 'a var -> 'a exp
   val I           : int -> intE
   val R           : real -> realE
   val B           : bool -> boolE
@@ -24,6 +27,13 @@ signature CONTRACTSIG = sig
   val obs         : string*int -> 'a exp
   val chosenBy    : string*int -> boolE
   val ifExpr      : boolE * 'a exp * 'a exp -> 'a exp
+  val pair        : 'a exp * 'b exp -> ('a*'b) exp
+  val fst         : ('a*'b)exp -> 'a exp
+  val snd         : ('a*'b)exp -> 'b exp
+
+  (* Functions *)
+  type ('a,'b)Fun = 'a var * 'b exp
+  val acc         : ('a,'a)Fun * int * 'a exp -> 'a exp
 
   (* Environments *)
   type date       = Date.date
