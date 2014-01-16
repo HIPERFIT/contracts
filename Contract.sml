@@ -143,13 +143,17 @@ For efficiency, we can later implement string*int -> real option as a
 hash table (or binary search tree or alike...). At the moment, we
 carry around partial functions constructed in the heap.
 
+Every environment contains bindings to a value "days since started"
+(called "Time); which are 0 to infinity in the relative environment.
+
 *)
 
 type env = string * int -> real option
 
 datatype menv = Env of date * env
 
-val emptyEnv : env = fn _ => NONE
+val emptyEnv : env = fn (s,i) => if s = "Time" 
+                                 then SOME (Real.fromInt i) else NONE
 
 (* we do want a function that sets the start date to something convenient... *)
 fun emptyFrom d = Env (d, emptyEnv)

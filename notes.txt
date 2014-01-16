@@ -512,6 +512,7 @@ Action points:
     environments (type env). Doing so allows us to work with relative
     environments internally (for simplicity) and managed environments
     externally.
+  DONE
 
   - Add support for accumulation as an expression:
 
@@ -540,9 +541,13 @@ Action points:
         CheckWithin(obs("Time",0) !=! e, maxInt, c, zero)
 
     Proving causality for such a construct, may prove to be difficult...
+ Preparation done in environment definitions. Name is "Time", although
+ "days-from-start" might be better.
+
 
   - It may turn out to be useful to be able to extract a specification
     of what underlyings it will make use of for the next N days, say...
 
   - Other features:
      + compute the horizon for a contract...
+    DONE
