@@ -1,6 +1,7 @@
 
 (* load required modules *)
 app load ["Math", "Date", "Bool", "ListPair", "IntInf", "CharVector"];
+structure LargeInt = Int;
 
 app use ["DateUtil.sml", "ListSort.sig", "ListSort.sml", "CURRENCY.sig", "Currency.sml", "ContractBase.sml", "CONTRACTSIG.sig", "Contract.sig", "Contract.sml", "Instruments.sml", "ContractTransform.sml", "ContractMonad.sml"];
 

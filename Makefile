@@ -5,9 +5,11 @@ MOSMLC=mosmlc
 MOSML=mosml
 
 # All infrastructure modules (not tests). Order matters here:
-MOSMLFILES=DateUtil.sml ListSort.sig ListSort.sml CURRENCY.sig Currency.sml ContractBase.sml CONTRACTSIG.sig Contract.sig Contract.sml ContractTransform.sml Instruments.sml
 
-SMLFILES= $(MOSMLFILES) Instruments_test.sml ContractMonad.sml test.sml
+COREFILES=DateUtil.sml ListSort.sig ListSort.sml CURRENCY.sig Currency.sml ContractBase.sml CONTRACTSIG.sig Contract.sig Contract.sml ContractTransform.sml Instruments.sml
+MOSMLFILES=LargeInt.sml $(COREFILES)
+
+SMLFILES=$(COREFILES) Instruments_test.sml ContractMonad.sml test.sml
 
 all: contract.exe
 

@@ -68,14 +68,17 @@ val ex4 =
                     scale(obs,transfOne(EUR,"you","me"))))
     end
 
-val ex4m = (today, ex4)
-val () = report "Ex4 (call option)" ex4m
-val _ = println "\nEx4 - Cashflows on 1000 Stock options (Strike:50,Price:79):"
-val ME0 = emptyFrom today
-val ME = addFixing ((equity,DateUtil.addDays maturity today,79.0),ME0)
-val ex4m' = simplify ME ex4m
-val ex4m'' = advance maturity ex4m'
-val () = report "Ex4 (call option - price=79 and advanced)" ex4m''
+fun mature s c p =
+    let val m = (today, c)
+        val () = report (s ^ " - initial") m
+        val ME0 = emptyFrom today
+        val ME = addFixing ((equity,DateUtil.addDays maturity today,p),ME0)
+        val m' = simplify ME m
+        val m'' = advance maturity m'
+    in report (s ^ " - at maturity; price(maturity)=" ^ Real.toString p) m''
+    end
+
+val () = mature "Ex4-79 (call option, strike=50.0)" ex4 79.0
 
 (* same call option, expressed with If *)
 val ex4if =
@@ -90,26 +93,10 @@ val ex4if =
                          zero)))
     end
 
-val _ = println "\nEx4if - Cashflows on 1000 Stock options (Strike:50,Price:79):"
-
-(* val _ = println (cashflows (fn _ => 79.0) ex4if) *)
+val () = mature "Ex4if-79 (call option, strike=50.0)" ex4 79.0
+val () = mature "Ex4if-46 (call option, strike=50.0)" ex4 46.0
 
 (*
-fun matureit e =
-    let
-      val ex5 = fixing(equity,maturity,83.0) e
-      val _ = println "\nEx5 - Call option with fixing 83"
-      val _ = println ("ex5 = " ^ pp ex5)
-      val ex6 = fixing(equity,maturity,46.0) e
-      val _ = println "\nEx6 - Call option with fixing 46"
-      val _ = println ("ex6 = " ^ pp ex6)
-    in  ()
-    end
-
-val () = matureit ex4
-val () = matureit ex4if
-
-
 (* Valuation (Pricing) *)
 structure FlatRate = struct
   fun discount d0 d amount rate =
