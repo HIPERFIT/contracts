@@ -12,9 +12,5 @@ in
    Contract.sml
    Instruments.sml
    ContractTransform.sml
-   Instruments_test.sml
    ContractMonad.sml
-   portfolio.sml
-   pftest.sml
-   test.sml
 end

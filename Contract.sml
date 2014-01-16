@@ -3,7 +3,7 @@ open ContractBase Currency
 
 type 'a var = var0
 local val c = ref 0
-in fun new s = s ^ "-" ^ (Int.toString (!c before c := !c + 1))
+in fun new s = s ^ (Int.toString (!c before c := !c + 1))
 end
 type 'a exp = exp0
 type boolE = bool exp
@@ -138,7 +138,7 @@ fun pair (e1,e2) = Pair(e1,e2)
 fun fst (Pair(e,_)) = e
   | fst e = Fst e
 fun snd (Pair(_,e)) = e
-  | snd e = Fst e
+  | snd e = Snd e
 
 (* Functions *)
 type ('a,'b)Fun = 'a var * 'b exp
@@ -197,6 +197,9 @@ fun emptyFrom d = Env (d, emptyEnv)
 fun promote (e:env) (i:int) : env = e o (fn (s,x) => (s,x+i))
 
 fun promoteEnv (Env (d,e) : menv) (i:int) : menv = Env (d,promote e i)
+
+fun addFix ((s,d,r:real),e:env):env =
+    fn x => if s = #1 x andalso #2 x = d then SOME r else e x
 
 (* new values silently take precedence with this definition *)
 fun addFixing ((s,d,r), Env (e_d, e_f) : menv) : menv =
@@ -264,7 +267,11 @@ fun eval (E : env * VE) (e : exp0) =
         let val a = eval E a
         in if i <= 0 then a 
            else if certainExp a then
-             eval (#1 E,addVE(#2 E,v,a)) (acc((v,e),i-1,e))
+             let val e' = eval (#1 E,addVE(#2 E,v,a)) e            (* memo: probably we should promote e in \v.e - not the env ... *)
+             in if certainExp e' then
+                  eval (promote (#1 E) 1,addVE(#2 E,v,a)) (acc((v,e),i-1,e'))
+                else Acc((v,e),i,e')
+             end
            else Acc((v,e),i,a)
         end
 

@@ -1,0 +1,9 @@
+local 
+   $(SML_LIB)/basis/basis.mlb
+   ../contract.mlb
+   Utest.mlb
+in basiccontracts.sml
+   ../portfolio.sml
+   ../pftest.sml
+   ../Instruments_test.sml
+end

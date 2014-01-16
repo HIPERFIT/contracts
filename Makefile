@@ -9,7 +9,7 @@ MOSML=mosml
 COREFILES=DateUtil.sml ListSort.sig ListSort.sml CURRENCY.sig Currency.sml ContractBase.sml CONTRACTSIG.sig Contract.sig Contract.sml ContractTransform.sml Instruments.sml
 MOSMLFILES=LargeInt.sml $(COREFILES)
 
-SMLFILES=$(COREFILES) Instruments_test.sml ContractMonad.sml test.sml
+SMLFILES=$(COREFILES) ContractMonad.sml
 
 all: contract.exe
 
@@ -43,6 +43,7 @@ contractmos: $(MOSMLFILES)
 
 clean:
 	rm -rf MLB *~ *.exe *.ui *.uo multimos run doc/*~
+	make -C test clean
 
 mosmodules: $(MOSMLFILES)
 	for F in  $(MOSMLFILES); do $(MOSMLC) -c $${F}; done
@@ -52,3 +53,7 @@ portfolio.uo: mosmodules portfolio.sml
 
 pftest:	portfolio.uo pftest.sml
 	$(MOSMLC) -o pftest pftest.sml
+
+.PHONY: test
+test:
+	$(MAKE) -C test all

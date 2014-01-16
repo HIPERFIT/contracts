@@ -19,10 +19,13 @@ fun Y n = (n*360)
 val me2you = dual o you2me
 
 fun report s (d,c) =
-    (println "";
-     println(s ^ " - Contract:\n  " ^ ppContr c);
-     println "\nCashflows:";
-     println (ppCashflows(cashflows (d,c))))
+    (println "\n---REPORT BEGIN---";
+     println ("Today is " ^ DateUtil.ppDate d);
+     println (s ^ " - Contract:\n" ^ ppContr c);
+     println "Cashflows:";
+     println (ppCashflows(cashflows (d,c)));
+     println "---REPORT END---"
+    )
 
 (* Simple amortized loan *)
 val ex1 =

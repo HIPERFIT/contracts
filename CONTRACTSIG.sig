@@ -40,6 +40,7 @@ signature CONTRACTSIG = sig
   type env
   type menv
   val emptyEnv    : env
+  val addFix      : (string * int * real) * env -> env
   val emptyFrom   : date -> menv
   val addFixing   : (string * date * real) * menv -> menv
   val addFixings  : (string * date) -> real list -> menv -> menv
