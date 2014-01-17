@@ -1,5 +1,7 @@
 
-MLCOMP=mlkit
+ifeq ($(strip $(MLCOMP)),) 
+	MLCOMP=mlkit
+endif
 
 FILES=Makefile $(shell ls -1 *.mlb *.sml)
 
@@ -10,7 +12,7 @@ all: tests.out expr.out
 	diff -q $@ $*.ok
 
 %.exe: $(FILES)
-	$(MLCOMP) -o $@ $*.mlb
+	$(MLCOMP) -output $@ $*.mlb
 
 clean:
 	rm -rf MLB *~ *.exe *.ui *.uo run *.res *.out
