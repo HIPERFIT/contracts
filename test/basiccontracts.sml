@@ -1,6 +1,6 @@
 structure test = struct
 
-open Currency Contract
+open Currency ContractSafe
 infix !+! !-! !*! !<! !=! !|! 
 
 fun println s = print (s ^ "\n")

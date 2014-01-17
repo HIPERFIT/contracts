@@ -1,0 +1,1 @@
+structure ContractSafe = Contract :> CONTRACTSIG

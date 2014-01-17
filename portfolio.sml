@@ -41,8 +41,8 @@ val forwards =
     ]
 
 (* everything together (using "all" constructor) is the portfolio *)
-val fxPortfolio = Contract.all (singleBarriers @ doubleBarriers @
-                                touchOptions @ vanillas @ forwards)
+val fxPortfolio = ContractSafe.all (singleBarriers @ doubleBarriers @
+                                    touchOptions @ vanillas @ forwards)
 
 end
 

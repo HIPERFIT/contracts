@@ -2,7 +2,7 @@ structure Instruments = struct
 
 exception Error of string
 
-local open Currency Contract in
+local open Currency ContractSafe in
 
 infix !+! !-! !*! !<! !=! !|! 
 

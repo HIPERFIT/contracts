@@ -4,7 +4,7 @@ infix  6  !+! !-!
 infix  5  !|!
 infix  4  !=! !<!
 
-open Contract
+open ContractSafe
 
 fun etestE s e f E =
     Utest.testPP ppExp s e (fn () =>
@@ -65,7 +65,7 @@ val f = (v,V v !+! I 1)
 val () = etest "test acc - i0" (I 44) (fn () => acc(f,0,I 44))
 val () = etest "test acc - i3" (I 4) (fn () => acc(f,3,I 1))
 
-val x : (int num * real num) var = new "v"
+val x : (real num * int num) var = new "v"
 val f = (x, pair(fst(V x) !+! obs("C",0),
                  snd(V x) !+! I 1))
 

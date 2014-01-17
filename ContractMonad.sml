@@ -1,4 +1,6 @@
 
+structure Contract = ContractSafe
+
 signature CONTRACT_MONAD = sig
   type 'a m
   val ret       : 'a -> 'a m
@@ -10,7 +12,7 @@ signature CONTRACT_MONAD = sig
   val wait      : int -> unit m
   val terminate : unit -> 'a m
   val skip      : unit m
-  val toContr   : unit m -> Contract.contr
+  val toContr   : unit m -> ContractSafe.contr
 end
 
 structure ContractMonad :> CONTRACT_MONAD =

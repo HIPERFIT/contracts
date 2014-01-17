@@ -10,6 +10,7 @@ in
    ContractBase.sml
    Contract.sig
    Contract.sml
+   ContractSafe.sml
    Instruments.sml
    ContractTransform.sml
    ContractMonad.sml

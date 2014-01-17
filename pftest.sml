@@ -1,5 +1,5 @@
 local
-  open portfolio ContractTransform Contract
+  open portfolio ContractSafe
 in 
 
 (* compact function for computing and printing all cashflows
