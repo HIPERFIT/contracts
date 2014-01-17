@@ -3,6 +3,7 @@ structure test = struct
 open Currency ContractSafe
 infix !+! !-! !*! !<! !=! !|! 
 
+fun ppReal s = Real.fmt (StringCvt.FIX(SOME 8)) s
 fun println s = print (s ^ "\n")
 
 fun prHash s c =
@@ -13,6 +14,7 @@ fun you2me(d,v,c) = flow(d,R v,c,"you","me")
 (* these guys are now just int *)
 val now = 0
 val today = DateUtil.? "2013-01-01"
+val () = print ("Today is " ^ DateUtil.ppDate today ^ "\n")
 fun M n = (n*30)
 fun Y n = (n*360)
 
@@ -78,7 +80,7 @@ fun mature s c p =
         val ME = addFixing ((equity,DateUtil.addDays maturity today,p),ME0)
         val m' = simplify ME m
         val m'' = advance maturity m'
-    in report (s ^ " - at maturity; price(maturity)=" ^ Real.toString p) m''
+    in report (s ^ " - at maturity; price(maturity)=" ^ ppReal p) m''
     end
 
 val () = mature "Ex4-79 (call option, strike=50.0)" ex4 79.0
@@ -124,7 +126,7 @@ fun R EUR = 0.04
 val p1 = FlatRate.price (?"2011-01-01") R FX ex1
 val p2 = FlatRate.price (?"2011-01-01") R FX ex2
 
-val _ = println("\nPrice(ex1) : DKK " ^ Real.toString p1)
-val _ = println("\nPrice(ex2) : DKK " ^ Real.toString p2)
+val _ = println("\nPrice(ex1) : DKK " ^ ppReal p1)
+val _ = println("\nPrice(ex2) : DKK " ^ ppReal p2)
 *)
 end

@@ -1,6 +1,8 @@
 structure Contract :> Contract = struct
 open ContractBase Currency
 
+fun ppReal s = Real.fmt (StringCvt.FIX(SOME 8)) s
+
 type 'a var = var0
 local val c = ref 0
 in fun new s = s ^ (Int.toString (!c before c := !c + 1))
@@ -31,7 +33,7 @@ in
 fun hashExp (e,a) =
     case e of
         I i => H(2,H(i,a))
-      | R r => H(3,Hs(Real.toString r, a))
+      | R r => H(3,Hs(ppReal r, a))
       | B true => H(5,a)
       | B false => H(7,a)
       | V v => H(11, Hs(v,a))
@@ -317,7 +319,7 @@ fun ppExp0 ppTime e =
     in case e of 
            V s => s
          | I i => ppTime i
-         | R r => Real.toString r
+         | R r => ppReal r
          | B b => Bool.toString b
          | Obs (s,off) => "Obs" ^ par (s ^ "@" ^ ppTime off)
          | BinOp(opr,e1,e2) => 
