@@ -5,7 +5,7 @@ endif
 
 FILES=Makefile $(shell ls -1 *.mlb *.sml)
 
-all: tests.out expr.out
+all: tests.out expr.out contract.out
 
 %.out: %.exe
 	./$< > $@
