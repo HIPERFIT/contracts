@@ -29,16 +29,12 @@ fun ? s = let val y  = String.substring (s,0,4)
 
 fun addDays i d =
     let val t = Date.toTime d
-        val seconds = i * 24*60*60
+        val seconds = real i * 24.0*60.0*60.0
         (* Mosml's Time.fromSeconds function has a wrong type, thus it is 
-         * necessary to go over a string representation for portability *)
-        val s = Int.toString seconds ^ ".0"
-    in case Time.fromString s of
-           SOME off =>
-           let val t' = Time.+(t,off)
-           in Date.fromTimeLocal t'
-           end
-           | NONE => raise Fail "addDays - impossible"
+         * necessary to use the real representation for portability *)
+        val off = Time.fromReal seconds
+        val t' = Time.+(t,off)
+    in Date.fromTimeUniv t'
     end
 
 (* computes day difference to go from d1 to d2 *)
