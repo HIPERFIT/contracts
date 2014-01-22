@@ -15,8 +15,8 @@ fun you2me(d,v,c) = flow(d,R v,c,"you","me")
 val now = 0
 val today = DateUtil.? "2013-01-01"
 val () = print ("Today is " ^ DateUtil.ppDate today ^ "\n")
-fun M n = (n*30)
-fun Y n = (n*360)
+fun M n = n*30
+fun Y n = n*360
 
 val me2you = dual o you2me
 

@@ -538,9 +538,10 @@ Action points:
     expression as argument instead of simply an integer:
 
       fun translE(e,c) =
-        CheckWithin(obs("Time",0) !=! e, maxInt, c, zero)
+        checkWithin(obs("Time",0) !=! e, maxInt, c, zero)
 
     Proving causality for such a construct, may prove to be difficult...
+
  Preparation done in environment definitions. Name is "Time", although
  "days-from-start" might be better.
 

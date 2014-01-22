@@ -39,12 +39,12 @@ val () =
      ; ctestE "barrier - hit" hit barrier E_hit
     end
 
-(* Requires let-binding...
+(*
 val () =
     let val maxInt = 100000
         fun translE(e: intE,c) =
             checkWithin(obs("Time",0) !=! e, maxInt, c, zero)
-        val E = iter 1000 (fn (i,e) => addFixing((equity,today++i,real i),e)) E0
-    in ctestE "translE" pay1EUR (fn () => translE(obs(equity,5), pay1EUR)) E
+        val E = iter 1000 (fn (i,e) => addFixing((equity,today++i,2.0),e)) E0
+    in ctestE "translE" pay1EUR (fn () => transl(5,translE(obs(equity,0), pay1EUR))) E
     end
 *)

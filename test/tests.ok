@@ -6,9 +6,9 @@ Ex1 (swap) - Contract:
 Both(Scale(30000.00000000,TransfOne(EUR,you,me)), Both(Scale(11000.00000000,Transl(1m,TransfOne(EUR,me,you))), Both(Scale(11000.00000000,Transl(2m,TransfOne(EUR,me,you))), Scale(11000.00000000,Transl(3m,TransfOne(EUR,me,you))))))
 Cashflows:
 2013-01-01 Certain [you->me] EUR 30000.00000000
-2013-01-30 Certain [me->you] EUR 11000.00000000
-2013-03-01 Certain [me->you] EUR 11000.00000000
-2013-03-31 Certain [me->you] EUR 11000.00000000
+2013-01-31 Certain [me->you] EUR 11000.00000000
+2013-03-02 Certain [me->you] EUR 11000.00000000
+2013-04-01 Certain [me->you] EUR 11000.00000000
 ---REPORT END---
 
 ---REPORT BEGIN---
@@ -18,32 +18,32 @@ Both(Both(Scale(7000.00000000,TransfOne(DKK,you,me)), Both(Scale(7000.00000000,T
 Cashflows:
 2013-01-01 Certain [me->you] EUR 1000.00000000
 2013-01-01 Certain [you->me] DKK 7000.00000000
-2013-01-30 Certain [me->you] EUR 1000.00000000
-2013-01-30 Certain [you->me] DKK 7000.00000000
-2013-03-01 Certain [me->you] EUR 1000.00000000
-2013-03-01 Certain [you->me] DKK 7000.00000000
+2013-01-31 Certain [me->you] EUR 1000.00000000
+2013-01-31 Certain [you->me] DKK 7000.00000000
+2013-03-02 Certain [me->you] EUR 1000.00000000
+2013-03-02 Certain [you->me] DKK 7000.00000000
 ---REPORT END---
 
 Ex3: Cross-currency swap advanced half a month:
-2013-01-30 Certain [me->you] EUR 1000.00000000
-2013-01-30 Certain [you->me] DKK 7000.00000000
-2013-03-01 Certain [me->you] EUR 1000.00000000
-2013-03-01 Certain [you->me] DKK 7000.00000000
+2013-01-31 Certain [me->you] EUR 1000.00000000
+2013-01-31 Certain [you->me] DKK 7000.00000000
+2013-03-02 Certain [me->you] EUR 1000.00000000
+2013-03-02 Certain [you->me] DKK 7000.00000000
 
 ---REPORT BEGIN---
 Today is 2013-01-01
 Ex4-79 (call option, strike=50.0) - initial - Contract:
 Scale(1000.00000000,Transl(1y,Scale(max(0.00000000,(Obs(Carlsberg@0)-50.00000000)),TransfOne(EUR,you,me))))
 Cashflows:
-2013-12-26 Certain [you->me] EUR (1000.00000000*max(0.00000000,(Obs(Carlsberg@0)-50.00000000)))
+2013-12-27 Certain [you->me] EUR (1000.00000000*max(0.00000000,(Obs(Carlsberg@0)-50.00000000)))
 ---REPORT END---
 
 ---REPORT BEGIN---
-Today is 2013-12-26
+Today is 2013-12-27
 Ex4-79 (call option, strike=50.0) - at maturity; price(maturity)=79.00000000 - Contract:
 Scale(29000.00000000,TransfOne(EUR,you,me))
 Cashflows:
-2013-12-26 Certain [you->me] EUR 29000.00000000
+2013-12-27 Certain [you->me] EUR 29000.00000000
 ---REPORT END---
 
 ---REPORT BEGIN---
@@ -51,15 +51,15 @@ Today is 2013-01-01
 Ex4if-79 (call option, strike=50.0) - initial - Contract:
 Scale(1000.00000000,Transl(1y,Scale(max(0.00000000,(Obs(Carlsberg@0)-50.00000000)),TransfOne(EUR,you,me))))
 Cashflows:
-2013-12-26 Certain [you->me] EUR (1000.00000000*max(0.00000000,(Obs(Carlsberg@0)-50.00000000)))
+2013-12-27 Certain [you->me] EUR (1000.00000000*max(0.00000000,(Obs(Carlsberg@0)-50.00000000)))
 ---REPORT END---
 
 ---REPORT BEGIN---
-Today is 2013-12-26
+Today is 2013-12-27
 Ex4if-79 (call option, strike=50.0) - at maturity; price(maturity)=79.00000000 - Contract:
 Scale(29000.00000000,TransfOne(EUR,you,me))
 Cashflows:
-2013-12-26 Certain [you->me] EUR 29000.00000000
+2013-12-27 Certain [you->me] EUR 29000.00000000
 ---REPORT END---
 
 ---REPORT BEGIN---
@@ -67,18 +67,16 @@ Today is 2013-01-01
 Ex4if-46 (call option, strike=50.0) - initial - Contract:
 Scale(1000.00000000,Transl(1y,Scale(max(0.00000000,(Obs(Carlsberg@0)-50.00000000)),TransfOne(EUR,you,me))))
 Cashflows:
-2013-12-26 Certain [you->me] EUR (1000.00000000*max(0.00000000,(Obs(Carlsberg@0)-50.00000000)))
+2013-12-27 Certain [you->me] EUR (1000.00000000*max(0.00000000,(Obs(Carlsberg@0)-50.00000000)))
 ---REPORT END---
 
 ---REPORT BEGIN---
-Today is 2013-12-26
+Today is 2013-12-27
 Ex4if-46 (call option, strike=50.0) - at maturity; price(maturity)=46.00000000 - Contract:
 zero
 Cashflows:
 no cashflows
 ---REPORT END---
-2014-01-01 Uncertain [D->us] USD 600000.00000000
-2014-01-01 Uncertain [C->us] USD 400000.00000000
 2014-01-01 Uncertain [D->us] USD 600000.00000000
 2014-01-01 Uncertain [C->us] USD 400000.00000000
 2014-01-02 Uncertain [D->us] USD 600000.00000000
@@ -437,10 +435,11 @@ no cashflows
 2014-06-27 Uncertain [C->us] USD 400000.00000000
 2014-06-28 Uncertain [D->us] USD 600000.00000000
 2014-06-28 Uncertain [C->us] USD 400000.00000000
-2014-06-29 Uncertain [A->us] USD 1400000.00000000
 2014-06-29 Uncertain [D->us] USD 600000.00000000
 2014-06-29 Uncertain [C->us] USD 400000.00000000
+2014-06-30 Uncertain [A->us] USD 1400000.00000000
 2014-06-30 Uncertain [D->us] USD 600000.00000000
+2014-06-30 Uncertain [C->us] USD 400000.00000000
 2014-07-01 Uncertain [D->us] USD 600000.00000000
 2014-07-02 Uncertain [D->us] USD 600000.00000000
 2014-07-03 Uncertain [D->us] USD 600000.00000000
@@ -619,12 +618,13 @@ no cashflows
 2014-12-23 Uncertain [D->us] USD 600000.00000000
 2014-12-24 Uncertain [D->us] USD 600000.00000000
 2014-12-25 Uncertain [D->us] USD 600000.00000000
-2014-12-26 Uncertain [B->us] USD 1600000.00000000
 2014-12-26 Uncertain [D->us] USD 600000.00000000
+2014-12-27 Uncertain [B->us] USD 1600000.00000000
+2014-12-27 Uncertain [D->us] USD 600000.00000000
 ------------------
  and with fixings:
-2014-01-03 Certain [C->us] USD 400000.00000000
-2014-01-11 Certain [D->us] USD 600000.00000000
+2014-01-04 Certain [C->us] USD 400000.00000000
+2014-01-12 Certain [D->us] USD 600000.00000000
 Contract was: 
 Both(CheckWithin((6.90000000<Obs(FX USD/SEK@0)), 6m, Scale(400000.00000000,TransfOne(USD,C,us)), zero), Both(CheckWithin((Obs(FX USD/SEK@0)<6.15000000), 1y, Scale(600000.00000000,TransfOne(USD,D,us)), zero), Both(CheckWithin((6.70000000<Obs(FX USD/SEK@0)), 6m, zero, Scale(1400000.00000000,TransfOne(USD,A,us))), CheckWithin((Obs(FX USD/SEK@0)<6.25000000), 1y, zero, Scale(1600000.00000000,TransfOne(USD,B,us))))))
 Simplified contract is:
