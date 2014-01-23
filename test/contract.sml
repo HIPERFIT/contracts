@@ -43,7 +43,9 @@ val () =
         fun translE(e: intE,c) =
             letc(e !+! obs("Time",0), fn x => checkWithin(obs("Time",0) !=! x, maxInt, c, zero))
         val E = iter 1000 (fn (i,e) => addFixing((equity,today++i,2.0),e)) E0
+        val E' = iter 1000 (fn (i,e) => addFixing((equity,today++i,3.0+real i),e)) E0
         val c = transl(5,translE(obs(equity,2), pay1EUR))
     in ctestE "translE" (transl(7,pay1EUR)) (fn () => c) E;
+       ctestE "translE'" (transl(15,pay1EUR)) (fn () => c) E';
        Utest.testPP Int.toString "horizon" 100005 (fn () => horizon c)
     end
