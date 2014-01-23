@@ -1,0 +1,6 @@
+local 
+   $(SML_LIB)/basis/basis.mlb
+   ../contract.mlb
+   utest.mlb
+in date.sml
+end

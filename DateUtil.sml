@@ -21,20 +21,23 @@ fun ? s = let val y  = String.substring (s,0,4)
                          | "12" => "Dec "
                          | other => raise Error "garbled date"
               val d  = String.substring (s,8,2)
-          in case Date.fromString  ("Mon " ^ m ^ d ^ " 00:00:00 " ^ y) of
-                 SOME x => x
-               | NONE => raise Error ("date conversion failed for " ^
-                                      "Mon " ^ m ^ d ^ " 00:00:00 " ^ y)
+              val bogus = case Date.fromString  ("Mon " ^ m ^ d ^ " 00:00:00 " ^ y) of
+                              SOME x => x
+                            | NONE => raise Error ("date conversion failed for " ^
+                                                   "Mon " ^ m ^ d ^ " 00:00:00 " ^ y)
+          in (* correcting the weekday: *)
+              Date.fromTimeLocal (Date.toTime bogus)
           end
 
 fun addDays i d =
-    let val t = Date.toTime d
+    let val t = Date.toTime d (* uses local time! see below *)
         val seconds = real i * 24.0*60.0*60.0
         (* Mosml's Time.fromSeconds function has a wrong type, thus it is 
          * necessary to use the real representation for portability *)
         val off = Time.fromReal seconds
         val t' = Time.+(t,off)
-    in Date.fromTimeUniv t'
+    in Date.fromTimeLocal t' (* local time is used...
+                                TODO problem with daylight saving *)
     end
 
 (* computes day difference to go from d1 to d2 *)
