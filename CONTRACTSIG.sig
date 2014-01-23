@@ -1,9 +1,5 @@
 signature CONTRACTSIG = sig
 
-  (* Variables *)
-  type 'a var
-  val new : string -> 'a var
-
   (* Expressions *)
   type 'a num
   type 'a exp
@@ -11,7 +7,6 @@ signature CONTRACTSIG = sig
   type intE       = int num exp
   type realE      = real num exp
 
-  val V           : 'a var -> 'a exp
   val I           : int -> intE
   val R           : real -> realE
   val B           : bool -> boolE
@@ -32,8 +27,7 @@ signature CONTRACTSIG = sig
   val snd         : ('a*'b)exp -> 'b exp
 
   (* Functions *)
-  type ('a,'b)Fun = 'a var * 'b exp
-  val acc         : ('a,'a)Fun * int * 'a exp -> 'a exp
+  val acc         : ('a exp -> 'a exp) * int * 'a exp -> 'a exp
 
   (* Environments *)
   type date       = Date.date
@@ -56,7 +50,6 @@ signature CONTRACTSIG = sig
   val simplifyExp : env -> 'a exp -> 'a exp
   val ppExp       : 'a exp -> string
   val eqExp       : 'a exp * 'a exp -> bool
-  val hashExp     : 'a exp * IntInf.int -> IntInf.int
   val translExp   : 'a exp * int -> 'a exp
 
   (* Contracts *)
@@ -70,6 +63,7 @@ signature CONTRACTSIG = sig
   val both        : contr * contr -> contr
   val iff         : boolE * contr * contr -> contr
   val checkWithin : boolE * int * contr * contr -> contr 
+  val letc        : 'a exp * ('a exp -> contr) -> contr
 
   (* Some derived forms *)
   val all         : contr list -> contr
@@ -78,8 +72,8 @@ signature CONTRACTSIG = sig
 
   (* Contract utilities *)
   val ppContr     : contr -> string
-  val hashContr   : contr * IntInf.int -> IntInf.int
   val eqContr     : contr * contr -> bool
+  val horizon     : contr -> int
 
   (* Managed contracts *)
   type mcontr = date * contr

@@ -30,6 +30,7 @@ datatype contr =
      (* if cond : boolE becomes true within time: intE then contract 1 in effect. 
         otherwise (time expired, always false) contract 2 in effect
       *)
+     | Let of var0 * exp0 * contr
 end
 
 end

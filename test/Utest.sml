@@ -7,7 +7,8 @@ fun testPP pp s e f =
            val s = pp e
        in if s1 = s then pr "OK" 
           else pr("ERR -\n  expected: " ^ s ^ "\n  got:      " ^ s1)
-       end handle ? => pr ("EXN: " ^ General.exnMessage ?)
+       end handle Fail s => pr ("EXN Fail(" ^ s ^ ")")
+                | ? => pr ("EXN: " ^ General.exnMessage ?)
     end 
 
 end

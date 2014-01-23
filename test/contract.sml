@@ -26,9 +26,8 @@ fun d ++ i = DateUtil.addDays i d
 
 val () =
     let val y1 = 360
-        val x = new "x"
         val hit = transl(y1,pay1EUR)
-        val f = (x, V x !|! (R 50.0 !<! obs(equity,0)))
+        fun f x = x !|! (R 50.0 !<! obs(equity,0))
         fun barrier() =
             iff(acc(f, y1, B false),
                 hit,
@@ -39,12 +38,12 @@ val () =
      ; ctestE "barrier - hit" hit barrier E_hit
     end
 
-(*
 val () =
     let val maxInt = 100000
         fun translE(e: intE,c) =
-            checkWithin(obs("Time",0) !=! e, maxInt, c, zero)
+            letc(e !+! obs("Time",0), fn x => checkWithin(obs("Time",0) !=! x, maxInt, c, zero))
         val E = iter 1000 (fn (i,e) => addFixing((equity,today++i,2.0),e)) E0
-    in ctestE "translE" pay1EUR (fn () => transl(5,translE(obs(equity,0), pay1EUR))) E
+        val c = transl(5,translE(obs(equity,2), pay1EUR))
+    in ctestE "translE" (transl(7,pay1EUR)) (fn () => c) E;
+       Utest.testPP Int.toString "horizon" 100005 (fn () => horizon c)
     end
-*)

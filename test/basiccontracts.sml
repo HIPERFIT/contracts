@@ -6,9 +6,6 @@ infix !+! !-! !*! !<! !=! !|!
 fun ppReal s = Real.fmt (StringCvt.FIX(SOME 8)) s
 fun println s = print (s ^ "\n")
 
-fun prHash s c =
-   println ("\nHash(" ^ s ^ ") = " ^ IntInf.toString (hashContr(c,IntInf.fromInt 0)) ^ "\n")
-
 fun you2me(d,v,c) = flow(d,R v,c,"you","me")
 
 (* these guys are now just int *)

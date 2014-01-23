@@ -29,41 +29,48 @@ local
 			       (IntInf.fromInt(Char.ord(String.sub(s,n))), a))
 	in loop (0,a)
 	end
-in
-fun hashExp (e,a) =
-    case e of
-        I i => H(2,H(i,a))
-      | R r => H(3,Hs(ppReal r, a))
-      | B true => H(5,a)
-      | B false => H(7,a)
-      | V v => H(11, Hs(v,a))
-      | BinOp(s,e1,e2) => Hs(s,hashExp(e1,hashExp(e2,a)))
-      | UnOp(s,e) => Hs(s,hashExp(e,a))
-      | Obs(s,i) => H(13,Hs(s,H(i,a)))
-      | ChosenBy (p,i) => H(17,Hs(p,H(i,a)))
-      | Iff (b,e1,e2) => H(19,hashExp(b,hashExp(e1,hashExp(e2,a))))
-      | Pair(e1,e2) => H(23,hashExp(e1,hashExp(e2,a)))
-      | Fst e => H(29,hashExp(e,a))
-      | Snd e => H(31,hashExp(e,a))
-      | Acc((v,e1),i,e2) => H(37,Hs(v,H(i,hashExp(e1,hashExp(e2,a)))))
-fun hashContr (c,a) = 
-    case c of
-        Zero => H(2,a)
-      | Both(c1,c2) => let open IntInf in hashContr(c1,IntInf.fromInt 0) + hashContr(c2,IntInf.fromInt 0) + a end
-      | TransfOne(cur,p1,p2) => Hs(ppCur cur,Hs(p1,Hs(p2,H(3,a))))
-      | If(e,c1,c2) => hashContr(c1,hashContr(c2,hashExp(e,H(5,a))))
-      | Scale(e,c) => hashExp(e,hashContr(c,H(7,a)))
-      | Transl(i,c) => H(i, hashContr(c,H(11,a)))
-      | CheckWithin(e1,i,c1,c2) => hashContr(c1,hashContr(c2,hashExp(e1,H(i,H(13,a)))))
-end
+  fun index nil v n = NONE
+    | index (x::xs) v n = if v = x then SOME n else index xs v (n+1)
 
+  fun hashExp (vs,e,a) =
+      case e of
+          I i => H(2,H(i,a))
+        | R r => H(3,Hs(ppReal r, a))
+        | B true => H(5,a)
+        | B false => H(7,a)
+        | V v =>
+          (case index vs v 0 of
+               SOME i => H(11, H(i,a))
+             | NONE => H(11, Hs(v,a)))
+        | BinOp(s,e1,e2) => Hs(s,hashExp(vs,e1,hashExp(vs,e2,a)))
+        | UnOp(s,e) => Hs(s,hashExp(vs,e,a))
+        | Obs(s,i) => H(13,Hs(s,H(i,a)))
+        | ChosenBy (p,i) => H(17,Hs(p,H(i,a)))
+        | Iff (b,e1,e2) => H(19,hashExp(vs,b,hashExp(vs,e1,hashExp(vs,e2,a))))
+        | Pair(e1,e2) => H(23,hashExp(vs,e1,hashExp(vs,e2,a)))
+        | Fst e => H(29,hashExp(vs,e,a))
+        | Snd e => H(31,hashExp(vs,e,a))
+        | Acc((v,e1),i,e2) => H(37,H(i,hashExp(v::vs,e1,hashExp(vs,e2,a))))
+
+  fun hashContr (vs,c,a) = 
+      case c of
+          Zero => H(2,a)
+        | Both(c1,c2) => let open IntInf in hashContr(vs,c1,IntInf.fromInt 0) + hashContr(vs,c2,IntInf.fromInt 0) + a end
+        | TransfOne(cur,p1,p2) => Hs(ppCur cur,Hs(p1,Hs(p2,H(3,a))))
+        | If(e,c1,c2) => hashContr(vs,c1,hashContr(vs,c2,hashExp(vs,e,H(5,a))))
+        | Scale(e,c) => hashExp(vs,e,hashContr(vs,c,H(7,a)))
+        | Transl(i,c) => H(i,hashContr(vs,c,H(11,a)))
+        | CheckWithin(e1,i,c1,c2) => hashContr(vs,c1,hashContr(vs,c2,hashExp(vs,e1,H(i,H(13,a)))))
+        | Let(v,e,c) => hashContr(v::vs,c,hashExp(vs,e,H(17,a)))
+in
 fun eqExp (e1,e2) =
-    IntInf.compare(hashExp(e1,IntInf.fromInt 0),
-                   hashExp(e2,IntInf.fromInt 0)) = EQUAL
+    IntInf.compare(hashExp([],e1,IntInf.fromInt 0),
+                   hashExp([],e2,IntInf.fromInt 0)) = EQUAL
 
 fun eqContr (c1,c2) =
-    IntInf.compare(hashContr(c1,IntInf.fromInt 0),
-                   hashContr(c2,IntInf.fromInt 0)) = EQUAL
+    IntInf.compare(hashContr([],c1,IntInf.fromInt 0),
+                   hashContr([],c2,IntInf.fromInt 0)) = EQUAL
+end
 
 val obs : (string*int) -> 'a exp = Obs
 val chosenBy : (string*int) -> boolE = ChosenBy
@@ -143,9 +150,11 @@ fun snd (Pair(_,e)) = e
   | snd e = Snd e
 
 (* Functions *)
-type ('a,'b)Fun = 'a var * 'b exp
 fun acc (_,0,a) = a
-  | acc (f,i,a) = Acc(f,i,a)
+  | acc (f,i,a) =
+    let val v = new "v"
+    in Acc((v,f (V v)),i,a)
+    end
 
 type date = Date.date
 
@@ -189,6 +198,8 @@ fun lookupVE (VE,v) = VE v
 type env = string * int -> real option
 
 datatype menv = Env of date * env
+
+val emp : env = fn _ => NONE
 
 val emptyEnv : env = fn (s,i) => if s = "Time" 
                                  then SOME (Real.fromInt i) else NONE
@@ -250,7 +261,7 @@ fun translExp (e,0) = e
       | Fst e => fst(translExp(e,d))
       | Snd e => snd(translExp(e,d))
       | Pair(e1,e2) => pair(translExp(e1,d),translExp(e2,d))
-      | Acc((v,e),i,a) => acc((v,translExp(e,d)),i,translExp(a,d))
+      | Acc((v,e),i,a) => Acc((v,translExp(e,d)),i,translExp(a,d))
       | I _=> e
       | R _ => e
       | B _ => e
@@ -286,7 +297,7 @@ fun eval (E : env * VE) (e : exp0) =
         let val a = eval E a
         in if i <= 0 then a 
            else if certainExp a then
-             eval (#1 E,addVE(#2 E,v,a)) (acc((v,translExp(e,1)),i-1,e))
+             eval (#1 E,addVE(#2 E,v,a)) (Acc((v,translExp(e,1)),i-1,e))
            else Acc((v,e),i,a)
         end
 
@@ -349,6 +360,7 @@ fun ppContr c =
          | If(e,c1,c2) => "If" ^ par (ppExp e ^ ", " ^ ppContr c1 ^ ", " ^ ppContr c2)
          | CheckWithin (e, i, c1, c2) => 
            "CheckWithin" ^ par (ppExp e ^ ", " ^ ppTimeExp (I i) ^ ", "  ^ ppContr c1 ^ ", " ^ ppContr c2)
+         | Let(v,e,c) => "Let" ^ par (v ^ "," ^ ppExp e ^ "," ^ ppContr c)
     end
 and ppContrs [] = ""
   | ppContrs [c] = ppContr c
@@ -398,37 +410,55 @@ val rec dual =
   | Both(c1,c2) => both (dual c1, dual c2)
   | If(e,c1,c2) => iff(e,dual c1, dual c2)
   | CheckWithin (e, i, c1, c2) => checkWithin (e, i, dual c1, dual c2)
+  | Let(v,e,c) => Let(v,e,dual c)
 
 (* Contract Management *)
 (* internal simplify, assumes c and env have same reference date *)
-fun simplify0 E t =
+fun simplify0 G t =       (* G is (E,VE) *)
     case t of
         Zero => zero
-      | Both(c1,c2) => both(simplify0 E c1, simplify0 E c2)
+      | Both(c1,c2) => both(simplify0 G c1, simplify0 G c2)
       | Scale(obs,Both(c1,c2)) => 
-        simplify0 E (both(scale(obs,c1),scale(obs,c2)))
-      | Scale(r,t) => scale(simplifyExp E r,simplify0 E t)
+        simplify0 G (both(scale(obs,c1),scale(obs,c2)))
+      | Scale(r,t) => scale(eval G r,simplify0 G t)
       | Transl(i,t') =>
-        let val E' =  promote E i (* E o (fn (s,n) => (s,n+i)) *)
-        in transl(i,simplify0 E' t')
+        let val (E,VE) = G
+            val E' = promote E i (* E o (fn (s,n) => (s,n+i)) *)
+        in transl(i,simplify0 (E',VE) t')
         end
       | TransfOne _ => t
       | If (e, c1, c2) => 
-        let val e = simplifyExp E e
-            val c1 = simplify0 E c1
-            val c2 = simplify0 E c2
+        let val e = eval G e
+            val c1 = simplify0 G c1
+            val c2 = simplify0 G c2
         in iff(e,c1,c2) (* if e is known, iff constr. will shorten *)
         end
       | CheckWithin (e, i, c1, c2) =>
-        case simplifyExp E e of
-            B true => simplify0 E c1
-          | B false => simplify0 E (transl(1,checkWithin(e,i-1,c1,c2)))
-          | _ => checkWithin (e, i, c1, c2)
+        let val G0 = (emp,#2 G)
+            val substE = eval G0
+            val substC = simplify0 G0
+(*
+            val () = print ("e = " ^ ppExp e ^ "\n")
+            val () = print ("obs(Time,0) = " ^ ppExp (eval G (obs("Time",0))) ^ "\n")
+*)
+        in case eval G e of
+               B true => simplify0 G c1
+             | B false => simplify0 G (transl(1,checkWithin(substE e,i-1,substC c1,substC c2)))
+             | _ => checkWithin (substE e, i, substC c1, substC c2)
+        end
+      | Let(v,e,c) =>
+        let val e' = eval G e
+        in if certainExp e' then
+             let val G' = (#1 G, addVE(#2 G,v,e'))
+             in simplify0 G' c
+             end
+           else Let(v,e',simplify0 G c)
+        end
 
 fun simplify (Env (e_d,e_f)) (c_d,c) =
     let val off = DateUtil.dateDiff e_d c_d
         val E   = promote e_f off (* e_f o (fn (s,x) => (s,x+off)) *)
-    in (c_d, simplify0 E c)
+    in (c_d, simplify0 (E,emptyVE) c)
     end
 
 type cashflow   = date * cur * party * party * bool * realE
@@ -475,6 +505,7 @@ fun cashflows (d,c) : cashflow list =
                 else cf(d,c1,s,false) @
                      cf(DateUtil.addDays 1 d,
                         checkWithin(translExp(e,1),i-1,c1,c2),s,certain)
+              | Let(v,e,c) => cf(d,c,s,certain)          (* MEMO: check this *)
         val flows = cf(d,c,R 1.0,true)
     in ListSort.sort (fn ((d1,_,_,_,_,_),(d2,_,_,_,_,_)) => Date.compare (d1,d2)) flows
     end
@@ -487,6 +518,7 @@ fun horizon     Zero       = 0
   | horizon (Transl(i,c))  = i + horizon c (* maybe negative if i < 0 *)
   | horizon (If(_,c1,c2))  = Int.max (horizon c1, horizon c2)
   | horizon (CheckWithin (_,i,c1,c2)) = i + Int.max (horizon c1, horizon c2)
+  | horizon (Let(_,_,c)) = horizon c
 
 type mcontr = date * contr (* "managed contract", with a start date *)
 (* Remove the next i days from a contract *)
@@ -504,8 +536,15 @@ fun adv i c : contr =
            | If(b,c1,c2) => iff(translExp(b,~i),adv i c1, adv i c2)
            | CheckWithin(e,i',c1,c2) =>
              raise Fail "adv: you cannot advance into a CheckWithin construct - fixings are needed using simplify"
+           | Let(v,e,c) => Let(v,translExp(e,~i),adv i c)
 
 fun advance i (d,c) =
     (DateUtil.addDays i d,
      adv i c)
+
+fun letc (e,f) =
+    let val v = new "v"
+    in Let(v,e,f(V v))
+    end
+
 end

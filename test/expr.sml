@@ -59,15 +59,13 @@ val () = etest "test iff - f" (I 22) (fn () => ifExpr(not(B true),I 33 !+! I 1, 
 
 val () = etest "test pair" (I 34) (fn () => snd(fst(pair(pair(I 23,I 34),R 32.0))))
 
-val v : int num var = new "v"
-val f = (v,V v !+! I 1)
+fun f v = v !+! I 1
 
 val () = etest "test acc - i0" (I 44) (fn () => acc(f,0,I 44))
 val () = etest "test acc - i3" (I 4) (fn () => acc(f,3,I 1))
 
-val x : (real num * int num) var = new "v"
-val f = (x, pair(fst(V x) !+! obs("C",0),
-                 snd(V x) !+! I 1))
+fun f x = pair(fst x !+! obs("C",0),
+               snd x !+! I 1)
 
 val E = foldl(fn ((i,r),e) => addFix(("C",i,r),e)) emptyEnv [(0,1.0),(1,2.0),(2,3.0),(3,4.0),(4,5.0)]
 val () = etestE "test acc - avg" (pair(R 15.0,I 5)) (fn () => acc(f,5,pair(R 0.0,I 0))) E
