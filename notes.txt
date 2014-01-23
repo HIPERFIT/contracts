@@ -575,3 +575,55 @@ Action points:
   - Other features:
      + compute the horizon for a contract...
     DONE
+
+-------------------------------------------
+
+extracting "trigger values" for contracts, brainstorm:
+
+Interesting expressions are the boolean expr. inside CheckWithin and If.
+If is a special case of CheckWithin. (but see ***)
+
+Example: 
+
+         Both (CheckWithin( 6.9 < USD/SEK@0, 10, c1, c2),
+               CheckWithin( 6.4 < USD/SEK@0, 10, c3, c4))
+
+can lead to different outcomes: Both c1 c3,  (6.9 breached within 10)
+                                Both c2 c3,  (6.4 breached within 10, 6.9 not)
+                                Both c2 c4   (none breached within 10)
+Trigger values: 6.4, 6.9
+
+A "time window" is associated with each trigger value (its "horizon").
+
+We might (for now) just compute trigger values for given dates. (?) ***
+
+Idea:
+  compute trigger values
+  generate environments for each "area" between them
+                                      6.4            6.9
+                  (Example: ___________|______________|_________ )
+  simplify the contract for each "area"
+
+Challenge: leaving environment (otherwise) symbolic, to account for Scale
+contracts with the same expressions as the ones we fix to get the areas.
+
+More complex cases:
+
+   If ( USD/SEK@1 < USD/SEK@0 * SEK/DKK@1, c1, c2)
+
+this one should become a side condition for each of the areas, or just
+be presented to the user.
+
+   If ( 6.9 < USD/SEK@0 * SEK/DKK@1, c1, c2)
+
+unsure about this one... simple "areas" are not possible with it
+(unless 2-dimensional ones, hyperplanes).
+
+Further work:
+
+generalise "simplify(0)" to identify a trigger values if its fixing is
+not available, then recursively split into the two cases (and remember
+the resp. trigger), returning a list of contracts with "trigger
+fixings".
+
+
