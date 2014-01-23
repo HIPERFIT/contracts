@@ -1,6 +1,6 @@
 local 
    $(SML_LIB)/basis/basis.mlb
    ../contract.mlb
-   Utest.mlb
+   utest.mlb
 in contract.sml
 end
