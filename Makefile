@@ -23,7 +23,7 @@ help:
 	@echo "                    types and manipulation functions)"
 	@echo "portfolio           compiles portfolio module              mosml"
 	@echo "                    (depends on above modules)"
-	@echo "pftest              portfolio test program                 mosml"
+	@echo "pftest BROKEN!      portfolio test program                 mosml"
 	@echo "contract.exe        compiles contracts mlb                 mlkit"
 	@echo "                    (Instruments_test.sml)"
 	@echo ""
@@ -52,7 +52,10 @@ portfolio.uo: mosmodules portfolio.sml
 	$(MOSMLC) -c portfolio.sml
 
 pftest:	portfolio.uo pftest.sml
-	$(MOSMLC) -o pftest pftest.sml
+	@echo -----------------------------------------------------------
+	@echo pftest in MosML is broken since ContractSafe was introduced
+	@echo -----------------------------------------------------------
+	# doznwok: $(MOSMLC) -o pftest pftest.sml
 
 .PHONY: test
 test:

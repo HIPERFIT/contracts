@@ -95,6 +95,10 @@ val ex4if =
                          zero)))
     end
 
+(* should be:
+val () = mature "Ex4if-79 (call option, strike=50.0)" ex4if 79.0
+val () = mature "Ex4if-46 (call option, strike=50.0)" ex4if 46.0
+   (correct it alongside the tests.ok text file... *)
 val () = mature "Ex4if-79 (call option, strike=50.0)" ex4 79.0
 val () = mature "Ex4if-46 (call option, strike=50.0)" ex4 46.0
 
