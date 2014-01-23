@@ -542,8 +542,31 @@ Action points:
 
     Proving causality for such a construct, may prove to be difficult...
 
+    One cannot simulate a fully dynamic translate with
+    checkWithin. There are a number of suptleties that make
+    translE(e,c) different:
+     - The underlying checkWithin is bounded (in the above by maxInt).
+     - In translE(e,c) he expression e is evaluated afresh each
+       time step.
+     - In translE(e,c) we compare 'e', which should denote relative
+       time with obs("Time",0), which should denote absolute time (or
+       at least relative to the start time of the "whole" contract,
+       otherwise having an observable "Time" makes no sense).
+
+    The semantics of the "Time" observable is non-compositional since
+    its value depends on the contexts it appears. This is true for
+    observables in general but time should play a different
+    role. Maybe its better to have explicit scoping of time by using
+    some sort of "clock scope":
+
+      clock cl in ... obs(cl,0) ...
+
+    Here the value of obs(cl,0) is the time relative to the starting
+    time of the contract "clock cl in ... obs(cl,0) ..." (no matter
+    whether it is nested in a larger contract or not).
+
  Preparation done in environment definitions. Name is "Time", although
- "days-from-start" might be better.
+ "days-from-start" might be better. 
 
 
   - It may turn out to be useful to be able to extract a specification
