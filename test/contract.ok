@@ -3,4 +3,5 @@ zero both: OK
 barrier - no hit: OK
 barrier - hit: OK
 translE: OK
+translE': OK
 horizon: OK
