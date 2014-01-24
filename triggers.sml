@@ -60,9 +60,9 @@ val trMerge = foldl trMerge'
 
 (* returns a list of triggers (s,(t1,t2),vs) *)
 fun triggersExp (t1,t2) (BinOp ("<", e1, Obs(s,d)))
-  = ([(s,(t1-d,t2-d), [evalR emptyEnv e1])] handle Fail _ => [])
+  = ([(s,(t1+d,t2+d), [evalR emptyEnv e1])] handle Fail _ => [])
   | triggersExp (t1,t2) (BinOp ("<", Obs(s,d), e1)) 
-    = ([(s,(t1-d,t2-d), [evalR emptyEnv e1])] handle Fail _ => [])
+    = ([(s,(t1+d,t2+d), [evalR emptyEnv e1])] handle Fail _ => [])
   | triggersExp (t1,t2) (BinOp ("|", e1, e2)) 
     = trMerge (triggersExp (t1,t2) e1) (triggersExp (t1,t2) e2)
   | triggersExp (t1,t2) (UnOp ("not", e1)) = triggersExp (t1,t2) e1
