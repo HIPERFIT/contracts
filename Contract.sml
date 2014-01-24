@@ -270,7 +270,8 @@ fun translExp (e,0) = e
 fun eval (E : env * VE) (e : exp0) =
     case e of
         V v => (case lookupVE(#2 E,v) of
-                    SOME e => e
+                    SOME e => e (* should we call eval again here? *)
+                                (* is e relative to a start date here? *)
                   | NONE => e)
       | I _ => e
       | R _ => e
