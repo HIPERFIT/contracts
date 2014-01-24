@@ -1,8 +1,5 @@
-load "Real";
-load "ContractBase";
-open ContractBase;
-load "Contract";
-open Contract;
+app load ["Real", "Int", "ContractBase", "Contract" ];
+open ContractBase Contract;
 
 (*
 more JB notes about "trigger value extraction":
@@ -39,22 +36,62 @@ fun mergeUniq xs [] = xs
 
 fun trMerge' (tr as (s,(d1,d2),vs), []) = [tr]
   | trMerge' (tr as (s,(d1,d2),vs), ((tr' as (s',(d1',d2'),vs')) :: trs))
-  = if s = s' andalso d1 = d1' andalso d2 = d2'
-    then (s,(d1,d2), mergeUniq vs vs') :: trs
-    else tr' :: trMerge' (tr, trs)
+  = if s = s' then 
   (* UNFINISHED, has to compare intervals and split into
 several (2 or 3) resulting new ones:
         ---------------------  (3 resulting, overlap)
 ----------------------
 
-----------------------         (3 resulting, inclusion)
    -------------
+----------------------         (3 resulting, inclusion)
 
--------    -------             (2 resulting, easy)
+-------    -------             (2 resulting, disjoint)
 
+       -----------             (2 results, simple inclusion)
+------------------
+
+------|----- and vs = vs'      (merge opportunity)
 *)
-
-val trMerge = foldl trMerge'
+        if vs = vs' andalso (d2 = d1'+1 orelse d1 = d2'+1) (* merge opportunity *)
+        then trMerge' ((s, (Int.min (d1,d1'), Int.max (d2,d2')), vs), trs)
+        else
+        if d2 < d1' orelse d2' < d1 (* disjoint, continue merging *)
+        then tr' :: trMerge' (tr, trs)
+        else
+            if d1 = d1'
+            then if d2 = d2' (* identical ranges: *)
+                 then (s,(d1,d2), mergeUniq vs vs') :: trs
+                 else (* simple inclusion, and we know d2 <> d2' *)
+                     let val vs'' = if d2 < d2' then vs' else vs
+                         val lo   = Int.min (d2, d2')
+                     in trMerge ((s,(d1,lo), mergeUniq vs vs') ::
+                                 (s,(lo+1,Int.max (d2,d2')), vs'') :: trs)
+                     end
+            else if d2 = d2' (* simple inclusion, d1 <> d1' *)
+             then let val vs'' = if d1 < d1' then vs else vs'
+                      val hi   = Int.max (d1, d1')
+                  in trMerge ((s,(Int.min (d1,d1'),hi), vs'') ::
+                              (s,(hi+1,d2), mergeUniq vs vs') :: trs)
+                  end
+             else (* d1 <> d1', d2 <> d2' *)
+                 if d1 < d1' andalso d2' < d2 (* inclusion of tr' *)
+                 then trMerge ((s,(d1,d1'-1), vs) ::
+                               (s,(d1',d2'), mergeUniq vs vs') ::
+                               (s,(d2'+1,d2), vs) :: trs)
+                 else if d1' < d1 andalso d2 < d2' (* inclusion of tr *)
+                  then trMerge ((s,(d1',d1-1), vs') ::
+                                (s,(d1,d2), mergeUniq vs vs') ::
+                                (s,(d2+1,d2'), vs) :: trs)
+                  else (* real overlap *)
+                      let val v1s = if d1 < d1' then vs else vs'
+                          val v2s = if d2 < d2' then vs' else vs
+                          val (mid1,mid2) = (Int.max (d1,d1'),Int.min (d2,d2'))
+                      in trMerge ((s,(Int.min (d1,d1'),mid1-1), v1s) ::
+                                  (s,(mid1,mid2), mergeUniq vs vs') ::
+                                  (s,(mid2+1,Int.max (d2,d2')), v2s) :: trs )
+                      end 
+    else tr' :: trMerge' (tr, trs) (* different observables *)
+and trMerge ts = foldl trMerge' [] ts
 
 (* triggersExp is where new triggers are added: *)
 
@@ -64,7 +101,7 @@ fun triggersExp (t1,t2) (BinOp ("<", e1, Obs(s,d)))
   | triggersExp (t1,t2) (BinOp ("<", Obs(s,d), e1)) 
     = ([(s,(t1+d,t2+d), [evalR emptyEnv e1])] handle Fail _ => [])
   | triggersExp (t1,t2) (BinOp ("|", e1, e2)) 
-    = trMerge (triggersExp (t1,t2) e1) (triggersExp (t1,t2) e2)
+    = trMerge ((triggersExp (t1,t2) e1) @ (triggersExp (t1,t2) e2))
   | triggersExp (t1,t2) (UnOp ("not", e1)) = triggersExp (t1,t2) e1
 (* *)
   | triggersExp ts exp = []
@@ -77,17 +114,18 @@ fun triggersExp (t1,t2) (BinOp ("<", e1, Obs(s,d)))
 fun triggers _ (Zero) = []
   | triggers _ (TransfOne _) = []
   | triggers ts (Scale (_,c)) = triggers ts c
-  | triggers ts (Both (c1,c2)) = trMerge (triggers ts c1) (triggers ts c2)
+  | triggers ts (Both (c1,c2)) = trMerge ((triggers ts c1) @ (triggers ts c2))
   | triggers (t1,t2) (Transl (i,c)) = triggers (t1+i, t2+i) c
   | triggers ts (Let (v,e,c))  
     = raise Fail "clunky: need to consider v=e everywhere. How? Issue with translate, need an environment..."
   | triggers (t1,t2) (If(e,c1,c2)) 
-    = trMerge (triggersExp (t1,t2) e)
-              (trMerge (triggers (t1,t2) c1) (triggers (t1,t2) c2))
+    = trMerge ((triggersExp (t1,t2) e) @
+               (triggers (t1,t2) c1) @
+               (triggers (t1,t2) c2))
   | triggers (t1,t2) (CheckWithin (e,d,c1,c2))
-    = trMerge (triggersExp (t1,t2+d) e)
-              (trMerge (triggers (t1,t2+d) c1) (triggers (t1+d, t2+d) c2))
-
+    = trMerge ((triggersExp (t1,t2+d) e) @
+               (triggers (t1,t2+d) c1) @
+               (triggers (t1+d, t2+d) c2))
 
 (* copied *)
 infix !+! !-! !*! !<! !=! !|! ;
@@ -124,6 +162,6 @@ fun mkOpt i s =
                          zero)))
     end
 
-val test1 = all (List.tabulate (10, fn di => mkOpt 360 (40.0 + real di)))
-val test2 = all (List.tabulate (10, fn i => mkOpt (10+i) 32.0))
-
+val test1 = all (List.tabulate (10, fn di => mkOpt 30 (40.0 + real di)))
+val test2 = all (List.tabulate (10, fn i => mkOpt (25+i) 42.0))
+val test3 = all [test1,test2]
