@@ -101,8 +101,12 @@ fun normalise (Transl (i,c)) = (case normalise c of
          (* repeated normalisation to merge chains of "scale" *)
          both (normalise (scale (e,c1)), normalise (scale (e,c2)))
        | other         => scale (e, other))
-  | normalise a = a (* zero and flows stay *)
-(* TODO some repeated normalisation (top level) missing.. *) 
+  (* leave let where they are (for now, could float them out) *)
+  | normalise (Let (v,e,c1)) = (case normalise c1 of
+                                    Zero => Zero
+                                  | c1'  => Let (v,e, normalise c1'))
+  (* zero and flows stay *)
+  | normalise a = a
 
 (* unrolling all CheckWithin constructors into a corresponding iff chain *)
 fun unrollCWs (If(e,c1,c2))  = iff (e, unrollCWs c1, unrollCWs c2)
@@ -116,6 +120,7 @@ fun unrollCWs (If(e,c1,c2))  = iff (e, unrollCWs c1, unrollCWs c2)
                            if i = t then transl (t,c2) else check (i+1))
     in check 0
     end
+  | unrollCWs (Let (v,e,c1)) = Let (v,e,unrollCWs c1)
 
 (* routine assumes a is normalised contract and applies no own
    optimisations except removing empty branches *)
@@ -139,6 +144,9 @@ fun removeParty_ (p : string) ( a : contr) =
                              (case (remv c1, remv c2) of
                                   (Zero,Zero) => zero
                                 | (c1', c2')  => CheckWithin (b,i,c1',c2'))
+                  | Let (v,e,c1) => case remv c1 of
+                                        Zero => Zero
+                                      | c1'  => Let (v,e,c1')
     in normalise (remv a)
     end
 
@@ -182,6 +190,9 @@ fun mergeParties_ (p1 : party) (p2 : party) (a : contr) =
                                 | (c1', c2')      =>
                                   if eqContr (c1',c2') then c1'
                                   else CheckWithin (b,i,c1',c2'))
+                  | Let (v,e,c1) => case merge c1 of
+                                        Zero => Zero
+                                      | c1'  => Let (v,e,c1')
     in normalise (merge a)
     end 
 
