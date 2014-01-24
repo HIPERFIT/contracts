@@ -619,6 +619,10 @@ be presented to the user.
 unsure about this one... simple "areas" are not possible with it
 (unless 2-dimensional ones, hyperplanes).
 
+   If (6.9 < Acc((Var a, a !+! USD/SEK@0, d, R 0), ...)
+
+We cannot do that one!
+
 Further work:
 
 generalise "simplify(0)" to identify a trigger values if its fixing is
