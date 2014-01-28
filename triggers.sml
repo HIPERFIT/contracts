@@ -37,8 +37,7 @@ fun mergeUniq xs [] = xs
 fun trMerge' (tr as (s,(d1,d2),vs), []) = [tr]
   | trMerge' (tr as (s,(d1,d2),vs), ((tr' as (s',(d1',d2'),vs')) :: trs))
   = if s = s' then 
-  (* UNFINISHED, has to compare intervals and split into
-several (2 or 3) resulting new ones:
+  (* compares intervals and splits into several (2 or 3) resulting ones:
         ---------------------  (3 resulting, overlap)
 ----------------------
 
@@ -52,9 +51,10 @@ several (2 or 3) resulting new ones:
 
 ------|----- and vs = vs'      (merge opportunity)
 *)
-        if vs = vs' andalso (d2 = d1'+1 orelse d1 = d2'+1) (* merge opportunity *)
+      (* merge opportunity. However, might be desirable to keep apart
+        if vs = vs' andalso (d2 = d1'+1 orelse d1 = d2'+1)
         then trMerge' ((s, (Int.min (d1,d1'), Int.max (d2,d2')), vs), trs)
-        else
+        else *)
         if d2 < d1' orelse d2' < d1 (* disjoint, continue merging *)
         then tr' :: trMerge' (tr, trs)
         else
@@ -135,33 +135,38 @@ load "Currency"; open Currency;
 fun M n = n*30
 fun Y n = n*360
 
-(* Call option on "Carlsberg" stock *)
+(* Barrier option on "Carlsberg" stock *)
 val equity = "Carlsberg"
-val maturity = Y 1
+val maturity = M 3
 val ex4if =
     let val strike = 50.0
-        val nominal = 1000.0
         val obs = obs(equity,0)
-    in scale(R nominal,
-             transl(maturity,
-                    iff (R strike !<! obs,
-                         scale(obs !-! R strike,
-                               transfOne(EUR,"you","me")),
-                         zero)))
+    in checkWithin (R strike !<! obs, maturity,
+                    scale(obs !-! R strike,
+                          transfOne(EUR,"you","me")),
+                    zero)
     end
 
 fun mkOpt i s =
     let val strike = s
-        val nominal = 1000.0
         val obs = obs(equity,0)
-    in scale(R nominal,
-             transl(i,
-                    iff (R strike !<! obs,
-                         scale(obs !-! R strike,
-                               transfOne(EUR,"you","me")),
-                         zero)))
+    in checkWithin (R strike !<! obs, M i,
+                    scale(obs !-! R strike,
+                          transfOne(EUR,"you","me")),
+                    zero)
     end
 
-val test1 = all (List.tabulate (10, fn di => mkOpt 30 (40.0 + real di)))
-val test2 = all (List.tabulate (10, fn i => mkOpt (25+i) 42.0))
+val test1 = all (List.tabulate (3, fn di => mkOpt 3 (40.0 + real di)))
+val test2 = all (List.tabulate (6, fn i => mkOpt i (real i + 42.0)))
 val test3 = all [test1,test2]
+
+fun ppTriggers     [] = ""
+  | ppTriggers ((s,(i,j),vs)::rest) 
+    = s ^ " from day " ^ Int.toString i ^ " to " ^ Int.toString j ^
+      ": " ^ (String.concatWith ", " (map Real.toString vs)) ^
+      "\n" ^ ppTriggers rest
+
+val () = (print ("Carlsberg barrier options (settled):\n" ^ ppContr test3);
+          print "\nTrigger values:\n";
+          print (ppTriggers (triggers (0,10) test3)))
+
