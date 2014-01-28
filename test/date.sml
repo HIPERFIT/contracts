@@ -29,7 +29,7 @@ fun testDiff i = Utest.testPP Int.toString
 fun testDiff2 dt i = dt ("dateDiff back and forth",
                          today, addDays (~i) (addDays i today))
                          
-val () = app testDiff (List.tabulate ( 365, ~o~ ))
+val () = app testDiff (List.tabulate ( 36, fn i => 10*i-31 ))
 val () = app (testDiff2 dtest) (List.tabulate ( 10, fn i => 25+10*i ))
 
 val () = app dtest tests1
