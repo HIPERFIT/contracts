@@ -565,6 +565,14 @@ Action points:
     time of the contract "clock cl in ... obs(cl,0) ..." (no matter
     whether it is nested in a larger contract or not).
 
+    - Comments to JB's comments above by ME:
+
+      The clock can be modelled as follows (from test/contract.sml):
+
+        fun translE(e: intE,c) =
+            letc(e !+! obs("Time",0), fn x => checkWithin(obs("Time",0) !=! x, maxInt, c, zero))
+
+
  Preparation done in environment definitions. Name is "Time", although
  "days-from-start" might be better. 
 
