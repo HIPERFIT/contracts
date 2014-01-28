@@ -30,7 +30,7 @@ signature CONTRACTSIG = sig
   val acc         : ('a exp -> 'a exp) * int * 'a exp -> 'a exp
 
   (* Environments *)
-  type date       = Date.date
+  type date       = DateUtil.date
   type env
   type menv
   val emptyEnv    : env

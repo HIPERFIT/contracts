@@ -6,7 +6,7 @@ MOSML=mosml
 
 # All infrastructure modules (not tests). Order matters here:
 
-COREFILES=DateUtil.sml ListSort.sig ListSort.sml CURRENCY.sig Currency.sml ContractBase.sml CONTRACTSIG.sig Contract.sig Contract.sml ContractSafe.sml ContractTransform.sml Instruments.sml
+COREFILES=DateUtil.sig DateUtil.sml ListSort.sig ListSort.sml CURRENCY.sig Currency.sml ContractBase.sml CONTRACTSIG.sig Contract.sig Contract.sml ContractSafe.sml ContractTransform.sml Instruments.sml
 MOSMLFILES=LargeInt.sml $(COREFILES)
 
 SMLFILES=$(COREFILES) ContractMonad.sml

@@ -3,7 +3,7 @@
 app load ["Math", "Date", "Bool", "ListPair", "IntInf", "CharVector"];
 structure LargeInt = Int;
 
-app use ["DateUtil.sml", "ListSort.sig", "ListSort.sml", "CURRENCY.sig", "Currency.sml", "ContractBase.sml", "CONTRACTSIG.sig", "Contract.sig", "Contract.sml", "ContractSafe.sml", "Instruments.sml", "ContractTransform.sml", "ContractMonad.sml"];
+app use ["DateUtil.sig", "DateUtil.sml", "ListSort.sig", "ListSort.sml", "CURRENCY.sig", "Currency.sml", "ContractBase.sml", "CONTRACTSIG.sig", "Contract.sig", "Contract.sml", "ContractSafe.sml", "Instruments.sml", "ContractTransform.sml", "ContractMonad.sml"];
 
 (* bring contract "constructors" in direct scope *)
 open Currency ContractSafe Instruments;

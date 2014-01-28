@@ -156,7 +156,7 @@ fun acc (_,0,a) = a
     in Acc((v,f (V v)),i,a)
     end
 
-type date = Date.date
+type date = DateUtil.date
 
 (*
 env: is a partial function string*int -> real
@@ -470,7 +470,7 @@ fun ppCashflow w (d,cur,p1,p2,certain,e) =
         fun ppCertain true = "Certain"
           | ppCertain false = "Uncertain"
     in String.concatWith " "
-       [Date.fmt "%Y-%m-%d" d,
+       [DateUtil.ppDate d,
         ppCertain certain,
         pad w (sq(p1 ^ "->" ^ p2)),
         ppCur cur,
@@ -494,9 +494,9 @@ fun cashflows (d,c) : cashflow list =
               | Transl(i,c2) =>
                 let val d' = DateUtil.addDays i d
 (*
-                    val () = print ("d=" ^ Date.toString d ^ "\n")
+                    val () = print ("d=" ^ DateUtil.ppDate d ^ "\n")
                     val () = print ("i=" ^ Int.toString i ^ "\n")
-                    val () = print ("d'=" ^ Date.toString d' ^ "\n")
+                    val () = print ("d'=" ^ DateUtil.ppDate d' ^ "\n")
 *)
                 in cf(d',c2,s,certain)
                 end
@@ -508,7 +508,7 @@ fun cashflows (d,c) : cashflow list =
                         checkWithin(translExp(e,1),i-1,c1,c2),s,certain)
               | Let(v,e,c) => cf(d,c,s,certain)          (* MEMO: check this *)
         val flows = cf(d,c,R 1.0,true)
-    in ListSort.sort (fn ((d1,_,_,_,_,_),(d2,_,_,_,_,_)) => Date.compare (d1,d2)) flows
+    in ListSort.sort (fn ((d1,_,_,_,_,_),(d2,_,_,_,_,_)) => DateUtil.compare (d1,d2)) flows
     end
 
 (* horizon of a contract. Never returns negative number *)

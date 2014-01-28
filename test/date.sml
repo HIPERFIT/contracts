@@ -1,10 +1,16 @@
 open DateUtil
 
-val ppDate = Date.fmt "%Y-%m-%d" 
+val ppDate = DateUtil.ppDate
+
+(*
 val fullDate = Date.toString
+*)
 
 fun dtest (s,d1,d2) = Utest.testPP ppDate s d1 (fn () => d2)
+
+(*
 fun dtestfull (s,d1,d2) = Utest.testPP fullDate s d1 (fn () => d2)
+*)
 
 (* Known bug: ignore week days or make sure you always pick Monday! ;-) *)
 val today = ?"2013-01-01"
@@ -28,6 +34,7 @@ val () = app (testDiff2 dtest) (List.tabulate ( 10, fn i => 25+10*i ))
 
 val () = app dtest tests1
 
+(*
 val () = app dtestfull tests1
-
+*)
 
