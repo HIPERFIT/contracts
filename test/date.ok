@@ -1,0 +1,51 @@
+dateDiff test with difference ~31: OK
+dateDiff test with difference ~21: OK
+dateDiff test with difference ~11: OK
+dateDiff test with difference ~1: OK
+dateDiff test with difference 9: OK
+dateDiff test with difference 19: OK
+dateDiff test with difference 29: OK
+dateDiff test with difference 39: OK
+dateDiff test with difference 49: OK
+dateDiff test with difference 59: OK
+dateDiff test with difference 69: OK
+dateDiff test with difference 79: OK
+dateDiff test with difference 89: OK
+dateDiff test with difference 99: OK
+dateDiff test with difference 109: OK
+dateDiff test with difference 119: OK
+dateDiff test with difference 129: OK
+dateDiff test with difference 139: OK
+dateDiff test with difference 149: OK
+dateDiff test with difference 159: OK
+dateDiff test with difference 169: OK
+dateDiff test with difference 179: OK
+dateDiff test with difference 189: OK
+dateDiff test with difference 199: OK
+dateDiff test with difference 209: OK
+dateDiff test with difference 219: OK
+dateDiff test with difference 229: OK
+dateDiff test with difference 239: OK
+dateDiff test with difference 249: OK
+dateDiff test with difference 259: OK
+dateDiff test with difference 269: OK
+dateDiff test with difference 279: OK
+dateDiff test with difference 289: OK
+dateDiff test with difference 299: OK
+dateDiff test with difference 309: OK
+dateDiff test with difference 319: OK
+dateDiff back and forth: OK
+dateDiff back and forth: OK
+dateDiff back and forth: OK
+dateDiff back and forth: OK
+dateDiff back and forth: OK
+dateDiff back and forth: OK
+dateDiff back and forth: OK
+dateDiff back and forth: OK
+dateDiff back and forth: OK
+dateDiff back and forth: OK
+add nothing: OK
+add one day: OK
+add one (non-leap) year: OK
+add January: OK
+add first 6 months of the year: OK
