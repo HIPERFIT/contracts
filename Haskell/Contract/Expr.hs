@@ -4,8 +4,12 @@ module Contract.Expr
     , Var
     , ExprG        -- no constructors exported!
     , BoolE, IntE, RealE
+    -- constructors for interface
     , i, r, b, v, pair, first, second, acc, obs, chosenBy
+    -- predicates, expression translate 
     , certainExp, eqExp, translExp
+    -- pretty-printer
+    , ppExp, ppTimeExp
     -- evaluation. Polymorphic eval not exported
     , Env, emptyEnv
     , evalI, evalR, evalB, simplifyExp
@@ -130,7 +134,20 @@ opsem Times = (*)
 opsem Max = max
 opsem Min = min
 
--- | Num instance, enabling us to write "e1 + e2" for ExprG a with Num a
+-- | expression equality, comparing their syntax by hash
+eqExp :: ExprG a -> ExprG a -> Bool
+eqExp e1 e2 = hashExp e1 == hashExp e2
+
+instance Eq (ExprG a) where
+    (==) = eqExp
+
+-- | Compute a hash of an expression, for syntactic comparisons. Considers commutativity by symmetric hashing scheme for commutative operations.
+hashExp :: ExprG a -> Integer
+hashExp e = error "must be copied from SML code"
+
+----------------------------------------
+
+-- | Num instance, enabling us to write 'e1 + e2' for ExprG a with Num a
 instance (Decompose (ExprG a), Num (Content (ExprG a)), Num a) =>
     Num (ExprG a) where
     (+) = arith Plus
@@ -196,15 +213,6 @@ newName :: String -> String
 newName s = unsafePerformIO (do next <- takeMVar idSupply
  	                        putMVar idSupply (next+1)
 	                        return (s ++ show next))
-
-
--- | expression equality, comparing their syntax by hash
-eqExp :: ExprG a -> ExprG a -> Bool
-eqExp e1 e2 = hashExp e1 == hashExp e2
-
--- | Compute a hash of an expression, for syntactic comparisons. Considers commutativity by symmetric hashing scheme for commutative operations.
-hashExp :: ExprG a -> Integer
-hashExp e = error "must be copied from SML code"
 
 -- | Does an expression contain any observables or choices?
 certainExp :: ExprG a -> Bool
