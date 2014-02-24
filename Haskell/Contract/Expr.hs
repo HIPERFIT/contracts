@@ -5,31 +5,38 @@ module Contract.Expr
     , ExprG        -- no constructors exported!
     , BoolE, IntE, RealE
     , i, r, b, v, pair, first, second, acc, obs, chosenBy
-    , ppExp, certainExp, eqExp, translExp
+    , certainExp, eqExp, translExp
     -- evaluation. Polymorphic eval not exported
     , Env, emptyEnv
     , evalI, evalR, evalB, simplifyExp
     ) where
 
-
 -- to define the exception
 import Control.Exception
 import Data.Typeable
+
+-- for name supply
 import System.IO.Unsafe(unsafePerformIO)
 import Control.Concurrent
 
+-- for pretty-printer
+import Text.Printf
+
+
 data Currency = EUR | DKK | SEK | USD | GBP | JPY
+              deriving (Eq, Show, Read)
 -- good enough with only FX derivatives. Otherwise we could add this:
 -- "... | Stock String | Equity String"
 -- These are just tags, not used in expressions / arithmetics
 -- (otherwise we might want a GADT for them)
 
-ppCur EUR = "EUR"
-ppCur DKK = "DKK"
-ppCur SEK = "SEK"
-ppCur USD = "USD"
-ppCur GBP = "GBP"
-ppCur JPY = "JPY"
+-- ppCur not needed, use "show"
+-- ppCur EUR = "EUR"
+-- ppCur DKK = "DKK"
+-- ppCur SEK = "SEK"
+-- ppCur USD = "USD"
+-- ppCur GBP = "GBP"
+-- ppCur JPY = "JPY"
 
 -- submodule expression starts here
 type Var = String
@@ -58,6 +65,29 @@ data ExprG a where
     Equal :: Eq a  => ExprG a -> ExprG a -> ExprG Bool
     Or    :: ExprG Bool -> ExprG Bool -> ExprG Bool
 
+-- | Show instance for debugging (cannot be derived automatically for GADTs)
+instance Show (ExprG a) where
+    show (I n) = "I " ++ show n
+    show (R r) = "R " ++ ppReal r
+    show (B b) = "B " ++ show b
+    show (V v) = "V " ++ show v
+    show (Pair e1 e2) = "Pair " ++ par (show e1) ++ par (show e2)
+    show (Fst e) = "Fst " ++ par (show e)
+    show (Snd e) = "Snd " ++ par (show e)
+    show (Obs (s,i)) = "Obs " ++ par (show s ++ "," ++ show i)
+    show (ChosenBy (p,i)) = "ChosenBy " ++ par (show p ++ "," ++ show i)
+    show (Acc (v,e) i a) = "Acc " ++ unwords [par (show v ++ "," ++ show e),
+                                             show i, par (show a)]
+    show (Not e) = "Not " ++ par (show e)
+    show (Arith op e1 e2) = "Arith " ++ unwords [show op, par (show e1),
+                                                 par (show e2)]
+    show (Less e1 e2) = "Less " ++ unwords [par (show e1), par (show e2)]
+    show (Equal e1 e2) = "Equal " ++ unwords [par (show e1), par (show e2)]
+    show (Or e1 e2) = "Or " ++ unwords [par (show e1), par (show e2)]
+
+-- parenthesis around a string
+par s = "(" ++ s ++ ")"
+
 data AOp = Plus | Minus | Times | Max | Min
          deriving (Show)
 
@@ -66,8 +96,8 @@ ppOp :: AOp -> (String,Bool)
 ppOp Plus   = ("+", True)
 ppOp Minus  = ("-", True)
 ppOp Times  = ("*", True)
-ppOp Max    = ("max", False)
-ppOp Min    = ("min", False)
+ppOp Max    = ("max ", False)
+ppOp Min    = ("min ", False)
 
 -- reading operators
 instance Read AOp where
@@ -100,24 +130,26 @@ opsem Times = (*)
 opsem Max = max
 opsem Min = min
 
--- Num instance, enabling us to write "e1 + e2" for ExprG a with Num a
+-- | Num instance, enabling us to write "e1 + e2" for ExprG a with Num a
 instance (Decompose (ExprG a), Num (Content (ExprG a)), Num a) =>
     Num (ExprG a) where
-    (+) = Arith Plus
-    (*) = Arith Times
-    (-) = Arith Minus
-    negate = Arith Minus (fromInteger 0)
+    (+) = arith Plus
+    (*) = arith Times
+    (-) = arith Minus
+    negate = arith Minus (fromInteger 0)
     abs a = (constr a) (abs (content a))
     signum a = (constr a) (signum (content a))
     fromInteger n = (constr (undefined :: ExprG a)) (fromInteger n)
 -- there's a pattern... f a = (constr a) (f (content a))
 
--- enabled with this - slightly weird - helper class
+-- | Num instances are possible through this - slightly weird - helper
+-- class which extracts constructors and values
 class Num a => Decompose a where
     type Content a
     constr  :: a -> (Content a -> a)
     content :: Num (Content a) => a -> Content a
 
+-- NB do we _ever_ use Int expressions? Maybe dump this whole weird thing
 instance Decompose (ExprG Int) where
     type Content (ExprG Int) = Int
     constr _  = I
@@ -128,6 +160,8 @@ instance Decompose (ExprG Double) where
     constr  _ = R
     content x = evalR emptyEnv x
 
+-- the smart constructors of the interface (here: simple)
+
 i = I -- :: Int  -> IntE
 r = R -- :: Double -> RealE
 b = B -- :: Bool -> BoolE
@@ -137,12 +171,23 @@ first  = Fst
 second  = Snd
 obs      = Obs
 chosenBy = ChosenBy
+(!<!) :: Ord a => ExprG a -> ExprG a -> ExprG Bool
+(!<!) = Less
+(!=!) :: Eq a => ExprG a -> ExprG a -> ExprG Bool
+(!=!) = Equal
+
+infixl 4 !<!
+infixl 4 !=!
+
+-- +, -, * come from the Num instance
+maxx,minn :: Num a => ExprG a -> ExprG a -> ExprG a
+maxx = Arith Max -- instance magic would require an Ord instance...
+minn = Arith Min -- ...which requires an Eq instance
 
 acc :: (Num a) => (ExprG a -> ExprG a) -> Int -> ExprG a -> ExprG a
 acc _ 0 a = a
 acc f i a = let v = newName "v" 
             in Acc (v,f (V v)) i a 
-
 -- using a unique supply, the quick way...
 {-# NOINLINE idSupply #-}
 idSupply :: MVar Int
@@ -152,16 +197,16 @@ newName s = unsafePerformIO (do next <- takeMVar idSupply
  	                        putMVar idSupply (next+1)
 	                        return (s ++ show next))
 
--- equality: comparing syntax by hash, considering commutativity
+
+-- | expression equality, comparing their syntax by hash
 eqExp :: ExprG a -> ExprG a -> Bool
 eqExp e1 e2 = hashExp e1 == hashExp e2
 
+-- | Compute a hash of an expression, for syntactic comparisons. Considers commutativity by symmetric hashing scheme for commutative operations.
 hashExp :: ExprG a -> Integer
-hashExp e = error "not defined yet"
+hashExp e = error "must be copied from SML code"
 
-ppExp :: ExprG a -> String
-ppExp e = error "not defined yet"
-
+-- | Does an expression contain any observables or choices?
 certainExp :: ExprG a -> Bool
 certainExp e = case e of
                  V _ -> False       --  if variables are used only for functions in Acc, we could return true here!
@@ -180,6 +225,7 @@ certainExp e = case e of
                  Equal e1 e2 -> certainExp e1 && certainExp e2
                  Or e1 e2 -> certainExp e1 && certainExp e2
 
+-- | translating an expression in time
 translExp :: ExprG a -> Int -> ExprG a
 translExp e 0 = e
 translExp e d = 
@@ -200,8 +246,55 @@ translExp e d =
       Equal e1 e2 -> Equal (translExp e1 d) (translExp e2 d)
       Or e1 e2 -> Or (translExp e1 d) (translExp e2 d)
 
+-----------------------------------------------------------------
+-- Pretty-print an expression (not the same as the Show instance)
+
+-- | internal: convert daycount to years/months/days, using 30/360 convention 
+ppTime :: Int -> String
+ppTime 0 = "0d"
+ppTime t = if null s then "0d" else s
+    where years   = t `div` 360
+          months  = (t `div` 30) `mod` 12 -- (t mod 360) div 30
+          days    = t `mod` 30
+          str n c = if n == 0 then "" else show n ++ c:[]
+          s = concat (zipWith str [years,months,days] "ymd")
+
+-- | real numbers printed with four decimal places (FX fashion)
+ppReal :: Double -> String
+ppReal = printf "%.4f"
+
+-- | internal: print an expression, using an int printing function
+ppExp0 :: (Int -> String) -> ExprG a -> String
+ppExp0 ppTime e = 
+    case e of
+           V s -> s
+           I i -> ppTime i
+           R r -> ppReal r
+           B b -> show b
+           Pair e1 e2 -> par (ppExp0 ppTime e1 ++ "," ++ ppExp0 ppTime e2)
+           Fst e -> "first" ++ par (ppExp0 ppTime e)
+           Snd e -> "second" ++ par (ppExp0 ppTime e)
+           Acc f i e -> "acc" ++ par(ppFun f ++ "," ++ show i ++ "," ++ ppExp e)
+           Obs (s,off) -> "Obs" ++ par (s ++ "@" ++ ppTime off)
+           ChosenBy (p,i) -> "Chosen by " ++ p ++ " @ " ++ ppTime i
+           Not e1 -> "not" ++ par (ppExp e1)
+           Arith op e1 e2 -> let (c,infx) = ppOp op
+                             in if infx then par(ppExp e1 ++ c ++ ppExp e2)
+                                else c ++ par (ppExp e1) ++ ' ':par(ppExp e2)
+           Less e1 e2 -> par(ppExp0 ppTime e1 ++ " < " ++ ppExp0 ppTime e2)
+           Equal e1 e2 -> par(ppExp0 ppTime e1 ++ "==" ++ ppExp0 ppTime e2)
+           Or e1 e2 ->  par(ppExp e1 ++ "||" ++ ppExp e2)
+    where ppExp e = ppExp0 ppTime e
+          ppFun (v,e) = "\\" ++ v ++ " -> " ++ ppExp e
+
+-- | pretty-printing an expression, using normal printer for Int
+ppExp = ppExp0 show
+-- | pretty-printing an expression, using time printer for Int
+ppTimeExp = ppExp0 ppTime
+
 --------------------------------------------------------------
--- Evaluation:
+-- Evaluation of expressions:
+
 data EvalExc = Eval String deriving (Read,Show,Typeable)
 instance Exception EvalExc
 
@@ -264,5 +357,6 @@ eval env e =
                          (_, B True ) -> B True
                          (bb1, bb2)   -> Or bb1 bb2
 
+-- | simplify an expression, using an environment
 simplifyExp env e = eval env e
 

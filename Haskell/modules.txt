@@ -1,0 +1,14 @@
+Module structure
+----------------
+Contract
+        Contract.Expr       -- expression types, p.printer, evaluation
+
+        Contract.Type       -- contract type and p.printer
+
+        Contract.Date       -- date library
+
+        Contract.Instrument -- canned FX product functions
+
+        Contract.Transform  -- simplification/evaluation, normal form
+
+        Contract.Analysis   -- trigger extraction etc (?)
