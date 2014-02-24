@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable #-} 
+{-# LANGUAGE DeriveDataTypeable, TypeFamilies, GADTs, FlexibleInstances, FlexibleContexts, UndecidableInstances #-} 
 module ContractTypes
     where
 
@@ -9,6 +9,8 @@ import Data.Typeable
 data Currency = EUR | DKK | SEK | USD | GBP | JPY
 -- good enough with only FX derivatives. Otherwise we could add this:
 -- "... | Stock String | Equity String"
+-- These are just tags, not used in expressions / arithmetics
+-- (otherwise we might want a GADT for them)
 
 ppCur EUR = "EUR"
 ppCur DKK = "DKK"
@@ -20,89 +22,124 @@ ppCur JPY = "JPY"
 -- submodule expression starts here
 type Var = String
 
-type BoolE = Expr Bool
-type IntE = Expr Int
-type RealE = Expr Double
-
-var :: Var -> Expr a
-
-type BinOpT a = Expr a -> Expr a -> Expr a
-
-(!+!) :: Num a => BinOpT a
-(!-!) :: Num a => BinOpT a
-(!*!) :: Num a => BinOpT a
-(!<!) :: Expr a -> Expr a -> Expr Bool
-(!=!) :: Expr a -> Expr a -> Expr Bool
-(!|!) :: BinOpT Bool
-obs :: (String, Int) -> Expr a
-i :: Int  -> IntE
-r :: Double -> RealE
-b :: Bool -> BoolE
-
-data EvalExc = Eval String deriving (Read,Show,Typeable)
-instance Exception EvalExc
-
-type Env = (String, Int) -> RealE -- nicer if it was Expr a
-
-evalR :: Env -> RealE -> Double
-evalI :: Env -> IntE -> Int
-evalB :: Env -> BoolE -> Bool
-
--- general:
-evalX :: Env -> Expr a -> a
-evalX = undefined
--- all these evaluators assume that the expr _can_ be evaluated,
--- i.e. all required fixings are known
-
-data Expr0 = I Int | R Double | B Bool | V Var 
-           | BinOp String Expr0 Expr0 | UnOp String Expr0 | Obs (String,Int)
-type Expr a = Expr0
-
-{- should be using a GADT instead
+-- Expression GADT:
 data ExprG a where
     I :: Int    -> ExprG Int
     R :: Double -> ExprG Double
     B :: Bool   -> ExprG Bool
     V :: Var    -> ExprG a
-    ... should this split up the operators according to their phantom types?
--}
+    -- Pairs:
+    Pair :: (ExprG a -> ExprG b) -> ExprG (a,b)
+    Fst :: ExprG (a,b) -> ExprG a
+    Snd :: ExprG (a,b) -> ExprG b
+    -- observables and external choices
+    Obs :: (String, Int) -> ExprG Double
+    ChosenBy :: (String, Int) -> ExprG Bool
+    -- accumulator. Acc(f,i,a) := f/i(...(f/2(f/1(a))))
+    Acc :: (Var, ExprG a) -> Int -> ExprG a
+    -- unary op.s: only "not"
+    Not :: ExprG Bool -> ExprG Bool
+    -- binary op.s, by type: +-*/ max min < = |
+    -- on numerical arguments: +-*/ max min
+    Arith :: Num a => AOp -> ExprG a -> ExprG a -> ExprG a
+    Less  :: Ord a => ExprG a -> ExprG a -> ExprG Bool
+    Equal :: Eq a  => ExprG a -> ExprG a -> ExprG Bool
+    Or    :: ExprG Bool -> ExprG Bool -> ExprG Bool
 
--- infix !+! !-! !*! !<! !=! !|!
-x !+! y = BinOp "+" x y
-x !-! y = BinOp "-" x y
-x !*! y = BinOp "*" x y
-x !<! y = BinOp "<" x y
-x !=! y = BinOp "=" x y
-x !|! y = BinOp "|" x y
+data AOp = Plus | Minus | Times | Max | Min
+         deriving (Show)
 
-obs = Obs
-var = V
-i = I
-r = R
-b = B
+-- Bool indicating infix operators
+ppOp :: AOp -> (String,Bool)
+ppOp Plus   = ("+", True)
+ppOp Minus  = ("-", True)
+ppOp Times  = ("*", True)
+ppOp Max    = ("max", False)
+ppOp Min    = ("min", False)
 
-binopII opr i1 i2 =
-    case opr of
-      "+" -> I (i1+i2)
-      "-" -> I (i1-i2) 
-      "*" -> I (i1*i2) 
-      "<" -> B (i1<i2) 
-      "=" -> B (i1==i2) 
-      _   -> error ("binopII: operator not supported: " ++ opr)
-binopRR opr r1 r2 =
-       case opr of
-         "+" -> R (r1+r2)
-         "-" -> R (r1-r2) 
-         "*" -> R (r1*r2) 
-         "<" -> B (r1<r2) 
-         "=" -> B (r1==r2) 
-         _   -> error ("binopRR: operator not supported: " ++ opr)
-binopBB opr b1 b2 =
-       case opr of
-         "=" -> B (b1==b2)
-         _   -> error ("binopBB: operator not supported: " ++ opr)
+-- reading operators
+instance Read AOp where
+    readsPrec _ ('+':rest) = [(Plus,rest)]
+    readsPrec _ ('-':rest) = [(Minus,rest)]
+    readsPrec _ ('*':rest) = [(Times,rest)]
+    readsPrec _ ('m':'a':'x':rest) = [(Max,rest)]
+    readsPrec _ ('m':'i':'n':rest) = [(Min,rest)]
+    readsPrec _ _ = []
 
-eval env e =
+-- just some aliases
+type BoolE = ExprG Bool
+type IntE = ExprG Int
+type RealE = ExprG Double
+
+-- smart constructors and operators (for export):
+-- TODO make these "smarter".
+(!+!) = Arith Plus
+(!-!) = Arith Minus
+(!*!) = Arith Times
+
+(!<!) :: Ord a => ExprG a -> ExprG a -> ExprG Bool
+(!<!) = Less
+
+(!=!) :: Eq a => ExprG a -> ExprG a -> ExprG Bool
+(!=!) = Equal
+
+(!|!) = Or
+
+-- actually, we only need those:
+instance (Decompose (ExprG a), Num (Content (ExprG a)), Num a) =>
+    Num (ExprG a) where
+    (+) = Arith Plus
+    (*) = Arith Times
+    (-) = Arith Minus
+    negate = Arith Minus (fromInteger 0)
+    abs a = (constr a) (abs (content a))
+    signum a = (constr a) (signum (content a))
+    fromInteger n = (constr (undefined :: ExprG a)) (fromInteger n)
+-- there's a pattern... f a = (constr a) (f (content a))
+
+-- enabled with this - slightly weird - helper class
+class Num a => Decompose a where
+    type Content a
+    constr  :: a -> (Content a -> a)
+    content :: Num (Content a) => a -> Content a
+
+instance Decompose (ExprG Int) where
+    type Content (ExprG Int) = Int
+    constr _  = I
+    content x = evalX emptyEnv x
+
+instance Decompose (ExprG Double) where
+    type Content (ExprG Double) = Double
+    constr  _ = R
+    content x = evalX emptyEnv x
+
+obs      = Obs
+chosenBy = ChosenBy
+i = I -- :: Int  -> IntE
+r = R -- :: Double -> RealE
+b = B -- :: Bool -> BoolE
+v = V -- :: String -> ExprG a
+
+data EvalExc = Eval String deriving (Read,Show,Typeable)
+instance Exception EvalExc
+
+type Env = (String, Int) -> RealE -- missing ExprG Bool for choice...
+
+emptyEnv :: Env
+emptyEnv = \_ -> throw (Eval "no bindings")
+
+-- evalR :: Env -> RealE -> Double
+-- evalI :: Env -> IntE -> Int
+-- evalB :: Env -> BoolE -> Bool
+-- evalI = evalX
+-- evalR = evalX
+-- evalB = evalX
+
+-- ExprG evaluator. Types checked statically, no checks required.
+-- Assumes that the expr _can_ be evaluated, required fixings known
+evalX :: Env -> ExprG a -> a
+evalX env e = undefined
+{-
        case e of
          V s -> error ("variable " ++ s)
          I _ -> e
@@ -146,3 +183,4 @@ data Contract =
      | CheckWithin BoolE IntE Contract Contract 
      -- if cond::BoolE becomes true within time::IntE then contract1 in effect. 
      -- otherwise (time expired, always false) contract2 in effect
+-}
