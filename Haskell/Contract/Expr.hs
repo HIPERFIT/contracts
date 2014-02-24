@@ -4,17 +4,19 @@ module Contract.Expr
     , Var
     , ExprG        -- no constructors exported!
     , BoolE, IntE, RealE
-    , obs, chosenBy, i, r, b, v
+    , i, r, b, v, pair, first, second, acc, obs, chosenBy
+    , ppExp, certainExp, eqExp, translExp
+    -- evaluation. Polymorphic eval not exported
     , Env, emptyEnv
-    , eval
-    , certainExp
+    , evalI, evalR, evalB, simplifyExp
     ) where
-
 
 
 -- to define the exception
 import Control.Exception
 import Data.Typeable
+import System.IO.Unsafe(unsafePerformIO)
+import Control.Concurrent
 
 data Currency = EUR | DKK | SEK | USD | GBP | JPY
 -- good enough with only FX derivatives. Otherwise we could add this:
@@ -81,21 +83,24 @@ type BoolE = ExprG Bool
 type IntE = ExprG Int
 type RealE = ExprG Double
 
--- smart constructors and operators (for export):
--- TODO make these "smarter".
-(!+!) = Arith Plus
-(!-!) = Arith Minus
-(!*!) = Arith Times
+-- arithmetic evaluation function
+arith :: Num a => AOp -> ExprG a -> ExprG a -> ExprG a
+arith op (I i1) (I i2) = I (opsem op i1 i2)
+arith op (R r1) (R r2) = R (opsem op r1 r2)
+arith Plus e1 e2  = Arith Plus  e1 e2
+arith Minus e1 e2 = Arith Minus e1 e2
+arith Times e1 e2 = Arith Times e1 e2
+arith Max e1 e2   = Arith Max   e1 e2
+arith Min e1 e2   = Arith Min   e1 e2
 
-(!<!) :: Ord a => ExprG a -> ExprG a -> ExprG Bool
-(!<!) = Less
+opsem :: (Ord a, Num a) => AOp -> a -> a -> a
+opsem Plus = (+)
+opsem Minus = (-)
+opsem Times = (*)
+opsem Max = max
+opsem Min = min
 
-(!=!) :: Eq a => ExprG a -> ExprG a -> ExprG Bool
-(!=!) = Equal
-
-(!|!) = Or
-
--- actually, we only need those:
+-- Num instance, enabling us to write "e1 + e2" for ExprG a with Num a
 instance (Decompose (ExprG a), Num (Content (ExprG a)), Num a) =>
     Num (ExprG a) where
     (+) = Arith Plus
@@ -116,24 +121,87 @@ class Num a => Decompose a where
 instance Decompose (ExprG Int) where
     type Content (ExprG Int) = Int
     constr _  = I
-    content x = case eval emptyEnv x of 
-                  I n -> n
-                  other -> throw (Eval "cannot eval I")
+    content x = evalI emptyEnv x
 
 instance Decompose (ExprG Double) where
     type Content (ExprG Double) = Double
     constr  _ = R
-    content x = case eval emptyEnv x of 
-                  R r -> r
-                  other -> throw (Eval "cannot eval R")
+    content x = evalR emptyEnv x
 
-obs      = Obs
-chosenBy = ChosenBy
 i = I -- :: Int  -> IntE
 r = R -- :: Double -> RealE
 b = B -- :: Bool -> BoolE
 v = V -- :: String -> ExprG a
+pair = Pair
+first  = Fst
+second  = Snd
+obs      = Obs
+chosenBy = ChosenBy
 
+acc :: (Num a) => (ExprG a -> ExprG a) -> Int -> ExprG a -> ExprG a
+acc _ 0 a = a
+acc f i a = let v = newName "v" 
+            in Acc (v,f (V v)) i a 
+
+-- using a unique supply, the quick way...
+{-# NOINLINE idSupply #-}
+idSupply :: MVar Int
+idSupply = unsafePerformIO (newMVar 1)
+newName :: String -> String
+newName s = unsafePerformIO (do next <- takeMVar idSupply
+ 	                        putMVar idSupply (next+1)
+	                        return (s ++ show next))
+
+-- equality: comparing syntax by hash, considering commutativity
+eqExp :: ExprG a -> ExprG a -> Bool
+eqExp e1 e2 = hashExp e1 == hashExp e2
+
+hashExp :: ExprG a -> Integer
+hashExp e = error "not defined yet"
+
+ppExp :: ExprG a -> String
+ppExp e = error "not defined yet"
+
+certainExp :: ExprG a -> Bool
+certainExp e = case e of
+                 V _ -> False       --  if variables are used only for functions in Acc, we could return true here!
+                 I _ -> True
+                 R _ -> True
+                 B _ -> True
+                 Pair e1 e2 -> certainExp e1 && certainExp e2
+                 Fst e -> certainExp e
+                 Snd e -> certainExp e
+                 Acc (v,e) i a -> certainExp e && certainExp a
+                 Obs _ -> False
+                 ChosenBy _ -> False
+                 Not e1 -> certainExp e1
+                 Arith _ e1 e2 -> certainExp e1 && certainExp e2
+                 Less e1 e2 -> certainExp e1 && certainExp e2
+                 Equal e1 e2 -> certainExp e1 && certainExp e2
+                 Or e1 e2 -> certainExp e1 && certainExp e2
+
+translExp :: ExprG a -> Int -> ExprG a
+translExp e 0 = e
+translExp e d = 
+    case e of
+      I _-> e
+      R _ -> e
+      B _ -> e
+      V _ -> e
+      Pair e1 e2 -> pair (translExp e1 d) (translExp e2 d)
+      Fst e -> Fst (translExp e d)
+      Snd e -> Snd (translExp e d)
+      Acc (v,e) i a -> Acc (v, translExp e d) i (translExp a d)
+      Obs (s,t) -> obs (s,t+d)
+      ChosenBy (p,t) -> chosenBy (p,t+d)
+      Not e -> Not (translExp e d)
+      Arith op e1 e2 -> Arith op (translExp e1 d) (translExp e2 d)
+      Less e1 e2 -> Less (translExp e1 d) (translExp e2 d)
+      Equal e1 e2 -> Equal (translExp e1 d) (translExp e2 d)
+      Or e1 e2 -> Or (translExp e1 d) (translExp e2 d)
+
+--------------------------------------------------------------
+-- Evaluation:
 data EvalExc = Eval String deriving (Read,Show,Typeable)
 instance Exception EvalExc
 
@@ -142,12 +210,12 @@ type Env = (String, Int) -> Maybe Double -- Hack: should use Bool for choice
 emptyEnv :: Env
 emptyEnv = \(s,i) -> if s == "Time" then Just (fromIntegral i) else Nothing
 
--- evalR :: Env -> RealE -> Double
--- evalI :: Env -> IntE -> Int
--- evalB :: Env -> BoolE -> Bool
--- evalI = eval
--- evalR = eval
--- evalB = eval
+evalI :: Env -> IntE -> Int
+evalR :: Env -> RealE -> Double
+evalB :: Env -> BoolE -> Bool
+evalI env e = case eval env e of {I n -> n; _ -> throw (Eval "evalI failed")} 
+evalR env e = case eval env e of {R n -> n; _ -> throw (Eval "evalR failed")} 
+evalB env e = case eval env e of {B n -> n; _ -> throw (Eval "evalB failed")} 
 
 -- ExprG evaluator. Types checked statically, no checks required.
 -- Assumes that the expr _can_ be evaluated, required fixings known
@@ -196,50 +264,5 @@ eval env e =
                          (_, B True ) -> B True
                          (bb1, bb2)   -> Or bb1 bb2
 
-arith :: Num a => AOp -> ExprG a -> ExprG a -> ExprG a
-arith op (I i1) (I i2) = I (opsem op i1 i2)
-arith op (R r1) (R r2) = R (opsem op r1 r2)
-arith Plus e1 e2  = Arith Plus  e1 e2
-arith Minus e1 e2 = Arith Minus e1 e2
-arith Times e1 e2 = Arith Times e1 e2
-arith Max e1 e2   = Arith Max   e1 e2
-arith Min e1 e2   = Arith Min   e1 e2
+simplifyExp env e = eval env e
 
-opsem :: (Ord a, Num a) => AOp -> a -> a -> a
-opsem Plus = (+)
-opsem Minus = (-)
-opsem Times = (*)
-opsem Max = max
-opsem Min = min
-
-certainExp :: ExprG a -> Bool
-certainExp e = case e of
-                 V _ -> False       --  if variables are used only for functions in Acc, we could return true here!
-                 I _ -> True
-                 R _ -> True
-                 B _ -> True
-                 Pair e1 e2 -> certainExp e1 && certainExp e2
-                 Fst e -> certainExp e
-                 Snd e -> certainExp e
-                 Acc (v,e) i a -> certainExp e && certainExp a
-                 Obs _ -> False
-                 ChosenBy _ -> False
-                 Not e1 -> certainExp e1
-                 Arith _ e1 e2 -> certainExp e1 && certainExp e2
-                 Less e1 e2 -> certainExp e1 && certainExp e2
-                 Equal e1 e2 -> certainExp e1 && certainExp e2
-                 Or e1 e2 -> certainExp e1 && certainExp e2
-
-{-
-         BinOp opr e1 e2 -> 
-              case (eval env e1, eval env e2) of
-                (I i1, I i2) -> binopII opr i1 i2
-                (R r1, R r2) -> binopRR opr r1 r2
-                (B b1, B b2) -> binopBB opr b1 b2
-                _ -> error "eval.BinOp: difference in argument types"
-         UnOp "not" e1 -> 
-             case eval env e1 of
-               B b -> B (not b)
-               _   -> error "eval.UnOp.not - wrong argument type"
-         UnOp opr  _   -> error ("eval.UnOp: unsupported operator: " ++ opr)
--}
