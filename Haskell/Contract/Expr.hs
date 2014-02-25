@@ -28,6 +28,8 @@ import Control.Concurrent
 -- for pretty-printer
 import Text.Printf
 
+import Contract.Date
+
 -------------------------------------------------------------------------------
 
 -- | Currency type. These are just tags and not used in expressions/arithmetics.
@@ -361,10 +363,6 @@ addFixings (s,d) vs (Env e_d e_f) =
         f (s',n) = if s == s' && n >= o && n < l + o
                      then Just (vs!!n) else e_f (s',n)
     in Env e_d f
-
--- this belongs into a date module...
-type Date = Int
-dateDiff = undefined
 
 evalI :: Env -> IntE -> Int
 evalR :: Env -> RealE -> Double
