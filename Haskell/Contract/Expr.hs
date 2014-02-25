@@ -6,6 +6,8 @@ module Contract.Expr
     , BoolE, IntE, RealE
     -- constructors for interface
     , i, r, b, v, pair, first, second, acc, obs, chosenBy
+    -- operators, unless in NUm instance
+    , (!<!), (!=!), (!|!), maxx, minn, nott
     -- predicates, expression translate 
     , certainExp, eqExp, translExp
     -- pretty-printer
@@ -25,6 +27,7 @@ import Control.Concurrent
 
 -- for pretty-printer
 import Text.Printf
+
 
 
 data Currency = EUR | DKK | SEK | USD | GBP | JPY
@@ -192,19 +195,24 @@ chosenBy = ChosenBy
 (!<!) = Less
 (!=!) :: Eq a => ExprG a -> ExprG a -> ExprG Bool
 (!=!) = Equal
+-- (!|!) :: ExprG Bool -> ExprG Bool -> ExprG Bool
+(!|!) = Or
 
 infixl 4 !<!
 infixl 4 !=!
+infixl 3 !|!
 
 -- +, -, * come from the Num instance
 maxx,minn :: Num a => ExprG a -> ExprG a -> ExprG a
-maxx = Arith Max -- instance magic would require an Ord instance...
-minn = Arith Min -- ...which requires an Eq instance
+maxx = arith Max -- instance magic would require an Ord instance...
+minn = arith Min -- ...which requires an Eq instance
+
+nott = Not
 
 acc :: (Num a) => (ExprG a -> ExprG a) -> Int -> ExprG a -> ExprG a
 acc _ 0 a = a
 acc f i a = let v = newName "v" 
-            in Acc (v,f (V v)) i a 
+            in Acc (v,f (V v)) i a
 -- using a unique supply, the quick way...
 {-# NOINLINE idSupply #-}
 idSupply :: MVar Int
