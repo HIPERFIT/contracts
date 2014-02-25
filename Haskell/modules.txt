@@ -5,6 +5,10 @@ Contract
 
         Contract.Type       -- contract type and p.printer
 
+ TODO: split into 
+      Contract.Internal -- exporting constructors
+      Contract.hs       -- with smart constructors
+
         Contract.Date       -- date library
 
         Contract.Instrument -- canned FX product functions
@@ -12,3 +16,4 @@ Contract
         Contract.Transform  -- simplification/evaluation, normal form
 
         Contract.Analysis   -- trigger extraction etc (?)
+

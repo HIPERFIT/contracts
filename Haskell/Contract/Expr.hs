@@ -28,14 +28,13 @@ import Control.Concurrent
 -- for pretty-printer
 import Text.Printf
 
+-------------------------------------------------------------------------------
 
-
+-- | Currency type. These are just tags and not used in expressions/arithmetics.
 data Currency = EUR | DKK | SEK | USD | GBP | JPY
               deriving (Eq, Show, Read)
 -- good enough with only FX derivatives. Otherwise we could add this:
 -- "... | Stock String | Equity String"
--- These are just tags, not used in expressions / arithmetics
--- (otherwise we might want a GADT for them)
 
 -- ppCur not needed, use "show"
 -- ppCur EUR = "EUR"
@@ -45,7 +44,6 @@ data Currency = EUR | DKK | SEK | USD | GBP | JPY
 -- ppCur GBP = "GBP"
 -- ppCur JPY = "JPY"
 
--- submodule expression starts here
 type Var = String
 
 -- Expression GADT:
@@ -95,10 +93,11 @@ instance Show (ExprG a) where
 -- parenthesis around a string
 par s = "(" ++ s ++ ")"
 
+-- | Supported arithmetic operations as a data type
 data AOp = Plus | Minus | Times | Max | Min
          deriving (Show)
 
--- Bool indicating infix operators
+-- | pretty-printer for operations. The Bool value indicates an infix operator.
 ppOp :: AOp -> (String,Bool)
 ppOp Plus   = ("+", True)
 ppOp Minus  = ("-", True)
@@ -106,7 +105,7 @@ ppOp Times  = ("*", True)
 ppOp Max    = ("max ", False)
 ppOp Min    = ("min ", False)
 
--- reading operators
+-- | Operators can be read in
 instance Read AOp where
     readsPrec _ ('+':rest) = [(Plus,rest)]
     readsPrec _ ('-':rest) = [(Minus,rest)]
@@ -115,12 +114,12 @@ instance Read AOp where
     readsPrec _ ('m':'i':'n':rest) = [(Min,rest)]
     readsPrec _ _ = []
 
--- just some aliases
+-- | Aliases for the expression types we use
 type BoolE = ExprG Bool
 type IntE = ExprG Int
 type RealE = ExprG Double
 
--- arithmetic evaluation function
+-- | arithmetics smart constructor, trying to optimise by evaluating constants
 arith :: Num a => AOp -> ExprG a -> ExprG a -> ExprG a
 arith op (I i1) (I i2) = I (opsem op i1 i2)
 arith op (R r1) (R r2) = R (opsem op r1 r2)
@@ -130,6 +129,7 @@ arith Times e1 e2 = Arith Times e1 e2
 arith Max e1 e2   = Arith Max   e1 e2
 arith Min e1 e2   = Arith Min   e1 e2
 
+-- | semantics of the arithmetic operators, for 'arith' smart constructor
 opsem :: (Ord a, Num a) => AOp -> a -> a -> a
 opsem Plus = (+)
 opsem Minus = (-)
@@ -141,10 +141,11 @@ opsem Min = min
 eqExp :: ExprG a -> ExprG a -> Bool
 eqExp e1 e2 = hashExp e1 == hashExp e2
 
+-- | Expression equality is defined using hashExpr (considering commutativity)
 instance Eq (ExprG a) where
     (==) = eqExp
 
--- | Compute a hash of an expression, for syntactic comparisons. Considers commutativity by symmetric hashing scheme for commutative operations.
+-- | Computes hash of an expression, for syntactic comparisons. Considers commutativity by symmetric hashing scheme for commutative operations.
 hashExp :: ExprG a -> Integer
 hashExp e = error "must be copied from SML code"
 
@@ -163,7 +164,7 @@ instance (Decompose (ExprG a), Num (Content (ExprG a)), Num a) =>
 -- there's a pattern... f a = (constr a) (f (content a))
 
 -- | Num instances are possible through this - slightly weird - helper
--- class which extracts constructors and values
+-- class which extracts constructors and values from an expression
 class Num a => Decompose a where
     type Content a
     constr  :: a -> (Content a -> a)
@@ -180,7 +181,7 @@ instance Decompose (ExprG Double) where
     constr  _ = R
     content x = evalR emptyEnv x
 
--- the smart constructors of the interface (here: simple)
+-- the smart constructors of the interface
 
 i = I -- :: Int  -> IntE
 r = R -- :: Double -> RealE
@@ -221,6 +222,8 @@ newName :: String -> String
 newName s = unsafePerformIO (do next <- takeMVar idSupply
  	                        putMVar idSupply (next+1)
 	                        return (s ++ show next))
+
+----------------------------------------------------------------
 
 -- | Does an expression contain any observables or choices?
 certainExp :: ExprG a -> Bool
@@ -265,7 +268,42 @@ translExp e d =
 -----------------------------------------------------------------
 -- Pretty-print an expression (not the same as the Show instance)
 
--- | internal: convert daycount to years/months/days, using 30/360 convention 
+-- | real numbers printed with four decimal places (FX fashion)
+ppReal :: Double -> String
+ppReal = printf "%.4f"
+
+-- | internal: print an expression, using an int printing function
+ppExp0 :: (Int -> String) -> ExprG a -> String
+ppExp0 ppInt e = 
+    case e of
+           V s -> s
+           I i -> ppInt i
+           R r -> ppReal r
+           B b -> show b
+           Pair e1 e2 -> par (ppExp0 ppInt e1 ++ "," ++ ppExp0 ppInt e2)
+           Fst e -> "first" ++ par (ppExp0 ppInt e)
+           Snd e -> "second" ++ par (ppExp0 ppInt e)
+           Acc f i e -> "acc" ++ par(ppFun f ++ "," ++ show i ++ "," ++ ppExp e)
+           Obs (s,off) -> "Obs" ++ par (s ++ "@" ++ ppInt off)
+           ChosenBy (p,i) -> "Chosen by " ++ p ++ " @ " ++ ppInt i
+           Not e1 -> "not" ++ par (ppExp e1)
+           Arith op e1 e2 -> let (c,infx) = ppOp op
+                             in if infx then par(ppExp e1 ++ c ++ ppExp e2)
+                                else c ++ par (ppExp e1) ++ ' ':par(ppExp e2)
+           Less e1 e2 -> par(ppExp0 ppInt e1 ++ " < " ++ ppExp0 ppInt e2)
+           Equal e1 e2 -> par(ppExp0 ppInt e1 ++ "==" ++ ppExp0 ppInt e2)
+           Or e1 e2 ->  par(ppExp e1 ++ "||" ++ ppExp e2)
+    where ppExp e = ppExp0 ppInt e
+          ppFun (v,e) = "\\" ++ v ++ " -> " ++ ppExp e
+
+-- | pretty-printing an expression, using normal printer for Int
+ppExp = ppExp0 show
+
+-- pretty-printing an expression, using time printer for Int
+-- not really used anywhere, ppTime rather belongs into the date module
+ppTimeExp = ppExp0 ppTime
+-- internal: convert daycount to years/months/days, using 30/360 convention 
+-- this function belongs into the date module
 ppTime :: Int -> String
 ppTime 0 = "0d"
 ppTime t = if null s then "0d" else s
@@ -275,49 +313,58 @@ ppTime t = if null s then "0d" else s
           str n c = if n == 0 then "" else show n ++ c:[]
           s = concat (zipWith str [years,months,days] "ymd")
 
--- | real numbers printed with four decimal places (FX fashion)
-ppReal :: Double -> String
-ppReal = printf "%.4f"
-
--- | internal: print an expression, using an int printing function
-ppExp0 :: (Int -> String) -> ExprG a -> String
-ppExp0 ppTime e = 
-    case e of
-           V s -> s
-           I i -> ppTime i
-           R r -> ppReal r
-           B b -> show b
-           Pair e1 e2 -> par (ppExp0 ppTime e1 ++ "," ++ ppExp0 ppTime e2)
-           Fst e -> "first" ++ par (ppExp0 ppTime e)
-           Snd e -> "second" ++ par (ppExp0 ppTime e)
-           Acc f i e -> "acc" ++ par(ppFun f ++ "," ++ show i ++ "," ++ ppExp e)
-           Obs (s,off) -> "Obs" ++ par (s ++ "@" ++ ppTime off)
-           ChosenBy (p,i) -> "Chosen by " ++ p ++ " @ " ++ ppTime i
-           Not e1 -> "not" ++ par (ppExp e1)
-           Arith op e1 e2 -> let (c,infx) = ppOp op
-                             in if infx then par(ppExp e1 ++ c ++ ppExp e2)
-                                else c ++ par (ppExp e1) ++ ' ':par(ppExp e2)
-           Less e1 e2 -> par(ppExp0 ppTime e1 ++ " < " ++ ppExp0 ppTime e2)
-           Equal e1 e2 -> par(ppExp0 ppTime e1 ++ "==" ++ ppExp0 ppTime e2)
-           Or e1 e2 ->  par(ppExp e1 ++ "||" ++ ppExp e2)
-    where ppExp e = ppExp0 ppTime e
-          ppFun (v,e) = "\\" ++ v ++ " -> " ++ ppExp e
-
--- | pretty-printing an expression, using normal printer for Int
-ppExp = ppExp0 show
--- | pretty-printing an expression, using time printer for Int
-ppTimeExp = ppExp0 ppTime
-
 --------------------------------------------------------------
 -- Evaluation of expressions:
 
 data EvalExc = Eval String deriving (Read,Show,Typeable)
 instance Exception EvalExc
 
+-- | An environment is a partial mapping from (String, Int) to Double. The keys carry an identifying string and an offset value (days), yielding a Double value.
 type Env = (String, Int) -> Maybe Double -- Hack: should use Bool for choice
 
+-- | an empty environment. 
 emptyEnv :: Env
 emptyEnv = \(s,i) -> if s == "Time" then Just (fromIntegral i) else Nothing
+
+-- | A managed environment is an environment together with a start date.
+data MEnv = Env Date Env
+
+-- | an empty managed environment, from a given start date
+emptyFrom :: Date -> MEnv
+emptyFrom d = Env d emptyEnv
+
+-- | promoting an environment by a given date offset into the future (or past, if negative)
+promote :: Env -> Int -> Env
+promote e i = e . (\(s,x) -> (s,x+i))
+
+-- | promoting a managed environment by a given date offset. See 'promote'
+promoteEnv :: MEnv -> Int -> MEnv
+promoteEnv (Env d e) i = Env d (promote e i)
+
+-- | adding a fixing to an environment.
+-- New values take precedence with this definition
+addFix :: (String, Int, Double) -> Env -> Env
+addFix (s,d,r) e = \x -> if x == (s,d) then Just r else e x
+
+-- | adding a fixing to a managed environment
+addFixing :: (String, Date, Double) -> MEnv -> MEnv
+addFixing (s,d,r) (Env e_d e_f) = 
+    let off = dateDiff e_d d
+    in Env e_d (\x -> if x == (s,off) then Just r else e_f x)
+
+
+addFixings :: (String, Date) -> [Double] -> MEnv -> MEnv
+addFixings (s,d) [] e = e
+addFixings (s,d) vs (Env e_d e_f) =
+    let l = length vs
+        o = dateDiff e_d d
+        f (s',n) = if s == s' && n >= o && n < l + o
+                     then Just (vs!!n) else e_f (s',n)
+    in Env e_d f
+
+-- this belongs into a date module...
+type Date = Int
+dateDiff = undefined
 
 evalI :: Env -> IntE -> Int
 evalR :: Env -> RealE -> Double
