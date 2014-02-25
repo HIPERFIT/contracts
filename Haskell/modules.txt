@@ -1,13 +1,12 @@
 Module structure
 ----------------
-Contract
+
+Contract.hs       -- with smart constructors (also for Expr module)
+
         Contract.Expr       -- expression types, p.printer, evaluation
 
         Contract.Type       -- contract type and p.printer
-
- TODO: split into 
-      Contract.Internal -- exporting constructors
-      Contract.hs       -- with smart constructors
+                            -- exporting constructors, for internal use
 
         Contract.Date       -- date library
 

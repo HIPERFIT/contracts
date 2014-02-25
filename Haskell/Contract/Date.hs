@@ -3,7 +3,7 @@ module Contract.Date
     ( Date -- incl. Ord instance providing compare function and (<)
     , DateError
     , at -- was "?" in SML. Use the Read instance instead
-    , addDays, dateDiff, ppDate
+    , addDays, dateDiff, ppDate, ppDays
     ) where
 
 
@@ -123,3 +123,14 @@ dateDiff d1@(Date y1 m1 n1) d2@(Date y2 m2 n2)
                               let next = if m1 == 12 then Date (y1+1) 1 n1
                                                      else Date y1 (m1+1) n1
                               in daysInMonth y1 m1 + dateDiff next d2
+
+-- | print a number of days as years/months/days, using 30/360 convention 
+ppDays :: Int -> String
+ppDays 0 = "0d"
+ppDays t = if null s then "0d" else s
+    where years   = t `div` 360
+          months  = (t `div` 30) `mod` 12 -- (t mod 360) div 30
+          days    = t `mod` 30
+          str n c = if n == 0 then "" else show n ++ c:[]
+          s = concat (zipWith str [years,months,days] "ymd")
+

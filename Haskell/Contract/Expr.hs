@@ -8,10 +8,10 @@ module Contract.Expr
     , i, r, b, v, pair, first, second, acc, obs, chosenBy
     -- operators, unless in NUm instance
     , (!<!), (!=!), (!|!), maxx, minn, nott
-    -- predicates, expression translate 
-    , certainExp, eqExp, translExp
+    -- predicates, expression translate, hash
+    , certainExp, translExp, hashExp
     -- pretty-printer
-    , ppExp, ppTimeExp
+    , ppExp
     -- evaluation. Polymorphic eval not exported
     , Env, emptyEnv
     , evalI, evalR, evalB, simplifyExp
@@ -29,6 +29,7 @@ import Control.Concurrent
 import Text.Printf
 
 import Contract.Date
+import Contract.Hash
 
 -------------------------------------------------------------------------------
 
@@ -139,17 +140,39 @@ opsem Times = (*)
 opsem Max = max
 opsem Min = min
 
--- | expression equality, comparing their syntax by hash
-eqExp :: ExprG a -> ExprG a -> Bool
-eqExp e1 e2 = hashExp e1 == hashExp e2
-
 -- | Expression equality is defined using hashExpr (considering commutativity)
 instance Eq (ExprG a) where
-    (==) = eqExp
+     e1 == e2 = hashExp [] e1 0 == hashExp [] e2 0
 
 -- | Computes hash of an expression, for syntactic comparisons. Considers commutativity by symmetric hashing scheme for commutative operations.
-hashExp :: ExprG a -> Integer
-hashExp e = error "must be copied from SML code"
+hashExp :: [Var] -> ExprG a -> Hash -> Hash -- need to give an explicit type
+hashExp vs e a = 
+    let ps = hashPrimes
+    in case e of
+         V v -> case index v vs of
+                  Just i -> hash (ps!!0) (hash i a)
+                  Nothing -> hash (ps!!0) (hashStr v a)
+         I i -> hash (ps!!1) (hash i a)
+         R r -> hash (ps!!2) (hashStr (ppReal r) a)
+         B True -> hash (ps!!3) a
+         B False -> hash (ps!!4) a
+         Pair e1 e2 -> hash (ps!!5) (hashExp vs e1 (hashExp vs e2 a))
+         Fst e -> hash (ps!!6) (hashExp vs e a)
+         Snd e -> hash (ps!!7) (hashExp vs e a)
+         Obs (s,i) -> hash (ps!!8) (hashStr s (hash i a))
+         ChosenBy (p,i) -> hash (ps!!9) (hashStr p (hash i a))
+
+         Acc (v,e1) i e2 
+             -> hash (ps!!10) (hash i (hashExp (v:vs) e1 (hashExp vs e2 a)))
+         Not e1 -> hash (ps!!11) (hashExp vs e1 a)
+        -- not symmetric!
+         Less e1 e2 -> hash (ps!!12) (hashExp vs e1 (hashExp vs e2 a))
+         Arith Minus e1 e2 -> hash (ps!!13) (hashExp vs e1 (hashExp vs e2 a))
+        -- symmetric! (commutative)
+         Arith op e1 e2 
+             -> hashStr (fst (ppOp op)) (hashExp vs e1 (hashExp vs e2 a))
+         Equal e1 e2 -> hashStr "=" (hashExp vs e1 (hashExp vs e2 a))
+         Or e1 e2    -> hashStr "|" (hashExp vs e1 (hashExp vs e2 a))
 
 ----------------------------------------
 
@@ -300,20 +323,6 @@ ppExp0 ppInt e =
 
 -- | pretty-printing an expression, using normal printer for Int
 ppExp = ppExp0 show
-
--- pretty-printing an expression, using time printer for Int
--- not really used anywhere, ppTime rather belongs into the date module
-ppTimeExp = ppExp0 ppTime
--- internal: convert daycount to years/months/days, using 30/360 convention 
--- this function belongs into the date module
-ppTime :: Int -> String
-ppTime 0 = "0d"
-ppTime t = if null s then "0d" else s
-    where years   = t `div` 360
-          months  = (t `div` 30) `mod` 12 -- (t mod 360) div 30
-          days    = t `mod` 30
-          str n c = if n == 0 then "" else show n ++ c:[]
-          s = concat (zipWith str [years,months,days] "ymd")
 
 --------------------------------------------------------------
 -- Evaluation of expressions:
