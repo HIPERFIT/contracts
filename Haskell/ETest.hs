@@ -70,4 +70,14 @@ runtests = do etest  "test + - i" (i 4) (i 3 + 1)
               etest  "test iff - f" (I 22) (fn () => ifExpr(not(B true),I 33 !+! I 1, I 22))
 -}
 
+acctest = do etest "test acc - i0" (i 44) (acc f 0 44)
+             etest "test acc - i3" (i 4) (acc f 3 1)
+    where f v = v + i 1
+
+avgtest = do etestE "test acc - avg" (pair (r 15) (i 5)) (acc cnt 5 pair (0,0)) env
+             etestE "test acc - avg2" (pair (r 10 + obs ("C",4)) (i 5))
+                        (acc cnt 5 pair (0,0)) env
+    where env = foldl (\((i,r),e) -> addFix ("C",i,r) e) emptyEnv 
+                      [(0,1.0),(1,2.0),(2,3.0),(3,4.0),(4,5.0)]
+
 main = runtests
