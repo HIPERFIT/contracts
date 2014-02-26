@@ -1,9 +1,8 @@
 {-# LANGUAGE DeriveDataTypeable, TypeFamilies, GADTs, FlexibleInstances, FlexibleContexts, UndecidableInstances #-} 
 module Contract.Expr
-    ( Currency(..) -- constructors exported
-    , Var
-    , ExprG        -- no constructors exported!
-    , BoolE, IntE, RealE
+    ( Currency(..), Var
+    , ExprG(..)    -- constructors exported, for internal use
+    , BoolE, IntE, RealE -- for re-export
     -- constructors for interface
     , i, r, b, v, pair, first, second, acc, obs, chosenBy
     -- operators, unless in NUm instance
@@ -12,8 +11,12 @@ module Contract.Expr
     , certainExp, translExp, hashExp
     -- pretty-printer
     , ppExp
-    -- evaluation. Polymorphic eval not exported
-    , Env, emptyEnv
+    -- environments
+    , Env, MEnv(..), emptyEnv, emptyFrom
+    , addFix, addFixing, addFixings
+    , promote, promoteEnv
+    -- evaluation
+    , eval -- for internal use only
     , evalI, evalR, evalB, simplifyExp
     ) where
 

@@ -1,5 +1,6 @@
 module Contract.Type
     ( Contract(..) -- constructors exported
+    , MContract -- managed contract, including a start date
     , Party
     -- smart constructors and convenience functions
     , zero, transfOne, transl, iff, checkWithin, both, allCs, scale, flow
@@ -11,7 +12,11 @@ import Contract.Expr
 import Contract.Date
 import Contract.Hash
 
+-- | party of a contract. A simple string
 type Party = String
+
+-- | a managed contract is a contract with a start date
+type MContract = (Date, Contract)
 
 -- | the contract representation type
 data Contract = Zero

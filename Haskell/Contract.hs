@@ -4,6 +4,24 @@ module Contract
     -- smart constructors and convenience functions, defined in Contract.Type
     , zero, transfOne, transl, iff, checkWithin, both, allCs, scale, flow
     , ppContr
+    -- expressions:
+    , Var, Currency(..) -- all constructors exported
+    , BoolE, IntE, RealE -- ExprG itself is not exported
+    -- constructors
+    , i, r, b, v, pair, first, second, acc, obs, chosenBy
+    -- operators, unless in Num instance
+    , (!<!), (!=!), (!|!), maxx, minn, nott
+    -- predicates, expression translate
+    , certainExp, translExp
+    -- pretty-printer
+    , ppExp
+    -- evaluation
+    , Env, MEnv, emptyEnv, emptyFrom
+    , addFix, addFixing, addFixings
+    , promote, promoteEnv
+    , evalI, evalR, evalB, simplifyExp
+    -- printing cashflows:
+    , Cashflow, ppCashflow, ppCashflows, cashflows
     ) where
 
 import Contract.Date
