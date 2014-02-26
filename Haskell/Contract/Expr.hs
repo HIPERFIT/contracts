@@ -9,8 +9,8 @@ module Contract.Expr
     , (!<!), (!=!), (!|!), maxx, minn, nott
     -- predicates, expression translate, hash
     , certainExp, translExp, hashExp
-    -- pretty-printer
-    , ppExp
+    -- pretty-printer (also std. printer for real numbers)
+    , ppExp, ppReal
     -- environments
     , Env, MEnv(..), emptyEnv, emptyFrom
     , addFix, addFixing, addFixings

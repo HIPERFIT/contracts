@@ -3,14 +3,10 @@ module CTest
 
 import Contract
 import Contract.Date
+import Contract.Expr(ppReal)
 import Contract.Transform(advance, simplify, dual)
 
-import Text.Printf
-
 -- simple tests for contracts (was "basiccontracts.sml")
-
-ppReal :: Double -> String
-ppReal = printf "%.6f"
 
 you2me (d,v,c) = flow d (r v) c "you" "me"
 me2you = dual . you2me
