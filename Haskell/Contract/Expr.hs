@@ -340,6 +340,12 @@ type Env = (String, Int) -> Maybe Double -- Hack: should use Bool for choice
 emptyEnv :: Env
 emptyEnv = \(s,i) -> if s == "Time" then Just (fromIntegral i) else Nothing
 
+-- ideas:
+-- unify :: Env -> Env -> Env
+
+-- envFrom :: String -> (Int -> Double) -> Env
+-- envFrom s f = ...
+
 -- | A managed environment is an environment together with a start date.
 data MEnv = Env Date Env
 

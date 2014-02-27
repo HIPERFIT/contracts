@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs #-}
 module Contract.Analysis
     ( horizon
+    , Trigger
     , triggers
     , ppTriggers
     ) where
