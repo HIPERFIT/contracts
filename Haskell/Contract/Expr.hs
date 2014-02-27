@@ -379,7 +379,7 @@ addFixings (s,d) vs (Env e_d e_f) =
     let l = length vs
         o = dateDiff e_d d
         f (s',n) = if s == s' && n >= o && n < l + o
-                     then Just (vs!!n) else e_f (s',n)
+                     then Just (vs!!(n-o)) else e_f (s',n)
     in Env e_d f
 
 evalI :: Env -> IntE -> Int
