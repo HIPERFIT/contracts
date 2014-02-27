@@ -3,11 +3,14 @@ module Contract.Transform
        ( dual
        , advance
        , simplify
+       , elimBranches
        ) where
 
 import Contract.Type
 import Contract.Expr
 import Contract.Date
+
+import Data.List
 
 dual :: Contract -> Contract
 dual Zero = zero
@@ -82,3 +85,50 @@ simplify0 env c =
       --        end
       --      else Let(v,e',simplify0 G c)
 
+-- | uses values from environment to take known decision alternatives (constructs 'if' and 'checkWithin'). Like 'simplify', but it does not use values for scaling contracts.
+elimBranches :: MEnv -> MContract -> MContract
+elimBranches (Env e_d e) (c_d,c) = (c_d, elimBrs env c)
+    where off = dateDiff e_d c_d
+          env = promote e off
+
+-- | internal function working on relative dates for env and contract
+elimBrs :: Env -> Contract -> Contract
+elimBrs env Zero = zero
+elimBrs env (Both c1 c2) = both (elimBrs env c1) (elimBrs env c2)
+elimBrs env (Scale ob (Both c1 c2)) 
+    = elimBrs env (both (scale ob c1) (scale ob c2))
+elimBrs env (Scale r t) = scale r (elimBrs env t)
+elimBrs env (Transl i t') = transl i (elimBrs (promote env i) t')
+elimBrs env c@(TransfOne _ _ _) = c
+-- the interesting ones:
+elimBrs env (If e c1 c2) = let e = eval env e
+                               c1 = elimBrs env c1
+                               c2 = elimBrs env c2
+                           in iff e c1 c2 -- if e known, iff will shorten
+elimBrs env (CheckWithin e 0 c1 c2) = elimBrs env (If e c1 c2)
+-- elimBrs env (CheckWithin e i c1 c2) 
+--     = let env' = emptyEnv -- (emp,#2 G)
+--           substE = eval emptyEnv
+--           substC = elimBrs emptyEnv
+-- -- MEMO: this was adopted from the simplify0 code in SML; but why are
+-- -- we emptying the env? (probably do with variable environment in ML)
+--       in case eval env e of
+--            B True  -> elimBrs env c1
+--            B False -> elimBrs env 
+--                       (transl 1 (checkWithin (substE e) (i-1) 
+--                                                  (substC c1) (substC c2)))
+--            _ -> checkWithin (substE e) i (substC c1) (substC c2)
+-- -- For the particular application (scenario execution) the function
+-- -- should check whether there is a value _anywhere_ within the checked
+-- -- range, and use that, instead of leaving it untouched unless e
+-- -- evaluates to B False.
+elimBrs env (CheckWithin e n c1 c2)
+    = let vs = map (\d -> eval (promote env d) e) [0..n] -- check all values
+          firstHit = findIndex (== B True) vs
+      in case firstHit of
+           Nothing -> -- never true, but maybe undetermined, cannot just use c2
+                      -- OK to eliminate in c2, but not in c1 (unknown start)
+                       checkWithin e n c1 (elimBrs (promote env n) c2)
+           Just i -> -- e is B True on day n. No matter what it might
+                     -- be before, use this value to simplify the contract
+                       transl i (elimBrs (promote env i) c1)
