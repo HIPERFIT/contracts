@@ -18,10 +18,11 @@ hashPrimes = [2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,
              -- in sieve [2..]
 alpha, beta :: Hash
 alpha = 65599 -- but it is not used...
-beta = 127 -- next prime number after the hashPrimes
+beta = 19 -- next prime number after the hashPrimes
 
 -- | hashing an integral number
 hash :: Integral a => a -> Hash -> Hash
+hash 0 a = a
 hash p a = fromIntegral p * (a + 1)
 
 -- | 

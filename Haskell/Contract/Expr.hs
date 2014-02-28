@@ -101,7 +101,7 @@ par s = "(" ++ s ++ ")"
 
 -- | Supported arithmetic operations as a data type
 data AOp = Plus | Minus | Times | Max | Min
-         deriving (Show)
+         deriving (Eq,Show)
 
 -- | pretty-printer for operations. The Bool value indicates an infix operator.
 ppOp :: AOp -> (String,Bool)
@@ -168,14 +168,15 @@ hashExp vs e a =
          Acc (v,e1) i e2 
              -> hash (ps!!10) (hash i (hashExp (v:vs) e1 (hashExp vs e2 a)))
          Not e1 -> hash (ps!!11) (hashExp vs e1 a)
-        -- not symmetric!
-         Less e1 e2 -> hash (ps!!12) (hashExp vs e1 (hashExp vs e2 a))
-         Arith Minus e1 e2 -> hash (ps!!13) (hashExp vs e1 (hashExp vs e2 a))
         -- symmetric! (commutative)
-         Arith op e1 e2 
-             -> hashStr (fst (ppOp op)) (hashExp vs e1 (hashExp vs e2 a))
+         Arith op e1 e2 | op `elem` [Plus,Times,Max,Min]
+             -> hashStr (fst $ ppOp op) (hashExp vs e1 0 + hashExp vs e2 0 + a)
+                        | otherwise
+             -> hashStr (fst $ ppOp op) $ hashExp vs e1 $ hashExp vs e2 a
          Equal e1 e2 -> hashStr "=" (hashExp vs e1 (hashExp vs e2 a))
          Or e1 e2    -> hashStr "|" (hashExp vs e1 (hashExp vs e2 a))
+        -- not symmetric!
+         Less e1 e2 -> hash (ps!!12) (hashExp vs e1 (hashExp vs e2 a))
 
 ----------------------------------------
 

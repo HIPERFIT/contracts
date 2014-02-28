@@ -5,8 +5,11 @@ import Contract.Expr
 
 import qualified Control.Exception as E
 
+file :: String
+file = "ETest.hs"
+
 testPP :: (a -> String) -> String -> a -> a -> IO ()
-testPP pp s e1 e2 = let pr msg = putStrLn (s ++ ": " ++ msg)
+testPP pp s e1 e2 = let pr msg = putStrLn (file ++ " - " ++ s ++ ": " ++ msg)
                         pp1    = pp e1
                         pp2    = pp e2
                     in E.catch (if pp1 == pp2 then pr ": OK"
@@ -68,6 +71,10 @@ runtests = do etest  "test + - i" (i 4) (i 3 + 1)
               etest  "test iff - t" (I 34) (fn () => ifExpr(B true,I 33 !+! I 1, I 22))
               etest  "test iff - f" (I 22) (fn () => ifExpr(not(B true),I 33 !+! I 1, I 22))
 -}
+
+              testPP show "test hash1 - should fail" (hashExp [] (carl 1) 1) (hashExp [] (carl 1) 0)
+
+carl n = (Obs ("Carlsberg",0) !<! R n)
 
 acctest = do etest "test acc - i0" (i 44) (acc f 0 44)
              etest "test acc - i3" (i 4) (acc f 3 1)

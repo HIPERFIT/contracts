@@ -17,7 +17,8 @@ local
   type hash = IntInf.int
   val Alpha = IntInf.fromInt 65599
   val Beta = IntInf.fromInt 19
-  fun H (p,a) = IntInf.*(IntInf.fromInt p,
+  fun H (0,a) = a
+    | H (p,a) = IntInf.*(IntInf.fromInt p,
                          IntInf.+(a,IntInf.fromInt 1))
   fun hashAdd (w:IntInf.int, acc) = let open IntInf in w+acc*Beta end
   fun Hs (s,a:hash) =
@@ -31,7 +32,7 @@ local
 	end
   fun index nil v n = NONE
     | index (x::xs) v n = if v = x then SOME n else index xs v (n+1)
-
+in
   fun hashExp (vs,e,a) =
       case e of
           I i => H(2,H(i,a))
@@ -62,7 +63,7 @@ local
         | Transl(i,c) => H(i,hashContr(vs,c,H(11,a)))
         | CheckWithin(e1,i,c1,c2) => hashContr(vs,c1,hashContr(vs,c2,hashExp(vs,e1,H(i,H(13,a)))))
         | Let(v,e,c) => hashContr(v::vs,c,hashExp(vs,e,H(17,a)))
-in
+
 fun eqExp (e1,e2) =
     IntInf.compare(hashExp([],e1,IntInf.fromInt 0),
                    hashExp([],e2,IntInf.fromInt 0)) = EQUAL

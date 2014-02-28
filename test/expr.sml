@@ -72,3 +72,12 @@ val () = etestE "test acc - avg" (pair(R 15.0,I 5)) (fn () => acc(f,5,pair(R 0.0
 
 val E' = foldl(fn ((i,r),e) => addFix(("C",i,r),e)) emptyEnv [(0,1.0),(1,2.0),(2,3.0),(3,4.0)]
 val () = etestE "test acc - avg2" (pair(R 10.0 !+! obs("C",4),I 5)) (fn () => acc(f,5,pair(R 0.0,I 0))) E'
+
+fun carl n = (obs ("Carlsberg",0) !<! R n)
+
+fun h e = hashExp ([], e, 0)
+
+val () = Utest.testPP IntInf.toString "hashExp1" 8 (fn () => h (I 3))
+val () = Utest.testPP IntInf.toString "hashExp2" 8 (fn () => h (carl 1.0))
+val () = Utest.testPP IntInf.toString "hashExp2" 8 (fn () => h (carl 0.0))
+
