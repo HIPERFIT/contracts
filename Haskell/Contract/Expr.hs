@@ -181,34 +181,28 @@ hashExp vs e a =
 ----------------------------------------
 
 -- | Num instance, enabling us to write 'e1 + e2' for ExprG a with Num a
-instance (Decompose (ExprG a), Num (Content (ExprG a)), Num a) =>
+instance (MkExpr a, Num a) =>
     Num (ExprG a) where
     (+) = arith Plus
     (*) = arith Times
     (-) = arith Minus
     negate = arith Minus (fromInteger 0)
-    abs a = (constr a) (abs (content a))
-    signum a = (constr a) (signum (content a))
-    fromInteger n = (constr (undefined :: ExprG a)) (fromInteger n)
+    abs a = undefined -- needs expression-if: if (a !<! 0) then (0 - a) else a
+    signum a = undefined -- needs expression-if: if (a !=! 0) then 0 else if (a !<! 0) then -1 else 1
+    fromInteger n = constr (fromInteger n)
 -- there's a pattern... f a = (constr a) (f (content a))
 
 -- | Num instances are possible through this - slightly weird - helper
 -- class which extracts constructors and values from an expression
-class Num a => Decompose a where
-    type Content a
-    constr  :: a -> (Content a -> a)
-    content :: Num (Content a) => a -> Content a
+class Num a => MkExpr a where
+    constr  :: a -> ExprG a
 
 -- NB do we _ever_ use Int expressions? Maybe dump this whole weird thing
-instance Decompose (ExprG Int) where
-    type Content (ExprG Int) = Int
-    constr _  = I
-    content x = evalI emptyEnv x
+instance MkExpr Int where
+    constr = I
 
-instance Decompose (ExprG Double) where
-    type Content (ExprG Double) = Double
-    constr  _ = R
-    content x = evalR emptyEnv x
+instance MkExpr Double where
+    constr = R
 
 -- the smart constructors of the interface
 
