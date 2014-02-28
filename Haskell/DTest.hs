@@ -1,4 +1,4 @@
-module Main where
+module DTest where
 
 import Contract.Date
 

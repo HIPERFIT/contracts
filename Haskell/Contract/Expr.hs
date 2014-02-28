@@ -238,7 +238,7 @@ minn = arith Min -- ...which requires an Eq instance
 
 nott = Not
 
-acc :: (Num a) => (ExprG a -> ExprG a) -> Int -> ExprG a -> ExprG a
+acc :: (ExprG a -> ExprG a) -> Int -> ExprG a -> ExprG a
 acc _ 0 a = a
 acc f i a = let v = newName "v" 
             in Acc (v,f (V v)) i a

@@ -1,8 +1,7 @@
-module Main
+module ETest
     where
 
 import Contract.Expr
-import Control.DeepSeq
 
 import qualified Control.Exception as E
 
@@ -74,10 +73,12 @@ acctest = do etest "test acc - i0" (i 44) (acc f 0 44)
              etest "test acc - i3" (i 4) (acc f 3 1)
     where f v = v + i 1
 
-avgtest = do etestE "test acc - avg" (pair (r 15) (i 5)) (acc cnt 5 pair (0,0)) env
+avgtest = do etestE "test acc - avg" (pair (r 15) (i 5)) (acc cnt 5 (pair 0 0)) env
              etestE "test acc - avg2" (pair (r 10 + obs ("C",4)) (i 5))
-                        (acc cnt 5 pair (0,0)) env
-    where env = foldl (\((i,r),e) -> addFix ("C",i,r) e) emptyEnv 
+                        (acc cnt 5 (pair 0 0)) env
+    where env = foldr (\(i,r) e -> addFix ("C",i,r) e) emptyEnv 
                       [(0,1.0),(1,2.0),(2,3.0),(3,4.0),(4,5.0)]
+--          cnt :: ExprG (Double,Int) -> ExprG (Double,Int)
+          cnt x =  pair (first x + obs("C",0)) (second x + 1)
 
 main = runtests

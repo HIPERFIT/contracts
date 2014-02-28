@@ -1,5 +1,4 @@
-module CTest
-       where
+module CTest where
 
 import Contract
 import Contract.Date
