@@ -395,8 +395,14 @@ eval env e =
          V s -> error ("missing variable env.")
          --
          Pair e1 e2 -> Pair (eval env e1) (eval env e2)
-         Fst e -> Fst (eval env e)
-         Snd e -> Snd (eval env e)
+         Fst e ->
+            (case eval env e of
+               Pair v _ -> v
+               e -> Fst e)
+         Snd e ->
+            (case eval env e of
+               Pair _ v -> v
+               e -> Snd e)
          --
          Obs u -> case env u of
                     Just r  -> R r
