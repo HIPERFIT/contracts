@@ -134,4 +134,58 @@ price n c = do let (payoff, dep) = genPayoff c
 
 This is somewhat primitive... and these are not in fact seeds...
 
+And: no discounting is included. Needs refinement.
+
+\newpage
+
+\section*{Another snippet of draft code\ldots}
+This might end up in the future HQL library.
+
+\paragraph*{Just some dummy definitions...}:
+\begin{code}
+type Cash = Double
+data Swap = Swap
+data SomeBond = SomeBond
+\end{code}
+
+\paragraph*{Instruments} are probably just derivatives.
+Bonds are instruments, but a bond is also a type class in itself,
+with different kinds of bond as its instances. A swap is an instrument.
+\begin{code}
+class Instrument i where
+    someX :: Model m => m -> i -> Cash
+    someX = undefined
+
+class (Instrument b) => Bond b where
+    something :: b -> Int
+    something = undefined
+
+instance Instrument SomeBond
+instance Bond SomeBond 
+\end{code}
+
+\paragraph*{Models} are used to price instruments in a pricing engine.
+\begin{code}
+class Model m where
+    someY :: Instrument i => i -> m -> Cash
+    someY = undefined
+
+data TermStructure = TermStructure (Double -> Double)
+data OtherModel = Other (Int -> Double)
+
+instance Model TermStructure
+instance Model OtherModel
+\end{code}
+
+\paragraph*{Pricing engine} is where instruments and models are joined.
+\begin{code}
+class (Instrument i, Model p) => PricingEngine i p where
+    pv :: i -> p -> Cash
+    pv = undefined
+
+instance PricingEngine SomeBond TermStructure
+instance PricingEngine SomeBond OtherModel
+instance PricingEngine Swap OtherModel
+\end{code}
+
 \end{document}
