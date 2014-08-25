@@ -1,3 +1,5 @@
+{-# LANGUAGE ExistentialQuantification #-}
+
 module Contract.Type
     ( Contract(..) -- constructors exported
     , MContract -- managed contract, including a start date
@@ -27,7 +29,7 @@ data Contract = Zero
               | If BoolE Contract Contract -- ^ Conditional contract
               | CheckWithin BoolE Int Contract Contract
                 -- ^ Repeatedly checks every day, until given end, whether condition is true. When it is true, the first contract argument comes into effect. Otherwise (never true until end) the second contract comes into effect.
---              | Let Var (ExprG a) Contract -- problem: free a
+--              | forall a . Let (Expr a) (Expr a -> Contract)
                 deriving (Show)
 
 -- | computes hash of a contract, considering symmetry of 'Both' constructor
@@ -47,7 +49,7 @@ hashContr vs c a =
          CheckWithin e1 i c1 c2 -> 
              hashContr vs c1 (hashContr vs c2 (hashExp vs e1 
                                                (hash i (hash (ps!!5) a))))
-         -- Let(v,e,c) => hashContr(v::vs,c,hashExp(vs,e,H(17,a)))
+--         Let e f  -> hashContr(v::vs,c,hashExp(vs,e,H(17,a)))
 
 -- | hash-based equality, levelling out some symmetries
 instance Eq Contract where

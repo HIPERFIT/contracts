@@ -80,13 +80,13 @@ type Contract = ()
 type Date = Int
 
 -- | an environment with phantom type 't' to constrain its domain
-data Env t = Env ((String, Date) -> Double)
+data Env t a = Env ((String, Date) -> a)
 
 -- | Dependency type indexed with domain constraint
 data Dep t = Dep [(String, Date)]
 
 -- | generates the payoff function and constraints for the env.
-genPayoff :: Contract -> forall t . ( Env t -> Double, Dep t)
+genPayoff :: Fractional a => Contract -> forall t . ( Env t a -> a, Dep t)
 genPayoff c = (undefined, undefined)
 \end{code}
 
