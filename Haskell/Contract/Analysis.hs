@@ -9,6 +9,7 @@ module Contract.Analysis
 import Contract.Type
 import Contract.Expr
 import Contract.Date
+import Contract.Environment
 
 import Data.Maybe
 import Data.List

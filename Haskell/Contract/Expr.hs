@@ -11,10 +11,6 @@ module Contract.Expr
     , certainExp, translExp, hashExp
     -- pretty-printer (also std. printer for real numbers)
     , ppExp, ppReal
-    -- environments
-    , Env, MEnv(..), emptyEnv, emptyFrom
-    , addFix, addFixing, addFixings
-    , promote, promoteEnv
     -- evaluation
     , eval -- for internal use only
     , evalI, evalR, evalB, simplifyExp
@@ -33,10 +29,12 @@ import Text.Printf
 
 import Contract.Date
 import Contract.Hash
+import Contract.Environment
 
 -------------------------------------------------------------------------------
 
--- | Currency type. These are just tags and not used in expressions/arithmetics.
+-- | Currency type. These are just tags and not used in expressions/arithmetics
+-- (and should probably not be here; not really used that much in our code.)
 data Currency = EUR | DKK | SEK | USD | GBP | JPY
               deriving (Eq, Show, Read)
 -- good enough with only FX derivatives. Otherwise we could add this:
@@ -147,7 +145,8 @@ opsem Min = min
 instance Eq (ExprG a) where
      e1 == e2 = hashExp [] e1 0 == hashExp [] e2 0
 
--- | Computes hash of an expression, for syntactic comparisons. Considers commutativity by symmetric hashing scheme for commutative operations.
+-- | Computes hash of an expression, for syntactic comparisons. 
+-- Considers commutativity by symmetric hashing for commutative operations.
 hashExp :: [Var] -> ExprG a -> Hash -> Hash -- need to give an explicit type
 hashExp vs e a = 
     let ps = hashPrimes
@@ -168,13 +167,13 @@ hashExp vs e a =
          Acc (v,e1) i e2 
              -> hash (ps!!10) (hash i (hashExp (v:vs) e1 (hashExp vs e2 a)))
          Not e1 -> hash (ps!!11) (hashExp vs e1 a)
-        -- symmetric! (commutative)
-         Arith op e1 e2 | op `elem` [Plus,Times,Max,Min]
+         Arith op e1 e2 | op `elem` [Plus,Times,Max,Min] -- symmetric! (commutative)
              -> hashStr (fst $ ppOp op) (hashExp vs e1 0 + hashExp vs e2 0 + a)
-                        | otherwise
+                        | otherwise -- not symmetric
              -> hashStr (fst $ ppOp op) $ hashExp vs e1 $ hashExp vs e2 a
-         Equal e1 e2 -> hashStr "=" (hashExp vs e1 (hashExp vs e2 a))
-         Or e1 e2    -> hashStr "|" (hashExp vs e1 (hashExp vs e2 a))
+        -- symmetric!
+         Equal e1 e2 -> hashStr "=" (hashExp vs e1 0 + hashExp vs e2 0 + a)
+         Or e1 e2    -> hashStr "|" (hashExp vs e1 0 + hashExp vs e2 0 + a)
         -- not symmetric!
          Less e1 e2 -> hash (ps!!12) (hashExp vs e1 (hashExp vs e2 a))
 
@@ -328,55 +327,6 @@ ppExp = ppExp0 show
 data EvalExc = Eval String deriving (Read,Show,Typeable)
 instance Exception EvalExc
 
--- | An environment is a partial mapping from (String, Int) to Double. The keys carry an identifying string and an offset value (days), yielding a Double value.
-type Env = (String, Int) -> Maybe Double -- Hack: should use Bool for choice
-
--- | an empty environment. 
-emptyEnv :: Env
-emptyEnv = \(s,i) -> if s == "Time" then Just (fromIntegral i) else Nothing
-
--- ideas:
--- unify :: Env -> Env -> Env
-
--- envFrom :: String -> (Int -> Double) -> Env
--- envFrom s f = ...
-
--- | A managed environment is an environment together with a start date.
-data MEnv = Env Date Env
-
--- | an empty managed environment, from a given start date
-emptyFrom :: Date -> MEnv
-emptyFrom d = Env d emptyEnv
-
--- | promoting an environment by a given date offset into the future (or past, if negative)
-promote :: Env -> Int -> Env
-promote e i = e . (\(s,x) -> (s,x+i))
-
--- | promoting a managed environment by a given date offset. See 'promote'
-promoteEnv :: MEnv -> Int -> MEnv
-promoteEnv (Env d e) i = Env d (promote e i)
-
--- | adding a fixing to an environment.
--- New values take precedence with this definition
-addFix :: (String, Int, Double) -> Env -> Env
-addFix (s,d,r) e = \x -> if x == (s,d) then Just r else e x
-
--- | adding a fixing to a managed environment
-addFixing :: (String, Date, Double) -> MEnv -> MEnv
-addFixing (s,d,r) (Env e_d e_f) = 
-    let off = dateDiff e_d d
-    in Env e_d (\x -> if x == (s,off) then Just r else e_f x)
-
-
-addFixings :: (String, Date) -> [Double] -> MEnv -> MEnv
-addFixings (s,d) [] e = e
-addFixings (s,d) vs (Env e_d e_f) =
-    let l = length vs
-        o = dateDiff e_d d
-        f (s',n) = if s == s' && n >= o && n < l + o
-                     then Just (vs!!(n-o)) else e_f (s',n)
-    in Env e_d f
-
 evalI :: Env -> IntE -> Int
 evalR :: Env -> RealE -> Double
 evalB :: Env -> BoolE -> Bool
@@ -438,5 +388,6 @@ eval env e =
                          (bb1, bb2)   -> Or bb1 bb2
 
 -- | simplify an expression, using an environment
+simplifyExp :: Env -> ExprG a -> ExprG a
 simplifyExp env e = eval env e
 

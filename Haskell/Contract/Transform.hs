@@ -9,6 +9,7 @@ module Contract.Transform
 import Contract.Type
 import Contract.Expr
 import Contract.Date
+import Contract.Environment
 
 import Data.List
 

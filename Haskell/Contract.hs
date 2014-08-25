@@ -16,9 +16,9 @@ module Contract
     -- pretty-printer
     , ppExp
     -- evaluation
-    , Env, MEnv, emptyEnv, emptyFrom
-    , addFix, addFixing, addFixings
-    , promote, promoteEnv
+    , MEnv, emptyFrom
+    , addFixing, addFixings
+    , promoteEnv
     , evalI, evalR, evalB, simplifyExp
     -- printing cashflows:
     , Cashflow, ppCashflow, ppCashflows, cashflows
@@ -27,6 +27,7 @@ module Contract
 import Contract.Date
 import Contract.Expr
 import Contract.Type
+import Contract.Environment
 
 import Data.List(sortBy)
 import Data.Ord(comparing)
