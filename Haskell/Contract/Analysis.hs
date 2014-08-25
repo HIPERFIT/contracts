@@ -4,6 +4,8 @@ module Contract.Analysis
     , Trigger
     , triggers
     , ppTriggers
+    -- dependencies
+    , Dependencies(..), Dependency(..), eDependsOn, cDependsOn
     ) where
 
 import Contract.Type
@@ -143,3 +145,79 @@ ppTriggers ((s,(i,j),vs):rest)
     = s ++ " from day " ++ show i ++ " to " ++ show j ++
       ": " ++ concat (intersperse ", " (map ppReal vs)) ++
       "\n" ++ ppTriggers rest
+
+-----------------------------------------------------------------------
+
+
+-- | dependency (of an expression or contract) on a single observable
+data Dependency 
+    = Dep { observable :: String,
+            start, end :: Int -- ^ dependency range (Note: from start
+                              -- to end-1)
+          }
+      deriving (Eq,Show)
+
+-- | represents all dependencies 
+data Dependencies
+    = Deps [Dependency] -- ^ list sorted by observable, then by start
+                        -- No range overlaps allowed.
+      deriving (Eq,Show)
+
+-- helper functions
+-- | insert a 'Dependency' into 'Dependencies'
+insertD :: Dependency -> Dependencies -> Dependencies
+insertD d (Deps ds) = Deps (ds1 ++ ins d ds2)
+    where (ds1, ds2) = break ((observable d ==) . observable) ds
+          ins d [] = [d]
+          ins d (d':ds) | end d   < start d' = d : d' : ds
+                        | end d'  < start d  = d' : ins d ds
+                        -- otherwise: overlap, merge d with d'
+                        | otherwise 
+                            = d {start = min (start d) (start d'),
+                                 end = max (end d) (end d')        } : ds
+
+-- | merge two dependencies
+mergeDs :: Dependencies -> Dependencies -> Dependencies
+mergeDs (Deps ds1) ds2 = foldr insertD ds2 ds1
+
+-- | extracts all observables/choices an expression 'eDependsOn' 
+eDependsOn :: Expr a -> Dependencies
+-- base functionality:
+eDependsOn (Obs (s,d)) = Deps [Dep s d (d+1)] 
+eDependsOn (ChosenBy (s,d)) = Deps [Dep s d (d+1)]
+-- Note: +1 on the end. This representation is easier to merge.
+-- recursion: easy cases
+eDependsOn (Pair a b) = mergeDs (eDependsOn a) (eDependsOn b)
+eDependsOn (Fst p) = eDependsOn p -- MEMO: can lead to fake dep.s!
+eDependsOn (Snd p) = eDependsOn p
+eDependsOn (Not a) = eDependsOn a
+eDependsOn (Arith _ a b) = mergeDs (eDependsOn a) (eDependsOn b)
+eDependsOn (Less a b)  = mergeDs (eDependsOn a) (eDependsOn b)
+eDependsOn (Equal a b) = mergeDs (eDependsOn a) (eDependsOn b)
+-- more interesting case
+eDependsOn (Acc (_,a) d b) = mergeDs (eDependsOn b) (extendD d (eDependsOn a))
+-- boring cases: I R B V
+eDependsOn _ = Deps [] -- no dependencies
+
+-- | extend dependencies by a number of days
+extendD :: Int -> Dependencies -> Dependencies
+extendD i (Deps ds) = Deps (map ext ds)
+    where ext d = d { end = end d + i }
+
+-- | translate dependencies by a given offset
+transD :: Int -> Dependencies -> Dependencies
+transD i (Deps ds) = Deps (map tr ds)
+    where tr d = d { start = start d + i, end = end d + i }
+
+-- | collects all 'Dependencies' on which a contract depends
+cDependsOn :: Contract -> Dependencies
+cDependsOn (Scale e c) = mergeDs (eDependsOn e) (cDependsOn c)
+cDependsOn (Transl i c) = transD i (cDependsOn c)
+cDependsOn (Both c1 c2) = mergeDs (cDependsOn c1) (cDependsOn c2)
+cDependsOn (If e c1 c2) 
+    = mergeDs (eDependsOn e) (mergeDs (cDependsOn c1) (cDependsOn c2))
+cDependsOn (CheckWithin e d c1 c2) 
+    = mergeDs (eDependsOn e) 
+         (mergeDs (extendD d (cDependsOn c1)) (transD d (cDependsOn c2)))
+-- Zero and TransfOne: no dependencies
+cDependsOn _ = Deps []

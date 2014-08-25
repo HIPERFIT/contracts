@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable, TypeFamilies, GADTs, FlexibleInstances, FlexibleContexts, UndecidableInstances #-} 
 module Contract.Expr
     ( Currency(..), Var
-    , Expr(..)    -- constructors exported, for internal use
+    , Expr(..), AOp(..)  -- constructors exported, for internal use
     , BoolE, IntE, RealE -- for re-export
     -- constructors for interface
     , i, r, b, v, pair, first, second, acc, obs, chosenBy
