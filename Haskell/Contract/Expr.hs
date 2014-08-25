@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveDataTypeable, TypeFamilies, GADTs, FlexibleInstances, FlexibleContexts, UndecidableInstances #-} 
 module Contract.Expr
     ( Currency(..), Var
-    , ExprG(..)    -- constructors exported, for internal use
+    , Expr(..)    -- constructors exported, for internal use
     , BoolE, IntE, RealE -- for re-export
     -- constructors for interface
     , i, r, b, v, pair, first, second, acc, obs, chosenBy
@@ -51,31 +51,31 @@ data Currency = EUR | DKK | SEK | USD | GBP | JPY
 type Var = String
 
 -- Expression GADT:
-data ExprG a where
-    I :: Int    -> ExprG Int
-    R :: Double -> ExprG Double
-    B :: Bool   -> ExprG Bool
-    V :: Var    -> ExprG a
+data Expr a where
+    I :: Int    -> Expr Int
+    R :: Double -> Expr Double
+    B :: Bool   -> Expr Bool
+    V :: Var    -> Expr a
     -- Pairs:
-    Pair :: ExprG a -> ExprG b -> ExprG (a,b)
-    Fst :: ExprG (a,b) -> ExprG a
-    Snd :: ExprG (a,b) -> ExprG b
+    Pair :: Expr a -> Expr b -> Expr (a,b)
+    Fst :: Expr (a,b) -> Expr a
+    Snd :: Expr (a,b) -> Expr b
     -- observables and external choices
-    Obs :: (String, Int) -> ExprG Double
-    ChosenBy :: (String, Int) -> ExprG Bool
+    Obs :: (String, Int) -> Expr Double
+    ChosenBy :: (String, Int) -> Expr Bool
     -- accumulator. Acc(f,i,a) := f/i(...(f/2(f/1(a))))
-    Acc :: (Var, ExprG a) -> Int -> ExprG a -> ExprG a
+    Acc :: (Var, Expr a) -> Int -> Expr a -> Expr a
     -- unary op.s: only "not"
-    Not :: ExprG Bool -> ExprG Bool
+    Not :: Expr Bool -> Expr Bool
     -- binary op.s, by type: +-*/ max min < = |
     -- on numerical arguments: +-*/ max min
-    Arith :: Num a => AOp -> ExprG a -> ExprG a -> ExprG a
-    Less  :: Ord a => ExprG a -> ExprG a -> ExprG Bool
-    Equal :: Eq a  => ExprG a -> ExprG a -> ExprG Bool
-    Or    :: ExprG Bool -> ExprG Bool -> ExprG Bool
+    Arith :: Num a => AOp -> Expr a -> Expr a -> Expr a
+    Less  :: Ord a => Expr a -> Expr a -> Expr Bool
+    Equal :: Eq a  => Expr a -> Expr a -> Expr Bool
+    Or    :: Expr Bool -> Expr Bool -> Expr Bool
 
 -- | Show instance for debugging (cannot be derived automatically for GADTs)
-instance Show (ExprG a) where
+instance Show (Expr a) where
     show (I n) = "I " ++ show n
     show (R r) = "R " ++ ppReal r
     show (B b) = "B " ++ show b
@@ -119,12 +119,12 @@ instance Read AOp where
     readsPrec _ _ = []
 
 -- | Aliases for the expression types we use
-type BoolE = ExprG Bool
-type IntE = ExprG Int
-type RealE = ExprG Double
+type BoolE = Expr Bool
+type IntE = Expr Int
+type RealE = Expr Double
 
 -- | arithmetics smart constructor, trying to optimise by evaluating constants
-arith :: Num a => AOp -> ExprG a -> ExprG a -> ExprG a
+arith :: Num a => AOp -> Expr a -> Expr a -> Expr a
 arith op (I i1) (I i2) = I (opsem op i1 i2)
 arith op (R r1) (R r2) = R (opsem op r1 r2)
 arith Plus e1 e2  = Arith Plus  e1 e2
@@ -142,12 +142,12 @@ opsem Max = max
 opsem Min = min
 
 -- | Expression equality is defined using hashExpr (considering commutativity)
-instance Eq (ExprG a) where
+instance Eq (Expr a) where
      e1 == e2 = hashExp [] e1 0 == hashExp [] e2 0
 
 -- | Computes hash of an expression, for syntactic comparisons. 
 -- Considers commutativity by symmetric hashing for commutative operations.
-hashExp :: [Var] -> ExprG a -> Hash -> Hash -- need to give an explicit type
+hashExp :: [Var] -> Expr a -> Hash -> Hash -- need to give an explicit type
 hashExp vs e a = 
     let ps = hashPrimes
     in case e of
@@ -179,9 +179,9 @@ hashExp vs e a =
 
 ----------------------------------------
 
--- | Num instance, enabling us to write 'e1 + e2' for ExprG a with Num a
+-- | Num instance, enabling us to write 'e1 + e2' for Expr a with Num a
 instance (MkExpr a, Num a) =>
-    Num (ExprG a) where
+    Num (Expr a) where
     (+) = arith Plus
     (*) = arith Times
     (-) = arith Minus
@@ -194,7 +194,7 @@ instance (MkExpr a, Num a) =>
 -- | Num instances are possible through this - slightly weird - helper
 -- class which extracts constructors and values from an expression
 class Num a => MkExpr a where
-    constr  :: a -> ExprG a
+    constr  :: a -> Expr a
 
 -- NB do we _ever_ use Int expressions? Maybe dump this whole weird thing
 instance MkExpr Int where
@@ -208,17 +208,17 @@ instance MkExpr Double where
 i = I -- :: Int  -> IntE
 r = R -- :: Double -> RealE
 b = B -- :: Bool -> BoolE
-v = V -- :: String -> ExprG a
+v = V -- :: String -> Expr a
 pair = Pair
 first  = Fst
 second  = Snd
 obs      = Obs
 chosenBy = ChosenBy
-(!<!) :: Ord a => ExprG a -> ExprG a -> ExprG Bool
+(!<!) :: Ord a => Expr a -> Expr a -> Expr Bool
 (!<!) = Less
-(!=!) :: Eq a => ExprG a -> ExprG a -> ExprG Bool
+(!=!) :: Eq a => Expr a -> Expr a -> Expr Bool
 (!=!) = Equal
--- (!|!) :: ExprG Bool -> ExprG Bool -> ExprG Bool
+-- (!|!) :: Expr Bool -> Expr Bool -> Expr Bool
 (!|!) = Or
 
 infixl 4 !<!
@@ -226,13 +226,13 @@ infixl 4 !=!
 infixl 3 !|!
 
 -- +, -, * come from the Num instance
-maxx,minn :: Num a => ExprG a -> ExprG a -> ExprG a
+maxx,minn :: Num a => Expr a -> Expr a -> Expr a
 maxx = arith Max -- instance magic would require an Ord instance...
 minn = arith Min -- ...which requires an Eq instance
 
 nott = Not
 
-acc :: (ExprG a -> ExprG a) -> Int -> ExprG a -> ExprG a
+acc :: (Expr a -> Expr a) -> Int -> Expr a -> Expr a
 acc _ 0 a = a
 acc f i a = let v = newName "v" 
             in Acc (v,f (V v)) i a
@@ -248,7 +248,7 @@ newName s = unsafePerformIO (do next <- takeMVar idSupply
 ----------------------------------------------------------------
 
 -- | Does an expression contain any observables or choices?
-certainExp :: ExprG a -> Bool
+certainExp :: Expr a -> Bool
 certainExp e = case e of
                  V _ -> False       --  if variables are used only for functions in Acc, we could return true here!
                  I _ -> True
@@ -267,7 +267,7 @@ certainExp e = case e of
                  Or e1 e2 -> certainExp e1 && certainExp e2
 
 -- | translating an expression in time
-translExp :: ExprG a -> Int -> ExprG a
+translExp :: Expr a -> Int -> Expr a
 translExp e 0 = e
 translExp e d = 
     case e of
@@ -295,7 +295,7 @@ ppReal :: Double -> String
 ppReal = printf "%.4f"
 
 -- | internal: print an expression, using an int printing function
-ppExp0 :: (Int -> String) -> ExprG a -> String
+ppExp0 :: (Int -> String) -> Expr a -> String
 ppExp0 ppInt e = 
     case e of
            V s -> s
@@ -334,9 +334,9 @@ evalI env e = case eval env e of {I n -> n; _ -> throw (Eval "evalI failed")}
 evalR env e = case eval env e of {R n -> n; _ -> throw (Eval "evalR failed")} 
 evalB env e = case eval env e of {B n -> n; _ -> throw (Eval "evalB failed")} 
 
--- ExprG evaluator. Types checked statically, no checks required.
+-- Expr evaluator. Types checked statically, no checks required.
 -- Assumes that the expr _can_ be evaluated, required fixings known
-eval :: Env -> ExprG a -> ExprG a
+eval :: Env -> Expr a -> Expr a
 eval env e = 
        case e of
          I _ -> e
@@ -388,6 +388,6 @@ eval env e =
                          (bb1, bb2)   -> Or bb1 bb2
 
 -- | simplify an expression, using an environment
-simplifyExp :: Env -> ExprG a -> ExprG a
+simplifyExp :: Env -> Expr a -> Expr a
 simplifyExp env e = eval env e
 

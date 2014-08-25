@@ -36,7 +36,7 @@
 % auto-colorisation with listings, handy for known languages...
 \lstdefinestyle{hsstyle}{
   language=Haskell,
-  basicstyle=\scriptsize\ttfamily,
+  basicstyle=\scriptsize\rmfamily,
   commentstyle=\it\color{Green},
   stringstyle=\mdseries\rmfamily\color{Gray},
   showspaces=false,
@@ -191,14 +191,14 @@ data Expr a where
 \begin{hscode}
   data Currency = EUR | USD | SEK... -- names (assets)
   type Party = String       -- parties
-  data Contr -- internal    -- contracts
-  zero        :: Contr             
-  transfOne   :: Cur -> Party -> Party -> Contr
-  scale       :: RExpr -> Contr -> Contr
-  transl      :: Int -> Contr -> Contr
-  both        :: Contr -> Contr -> Contr
-  iff         :: BExpr -> Contr -> Contr -> Contr
-  checkWithin :: BExpr -> Int -> Contr -> Contr -> Contr
+  data Contract -- internal -- contracts
+  zero        :: Contract            
+  transfOne   :: Cur -> Party -> Party -> Contract
+  scale       :: RExpr-> Contract-> Contract
+  transl      :: Int-> Contract-> Contract
+  both        :: Contract-> Contract-> Contract
+  iff         :: BExpr-> Contract-> Contract-> Contract
+  checkWithin :: BExpr-> Int-> Contract-> Contract-> Contract
 \end{hscode}
 
 \begin{description}

@@ -18,7 +18,7 @@ testPP pp s e1 e2 = let pr msg = putStrLn (file ++ " - " ++ s ++ ": " ++ msg)
                                          ++ ", got " ++ pp2))
                            (\e -> pr ("EXN, " ++ show (e::E.SomeException)))
 
-etestE :: String -> ExprG a -> ExprG a -> Env -> IO ()
+etestE :: String -> Expr a -> Expr a -> Env -> IO ()
 etestE s e1 e2 env = testPP ppExp s e1 (simplifyExp env e2)
 
 etest s e1 e2 = etestE s e1 e2 emptyEnv
@@ -86,7 +86,7 @@ avgtest = do etestE "test acc - avg" (pair (r 15) (i 5)) (acc cnt 5 (pair 0 0)) 
                         (acc cnt 5 (pair 0 0)) env
     where env = foldr (\(i,r) e -> addFix ("C",i,r) e) emptyEnv 
                       [(0,1.0),(1,2.0),(2,3.0),(3,4.0),(4,5.0)]
---          cnt :: ExprG (Double,Int) -> ExprG (Double,Int)
+--          cnt :: Expr (Double,Int) -> Expr (Double,Int)
           cnt x =  pair (first x + obs("C",0)) (second x + 1)
 
 main = runtests

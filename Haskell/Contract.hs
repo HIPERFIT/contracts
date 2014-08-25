@@ -6,7 +6,7 @@ module Contract
     , ppContr
     -- expressions:
     , Var, Currency(..) -- all constructors exported
-    , BoolE, IntE, RealE -- ExprG itself is not exported
+    , BoolE, IntE, RealE -- Expr itself is not exported
     -- constructors
     , i, r, b, v, pair, first, second, acc, obs, chosenBy
     -- operators, unless in Num instance
