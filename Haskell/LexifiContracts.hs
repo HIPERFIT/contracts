@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-} -- only required until we have division on RealE
 
 -- contracts from Lexifi, used with the generic pricing engine
 
@@ -9,6 +10,7 @@ import Contract
 import Contract.Type
 import Contract.Date
 import Contract.Expr
+import Contract.Environment
 
 -- European option on DJ_Eurostoxx_50, starting 
 european :: MContract
@@ -42,7 +44,8 @@ worstOff = (start, foldr mkDateCheck endCase (zip dDiffs premiums))
           -- otherwise pay the fraction of the worst (HOW? no division)
           endCase = iff (allAbove 0.75) (collectEUR 1000) 
                         (collectEUR (1000 * minRatio))
-          minRatio = error "cannot define minimum ratio without division"
+          minRatio = foldl1 minn 
+                            (zipWith (\id sp -> obs(id,0) !/! sp) idxs spots)
           allAbove d = nott (foldl1 (!|!) 
                              (zipWith (fractionSmaller d) idxs spots))
            {- 0.75 < minimum [ obs(id,0) / sp | (id, sp) <- zip idxs spots ]
@@ -52,5 +55,36 @@ worstOff = (start, foldr mkDateCheck endCase (zip dDiffs premiums))
             not (or [obs(id, 0) !<! 0.75 * sp | (id, sp) <- zip idxs spots]) -}
           fractionSmaller d idx spot = obs(idx, 0) !<! d * spot
           collectEUR amount = scale amount (transfOne EUR "them" "us")
+
+-- barrier of 0.7*start on 3 indexes, monitored over 367 days from
+-- start payment scaled (by fraction, cannot implement it now) if any
+-- barrier breached and at least one end index lower than at start
+barrierRevConvert :: MContract
+barrierRevConvert = (start,
+                     Both (transl 367 (collectEUR 100))
+                          (iff breached
+                           (transl 367 
+                            (iff below1 (collectEUR minRatio) (collectEUR 1000)))
+                           zero))
+    where start = at "2012-01-27"
+          -- same indexes, spot prices, helpers as in contract above
+          allAbove d = nott (foldl1 (!|!) 
+                             (zipWith (fractionSmaller d) idxs spots))
+          fractionSmaller d idx spot = obs(idx, 0) !<! d * spot
+          idxs   = [ "DJ_Eurostoxx_50", "Nikkei_225", "SP_500" ]
+          spots  = [ 3758.05, 11840, 1200 ]
+          collectEUR amount = scale amount (transfOne EUR "them" "us")
+          minRatio = foldl1 minn 
+                            (zipWith (\id sp -> obs(id,0) !/! sp) idxs spots)
+          -- barrier check is accumulated (MEMO: does !|! shortcut evaluation?)
+          below07  = nott (allAbove 0.7) -- checked on current day
+          breached = acc (\x -> x !|! below07) 366 below07 -- now till day 367
+          below1   = nott (allAbove 1)
+
+-- yeuch
+(!/!) :: RealE -> RealE -> RealE
+a !/! b = case (eval emptyEnv a, eval emptyEnv b) of
+            (R x, R y) -> R (x/y)
+            other      -> error "cannot represent division on RealE right now"
 
 --
