@@ -1,0 +1,150 @@
+Contracts received from Lexifi with the Generic Pricing engine:
+---------------------------------------------------------------
+
+These contract descriptions have been compiled from information picked
+up from code (payoff function) and from some information in files
+received from Lexifi, together with what we wrote in the FHPC'12 paper
+(assume the latter was based on face2face infos during meetings with
+Lexifi)
+
+-----------------------------------------------------------
+1. simple European option
+
+Directory: <Lexifi-BrownianBridge>/OrigC/examples/
+
+Today: 2011-12-09
+Underlyings: "DJ_Eurostoxx_50", spot 3758.05
+
+Payoff: max ( 0.0 , underlyings[0][0]-4000.0) * deterministic_values (?)
+
+==> payoff graph           /
+                 _________/
+                        4000
+European call option on DJ_Eurostoxx_50, strike 4000 (settled)
+
+Dates involved (from comment in Lexifi code)
+2012-11-30
+
+------------------------------------------------------------
+2. "worst-off" contract (5 dates, 3 underlyings)
+
+Directory: <Lexifi-BrownianBridge>/OrigC/worst_off_contract/
+
+Today: 2012-01-27
+Underlyings: "DJ_Eurostoxx_50", spot 3758.05
+             "Nikkei_225",      spot 11840.0
+             "SP_500",          spot 1200.0
+
+Payoff:
+Haskell code: (xss matrix of prices for 3 underlyings (cols) at 5 dates (rows)
+(from <Lexifi-BrownianBridge>/Haskell/PricingExample2.hs)
+
+payoff_2 Pricing_Data{..} xss
+   = let mins =  V.map (\xs -> V.minimum (V.zipWith (/) xs md_starts)) xss
+         mins' = V.toList mins ++ [mins!4,undefined]
+         discounted_payoffs = zipWith (*) (V.toList model_discounts) premiums
+                              ++ map (* model_discounts!4) [1000, 1000 * mins!4]
+         premiums = [1150.0, 1300.0, 1450.0, 1600.0, 1750]
+         conds    = [(>=1),(>=1),(>=1),(>=1),(>=1),(>0.75),const True]
+         payoffs  = [ pay | (cond,m,pay) <- zip3 conds mins' discounted_payoffs
+                            , cond m ]
+     in head payoffs -- never empty, last predicate always true
+
+In text:
+
+On each date, check whether all indexes are above their initial value.
+(division by md_starts, first five conds). If this is the case, pay a
+previously fixed amount, depending on which date it was (premiums),
+and end the contract. Otherwise continue with the next date.
+
+If test on all five dates failed (at least one was below start on each
+date), test if all indexes were at least 75% of the start value. In
+this case, pay 1000 (end of discounted_payoffs). Otherwise, pay
+(1000*worst percentage).
+
+The case for date 5 is encoded in C in a convoluted manner:
+- if date 5 is reached,
+a) unconditional cash flow of 1000
+b) if all indexes are above start: cash flow of 750, end.
+c) or else: if all indexes above 0.75 start: end
+d)          or else: negative cash flow of (1000 * (1 - ratio))
+
+The Haskell code computes all ratios between current and start price
+(mins), adding the special cases at the end, and compares them using
+the cond predicates (again special cases at the end, last one always
+true). Payoffs are discounted using given discount values.
+
+Dates involved (from comments in Lexifi code):
+
+2013-02-01, 2014-02-03, 2015-02-03, 2016-02-03, 2017-02-03
+
+(I believe these are business days following 201X-01-27, thus we have
+a yearly check for five years)
+
+-------------------------------------------------------
+3. "Barrier Rev. Convert"
+
+Directory: <Lexifi-BrownianBridge>/OrigC/barrier_rev_convert_contract/
+
+Today: 2012-01-27
+Underlyings: "DJ_Eurostoxx_50", spot 3758.05
+             "Nikkei_225",      spot 11840.0
+             "SP_500",          spot 1200.0
+
+Payoff:
+
+Haskell code: (xss matrix of prices for 3 underlyings (cols) at 367 dates (rows)
+from finpar/GenericPricing/HaskellLH/GenPricing.hs (DISCLAIMER: not my code)
+
+payoff3 md_disc xss =
+--      for any n <- [0..366]
+        x3309 = any (\ [x,y,z] -> or [ x <= 2630.6349999999998
+                                     , y <= 8288.0
+                                     , z <= 840.0])
+                                  xss
+
+        goto_40 = x3309 &&
+                  ( (underlyings(366,0) < 3758.05) ||
+                    (underlyings(366,2) < 1200.0 ) ||
+                    (underlyings(366,1) < 11840.0)  )
+
+        price1  = trajInner 100.0 0 md_disc
+
+        price2  = if goto_40
+                  then let m1 = min ((underlyings(366,2) / 1200.0 ) - 1.0)
+                                    ((underlyings(366,0) / 3758.05) - 1.0)
+                           m2 = min ((underlyings(366,1) / 11840.0) - 1.0) m1
+                           amount = (1000.0 * (1.0 + m2 ) )
+                       in  trajInner amount 1 md_disc
+                  else     trajInner 1000.0 1 md_disc
+    in  price1 + price2
+
+In words:
+
+Barriers: Each day for one year (366 days in 2012), check whether any
+of the underlyings is below 0.7*start (x3309). Additionally check if,
+at the end, any of the underlyings is below start (goto_40). If both
+conditions are met (barrier breach and lower at end),
+
+Payments:
+a) Unconditionally pay 100 (price1). (???)
+b) If a barrier was hit during the year, pay 1000 * smallest ratio
+   where a ratio is computed as price at end (day 366) / price at start
+   Or else: pay 1000 if no barrier was hit
+
+Nicer code would be:
+
+payoff3 md_disc xss = price1 + price2
+    where price1 = trajInner 100.0 0 md_disc
+          price2 = trajInner (1000.0 * factor) 1 md_disc
+          factor = if barrier_breached then min_ratio else 1.0
+          min_ratio = minimum (zipWith (/) (last underlyings) start_prices
+          barrier_breached
+              = any (\list -> or (zipWith (<=) list (map (0.7*) start_prices))
+                    underlyings
+                && or (zipWith (<) (last underlyings) start_prices
+
+Dates involved (from comments in Lexifi code):
+2013-01-27
+
+(both payments, but using different discounts - 0 and 1 arg. to trajInner)

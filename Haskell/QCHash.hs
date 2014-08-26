@@ -1,4 +1,4 @@
-{-# LANGUAGE GADTs, FlexibleInstances, FlexibleContexts #-}
+{-# LANGUAGE GADTs, FlexibleInstances, FlexibleContexts, MultiParamTypeClasses #-}
 
 -- module QCHash where
 
@@ -15,13 +15,35 @@ import Control.Monad
 import Control.Applicative
 import System.Environment
 
+-- smallcheck
+import qualified Test.SmallCheck as SC
+import Test.SmallCheck.Series
+
+instance Monad m => Serial m AOp where
+    series = foldl1 (\/) (map return  [Plus, Minus, Times, Max, Min])
+
+instance Monad m => Serial m RealE where
+    series = cons1 (V . ('v':)) \/ cons1 R \/ cons3 Arith \/ cons3 Acc
+
+instance Monad m => Serial m IntE where
+    series = cons1 (V . ('v':)) \/ cons1 I \/ cons3 Arith \/ cons3 Acc
+
+instance Monad m => Serial m BoolE where
+    series = cons1 (V . ('v':)) \/ cons1 B \/ cons3 Acc \/ 
+             cons2 Or \/ cons1 Not \/
+             cons2 (Equal :: RealE -> RealE -> BoolE) \/ 
+             cons2 (Less ::  RealE -> RealE -> BoolE) \/
+             cons2 (Equal :: IntE -> IntE -> BoolE) \/ 
+             cons2 (Less ::  IntE -> IntE -> BoolE) \/
+             cons2 (Equal :: BoolE -> BoolE -> BoolE)
+
 instance Arbitrary RealE where
     -- arbitrary :: Gen (Expr a)
     arbitrary = sized realE
 realE 0 = oneof  [arbitrary >>= return . R, arbitrary >>= return . V]
 realE n | n > 0 = oneof [lit, var, op (n `div` 2), ac (n `div` 2)]
         where lit = arbitrary >>= return . R
-              var = arbitrary >>= return . V
+              var = arbitrary >>= return . V . ('v':)
               op n = do e1 <- realE n
                         e2 <- realE n
                         op <- oneof (map return [(+), (-), (*), maxx, minn])
@@ -39,7 +61,7 @@ instance Arbitrary IntE where
 intE 0 = oneof  [arbitrary >>= return . I, arbitrary >>= return . V]
 intE n | n > 0 = oneof [lit, var, op (n `div` 2), ac (n `div` 2)]
         where lit = arbitrary >>= return . I
-              var = arbitrary >>= return . V
+              var = arbitrary >>= return . V . ('v':)
               op n = do e1 <- intE n
                         e2 <- intE n
                         op <- oneof (map return [(+), (-), (*), maxx, minn])
@@ -56,12 +78,16 @@ instance Arbitrary BoolE where
 
 boolE 0 = oneof [arbitrary >>= return . B, arbitrary >>= return . V]
 boolE n | n > 0 = oneof ([var, lit] ++
-                         map (\f -> f (n `div` 2)) [not, opR, opB, ac])
+                         map (\f -> f (n `div` 2)) [not, opR, opI, opB, ac])
         where lit = arbitrary >>= return . B
-              var = arbitrary >>= return . V
+              var = arbitrary >>= return . V . ('v':)
               not n = boolE n >>= return . Not
               opR n = do e1 <- realE n
                          e2 <- realE n
+                         op <- oneof (map return [Equal, Less])
+                         return (op e1 e2)
+              opI n = do e1 <- intE n
+                         e2 <- intE n
                          op <- oneof (map return [Equal, Less])
                          return (op e1 e2)
               opB n = do e1 <- boolE n
@@ -164,8 +190,8 @@ equivC _ _ = False
 
 -- main program (you want to run compiled code for this!!!)
 main = do args <- getArgs
-          let size = if null args then 256 else 2^(read (head args))
-              params = stdArgs { maxSize = size }
+          let size = if null args then 8 else read (head args)
+              params = stdArgs { maxSize = 2^size }
           -- long live the monomorphism restriction, yeuch
           putStrLn ("Testing all properties with max size " ++ show size)
           quickCheckWith params prop_eqE
@@ -174,6 +200,15 @@ main = do args <- getArgs
           putStrLn "Done with B expressions"
           quickCheckWith params prop_eqC
           putStrLn "Done with contracts"
+
+          putStrLn ("Do you have time, should I test with smallCheck (depth "
+                    ++ show size ++ ")? (y/n)")
+          c <- getChar
+          if c == 'y' then do SC.smallCheck size prop_eqE
+                              putStrLn "done with eqE"
+                              SC.smallCheck size prop_eqB
+                              putStrLn "Done"
+                      else putStrLn "OK, maybe next time."
 
 rename :: (Var,Var) -> Expr a -> Expr a
 rename (x,y) (V s) | s == x    = V y
@@ -208,3 +243,23 @@ vars cs = [ c : s | s <- "" : vars cs, c <- cs ]
 evens, odds :: [a] -> [a]
 evens (x:xs) = x:odds xs -- index 0 is even.
 odds  (x:xs) = evens xs
+
+{-
+Thanks to smallcheck, we get some insight:
+
+Prelude Contract.Expr> hashExp [] (Equal (I (-1)) (I 1)) 0 
+175
+Prelude Contract.Expr> hashExp [] (Equal (I (-2)) (I 2)) 0 
+175
+
+Surprisingly:
+Prelude Contract.Expr> hashExp [] (Equal (-1) 1) 0 
+225378657556
+Prelude Contract.Expr> hashExp [] (Equal 0 0) 0 
+23787057471
+
+Because:
+Prelude Contract.Expr> hashExp [] (Equal (R (-1)) (R 1)) 0 
+225378657556
+
+-}
