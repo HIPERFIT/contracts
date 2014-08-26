@@ -201,7 +201,8 @@ eDependsOn _ = Deps [] -- no dependencies
 
 -- | extend dependencies by a number of days
 extendD :: Int -> Dependencies -> Dependencies
-extendD i (Deps ds) = Deps (map ext ds)
+extendD i (Deps ds) 
+    = foldr insertD (Deps []) (map ext ds) -- eliminate new overlaps
     where ext d = d { end = end d + i }
 
 -- | translate dependencies by a given offset
