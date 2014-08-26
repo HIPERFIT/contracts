@@ -41,12 +41,17 @@ mergeUniq (x:xs) (y:ys) = case compare x y of
                             EQ -> x : mergeUniq xs ys
 
 -- | trigger representation: Obs. string, time range (from,to), values
-type Trigger = (String, (Int,Int), [Double])
+data Trigger = Trig {tr_obs :: String,
+                     tr_start, tr_end :: Int,
+                     tr_values :: [Double] }
+trig :: String -> Int -> Int -> [Double] -> Trigger
+trig = Trig
 
 -- | trigger merge helper.
 trMerge' :: Trigger -> [Trigger] -> [Trigger]
-trMerge' tr@(s,(d1,d2),vs) [] = [tr]
-trMerge' tr@(s,(d1,d2),vs) (tr'@(s',(d1',d2'),vs'):trs)
+trMerge' tr [] = [tr]
+trMerge' tr@Trig {tr_obs=s, tr_start=d1, tr_end=d2, tr_values=vs }
+         (tr'@Trig {tr_obs=s',tr_start=d1', tr_end=d2', tr_values=vs' } : trs)
     | s /= s' = tr' : trMerge' tr trs -- different observables
     | s == s' =
 {-   compares intervals and splits into several (2 or 3) resulting ones:
@@ -65,40 +70,46 @@ trMerge' tr@(s,(d1,d2),vs) (tr'@(s',(d1',d2'),vs'):trs)
 -}
         {- merge opportunity. However, might be desirable to keep apart
         if vs == vs' && (d2 == d1'+1 || d1 == d2'+1)
-        then trMerge' (s, (min d1 d1', max d2 d2'), vs) trs
+        then trMerge' tr{tr_start=min d1 d1', tr_end=max d2 d2'} trs
         else -}
         if d2 < d1' || d2' < d1 -- disjoint, continue merging
         then tr' : trMerge' tr trs
         else
             if d1 == d1'
             then if d2 == d2' -- identical ranges:
-                 then (s,(d1,d2), mergeUniq vs vs') : trs
+                 then tr{tr_values = mergeUniq vs vs'} : trs
                  else -- simple inclusion, and we know d2 /= d2'
-                     let vs'' = if d2 < d2' then vs' else vs
-                         lo   = min d2 d2'
-                     in trMerge ((s, (d1,lo), mergeUniq vs vs') :
-                                 (s, (lo+1, max d2 d2'), vs'') : trs)
+                     let lo   = min d2 d2'
+                         t1   = tr { tr_end = lo,
+                                     tr_values = mergeUniq vs vs' }
+                         t2   = tr { tr_start=lo+1, tr_end=max d2 d2',
+                                     tr_values= if d2 < d2' then vs' else vs }
+                     in trMerge (t1 : t2 : trs)
             else if d2 == d2' -- simple inclusion, d1 /= d1'
-             then let vs'' = if d1 < d1' then vs else vs'
-                      hi   = max d1 d1'
-                  in trMerge ((s, (min d1 d1', hi), vs'') :
-                              (s, (hi+1, d2), mergeUniq vs vs') : trs)
+             then let hi   = max d1 d1'
+                      t1   = tr {tr_start=min d1 d1', tr_end = hi,
+                                 tr_values = if d1 < d1' then vs else vs' }
+                      t2   = tr {tr_start=hi+1, tr_end=d2,
+                                 tr_values= mergeUniq vs vs' }
+                  in trMerge (t1 : t2 : trs)
              else -- d1 /= d1', d2 /= d2'
                  if d1 < d1' && d2' < d2 -- inclusion of tr'
-                 then trMerge ((s,(d1,d1'-1), vs) :
-                               (s,(d1',d2'), mergeUniq vs vs') :
-                               (s,(d2'+1,d2), vs) : trs)
+                 then trMerge ( tr { tr_end = d1'-1 } :
+                                tr' { tr_values = mergeUniq vs vs'} :
+                                tr { tr_start=d2'+1 } : trs )
                  else if d1' < d1 && d2 < d2' -- inclusion of tr
-                  then trMerge ((s,(d1',d1-1), vs') :
-                                (s,(d1,d2), mergeUniq vs vs') :
-                                (s,(d2+1,d2'), vs) : trs)
+                  then trMerge ( tr' { tr_end=d1-1 } :
+                                 tr  { tr_values=mergeUniq vs vs' } :
+                                 tr' { tr_start=d2+1} : trs )
                   else -- real overlap
-                      let v1s = if d1 < d1' then vs else vs'
-                          v2s = if d2 < d2' then vs' else vs
-                          (mid1,mid2) = (max d1 d1', min d2 d2')
-                      in trMerge ((s,(min d1 d1',mid1-1), v1s) :
-                                  (s,(mid1,mid2), mergeUniq vs vs') :
-                                  (s,(mid2+1,max d2 d2'), v2s) : trs )
+                      let (mid1,mid2) = (max d1 d1', min d2 d2')
+                          t1 = tr { tr_start=min d1 d1', tr_end=mid1-1,
+                                    tr_values= if d1 < d1' then vs else vs' }
+                          t2 = tr { tr_start=mid1, tr_end=mid2,
+                                    tr_values=mergeUniq vs vs' }
+                          t3 = tr { tr_start=mid2+1, tr_end=max d2 d2',
+                                    tr_values= if d2 < d2' then vs' else vs }
+                      in trMerge ( t1 : t2 : t3 : trs )
 
 -- | merging all triggers in the list (foldr) 
 trMerge :: [Trigger] -> [Trigger]
@@ -110,11 +121,11 @@ tryEvalR e = case eval emptyEnv e of { R d -> Just d; _ -> Nothing }
 -- | analyses an expression for triggers. Returns list of triggers, using given time range as starting point for the analysis
 triggersExp :: (Int,Int) -> BoolE -> [Trigger]
 triggersExp (x,y) (Less (R v) (Obs (str,day)))
-    = [(str,(x+day,y+day), [v])]
+    = [ trig str (x+day) (y+day) [v] ]
 triggersExp (x,y) (Less e1 (Obs (str,day)))
-    = maybe [] (\v -> [(str,(x+day,y+day), [v])]) (tryEvalR e1)
+    = maybe [] (\v -> [ trig str (x+day) (y+day) [v] ] ) (tryEvalR e1)
 triggersExp (x,y) (Less (Obs(s,d)) e1) 
-    = maybe [] (\v -> [(s,(x+d,y+d), [v])]) (tryEvalR e1)
+    = maybe [] (\v -> [trig s (x+d) (y+d) [v] ] ) (tryEvalR e1)
 triggersExp (x,y) (Or e1 e2)
     = trMerge (triggersExp (x,y) e1 ++ triggersExp (x,y) e2)
 triggersExp (x,y) (Not e1) = triggersExp (x,y) e1
@@ -141,9 +152,10 @@ triggers (t1,t2) (CheckWithin e d c1 c2)
 -- | format a list of triggers, one per line
 ppTriggers :: [Trigger] -> String
 ppTriggers     [] = ""
-ppTriggers ((s,(i,j),vs):rest) 
-    = s ++ " from day " ++ show i ++ " to " ++ show j ++
-      ": " ++ concat (intersperse ", " (map ppReal vs)) ++
+ppTriggers (tr:rest) 
+    = tr_obs tr ++ " from day " ++ show (tr_start tr) ++ " to " 
+      ++ show (tr_end tr) ++ ": "
+      ++ concat (intersperse ", " (map ppReal (tr_values tr))) ++
       "\n" ++ ppTriggers rest
 
 -----------------------------------------------------------------------
@@ -151,9 +163,9 @@ ppTriggers ((s,(i,j),vs):rest)
 
 -- | dependency (of an expression or contract) on a single observable
 data Dependency 
-    = Dep { observable :: String,
-            start, end :: Int -- ^ dependency range (Note: from start
-                              -- to end-1)
+    = Dep { d_obs :: String,      -- ^ observable
+            d_start, d_end :: Int -- ^ dependency range (Note: from
+                                  -- start to end-1)
           }
       deriving (Eq,Show)
 
@@ -167,14 +179,15 @@ data Dependencies
 -- | insert a 'Dependency' into 'Dependencies'
 insertD :: Dependency -> Dependencies -> Dependencies
 insertD d (Deps ds) = Deps (ds1 ++ ins d ds2)
-    where (ds1, ds2) = break ((observable d ==) . observable) ds
+    where (ds1, ds2) = break ((d_obs d ==) . d_obs) ds
           ins d [] = [d]
-          ins d (d':ds) | end d   < start d' = d : d' : ds
-                        | end d'  < start d  = d' : ins d ds
+          ins d (d':ds) | d_end d   < d_start d' = d : d' : ds
+                        | d_end d'  < d_start d  = d' : ins d ds
                         -- otherwise: overlap, merge d with d'
                         | otherwise 
-                            = d {start = min (start d) (start d'),
-                                 end = max (end d) (end d')        } : ds
+                            = d {d_start = min (d_start d) (d_start d'),
+                                 d_end = max (d_end d) (d_end d')} 
+                              : ds
 
 -- | merge two dependencies
 mergeDs :: Dependencies -> Dependencies -> Dependencies
@@ -203,12 +216,12 @@ eDependsOn _ = Deps [] -- no dependencies
 extendD :: Int -> Dependencies -> Dependencies
 extendD i (Deps ds) 
     = foldr insertD (Deps []) (map ext ds) -- eliminate new overlaps
-    where ext d = d { end = end d + i }
+    where ext d = d { d_end = d_end d + i }
 
 -- | translate dependencies by a given offset
 transD :: Int -> Dependencies -> Dependencies
 transD i (Deps ds) = Deps (map tr ds)
-    where tr d = d { start = start d + i, end = end d + i }
+    where tr d = d { d_start = d_start d + i, d_end = d_end d + i }
 
 -- | collects all 'Dependencies' on which a contract depends
 cDependsOn :: Contract -> Dependencies
