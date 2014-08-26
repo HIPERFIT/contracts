@@ -58,7 +58,7 @@ previously fixed amount, depending on which date it was (premiums),
 and end the contract. Otherwise continue with the next date.
 
 If test on all five dates failed (at least one was below start on each
-date), test if all indexes were at least 75% of the start value. In
+date), test on last date if all indexes are at least 75% of start. In
 this case, pay 1000 (end of discounted_payoffs). Otherwise, pay
 (1000*worst percentage).
 

@@ -203,6 +203,13 @@ instance MkExpr Int where
 instance MkExpr Double where
     constr = R
 
+-- | Fractional instance for Expr Double, enables fractional literals
+-- (and division, not used yet)
+instance (MkExpr a, Fractional a) => Fractional (Expr a) where
+    (/) = undefined -- arith Div, when we have a division operator
+    -- recip x = 1 / x -- default
+    fromRational x = constr (fromRational x)
+
 -- the smart constructors of the interface
 
 i = I -- :: Int  -> IntE
