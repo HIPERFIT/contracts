@@ -154,7 +154,7 @@ hashExp vs e a =
          V v -> case index v vs of
                   Just i -> hash (ps!!0) (hash i a)
                   Nothing -> hash (ps!!0) (hashStr v a)
-         I i -> hash (ps!!1) (hash i a)
+         I i -> hash (ps!!1) (hashSigned i a)
          R r -> hash (ps!!2) (hashStr (ppReal r) a)
          B True -> hash (ps!!3) a
          B False -> hash (ps!!4) a

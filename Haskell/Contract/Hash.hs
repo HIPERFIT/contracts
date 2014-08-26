@@ -1,7 +1,7 @@
 -- | Utility module for hashing expressions and contracts
 module Contract.Hash
     ( Hash
-    , hash, hashStr, hashPrimes, index
+    , hash, hashStr, hashPrimes, index, hashSigned
     ) where
 
 import Data.Char
@@ -25,9 +25,16 @@ hash :: Integral a => a -> Hash -> Hash
 hash 0 a = a
 hash p a = fromIntegral p * (a + 1)
 
+-- | hashing an integral number to non-negative hash
+hashSigned :: Integral a => a -> Hash -> Hash
+hashSigned p | p < 0 = hash 2 . hash (negate p) 
+             | otherwise = hash 3 . hash p
+
+
 -- | 
 hashAdd :: Integral a => a -> Hash -> Hash
 hashAdd w acc = fromIntegral w + acc * beta
+
 
 hashStr :: String -> Hash -> Hash
 hashStr s a = go 0 a
