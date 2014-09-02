@@ -57,8 +57,9 @@ fxTouch buyer seller curSettle amount (cur1,cur2) barrier kind expiry
                   (scale amount (transfOne curSettle buyer seller))
                   zero
       where cond = case kind of
-                     Up   -> barrier !<! obs (rate,0)
-                     Down -> obs (rate,0) !<! barrier
+                     -- including == case:
+                     Up   -> nott (obs (rate,0) !<! barrier)
+                     Down -> nott (barrier !<! obs (rate,0))
             rate = fxRate cur1 cur2
 
 -- | no-touch option: payment if a barrier is _not_ breached
@@ -72,10 +73,8 @@ fxNoTouch buyer seller curSettle amount (cur1,cur2) barrier kind expiry
                   (scale amount (transfOne curSettle buyer seller))
       where rate = fxRate cur1 cur2
             cond = case kind of
-                     Up   -> barrier !<! obs (rate,0)
-                     Down -> obs (rate,0) !<! barrier
-             {- -- when including == case:
-                Up   -> not (obs (rate,0) !<! barrier)
-                Down -> not (barrier !<! obs (rate,0) -}
+                     -- including == case:
+                     Up   -> nott (obs (rate,0) !<! barrier)
+                     Down -> nott (barrier !<! obs (rate,0))
             
 -- ... not done yet: single/double barrier in/out contracts

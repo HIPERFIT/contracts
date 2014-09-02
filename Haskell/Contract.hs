@@ -20,7 +20,7 @@ module Contract
     , ppExp
     -- evaluation
     , MEnv, emptyFrom, emptyEnv
-    , addFixing, addFixings
+    , addFixing, addFixings, fixings
     , promoteEnv
     , simplifyExp
     , eval -- , evalI, evalR, evalB

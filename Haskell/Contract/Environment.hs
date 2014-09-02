@@ -2,7 +2,7 @@ module Contract.Environment
     ( MEnv(..), Env -- MEnv constructor for internal use only!
     -- operations only on managed environments
     , emptyEnv, emptyFrom
-    , addFix, addFixing, addFixings
+    , addFix, addFixing, addFixings, fixings
     , promote, promoteEnv
     )
 where
