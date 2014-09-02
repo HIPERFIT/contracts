@@ -1,9 +1,12 @@
 module Contract
     ( Contract -- without constructors
+    , MContract
     , Party
     -- smart constructors and convenience functions, defined in Contract.Type
     , zero, transfOne, transl, iff, checkWithin, both, allCs, scale, flow
     , ppContr
+    -- dates:
+    , Date, DateError, dateDiff, at, addDays, ppDate, ppDays
     -- expressions:
     , Var, Currency(..) -- all constructors exported
     , BoolE, IntE, RealE -- Expr itself is not exported
@@ -16,10 +19,11 @@ module Contract
     -- pretty-printer
     , ppExp
     -- evaluation
-    , MEnv, emptyFrom
+    , MEnv, emptyFrom, emptyEnv
     , addFixing, addFixings
     , promoteEnv
-    , evalI, evalR, evalB, simplifyExp
+    , simplifyExp
+    , eval -- , evalI, evalR, evalB
     -- printing cashflows:
     , Cashflow, ppCashflow, ppCashflows, cashflows
     ) where

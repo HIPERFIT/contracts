@@ -7,10 +7,7 @@ module LexifiContracts
 
 -- MEMO: clean up imports and exports of umbrella file "Contract.hs"
 import Contract
-import Contract.Type
-import Contract.Date
 import Contract.Expr
-import Contract.Environment
 
 -- European option on DJ_Eurostoxx_50, starting 
 european :: MContract
@@ -61,30 +58,28 @@ worstOff = (start, foldr mkDateCheck endCase (zip dDiffs premiums))
 -- barrier breached and at least one end index lower than at start
 barrierRevConvert :: MContract
 barrierRevConvert = (start,
-                     Both (transl 367 (collectEUR 100))
+                     both (transl 367 (collectEUR 100))
                           (iff breached
                            (transl 367 
-                            (iff below1 (collectEUR minRatio) (collectEUR 1000)))
+                            (iff (oneBelow 1) (collectEUR minRatio) (collectEUR 1000)))
                            zero))
     where start = at "2012-01-27"
-          -- same indexes, spot prices, helpers as in contract above
-          allAbove d = nott (foldl1 (!|!) 
-                             (zipWith (fractionSmaller d) idxs spots))
-          fractionSmaller d idx spot = obs(idx, 0) !<! d * spot
           idxs   = [ "DJ_Eurostoxx_50", "Nikkei_225", "SP_500" ]
           spots  = [ 3758.05, 11840, 1200 ]
-          collectEUR amount = scale amount (transfOne EUR "them" "us")
+          oneBelow d = foldl1 (!|!) (zipWith (fractionSmaller d) idxs spots)
+          fractionSmaller d idx spot = obs(idx, 0) !<! d * spot
           minRatio = foldl1 minn 
                             (zipWith (\id sp -> obs(id,0) !/! sp) idxs spots)
           -- barrier check is accumulated (MEMO: does !|! shortcut evaluation?)
-          below07  = nott (allAbove 0.7) -- checked on current day
-          breached = acc (\x -> x !|! below07) 366 below07 -- now till day 367
-          below1   = nott (allAbove 1)
+          breached = acc (\x -> x !|! oneBelow 0.7) 366 (oneBelow 0.7)
+                                                   -- now till day 367
+          collectEUR amount = scale amount (transfOne EUR "them" "us")
+          -- same indexes, spot prices, helpers as in contract above
 
 -- yeuch
 (!/!) :: RealE -> RealE -> RealE
 a !/! b = case (eval emptyEnv a, eval emptyEnv b) of
-            (R x, R y) -> R (x/y)
+            (R x, R y) -> (r (x / y))
             other      -> error "cannot represent division on RealE right now"
 
 --
