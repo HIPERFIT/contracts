@@ -3,6 +3,7 @@ module Contract.Analysis
     ( horizon
     , Trigger
     , triggers
+    , branchBounds
     , ppTriggers
     -- dependencies
     , Dependencies(..), Dependency(..), eDependsOn, cDependsOn
@@ -157,6 +158,9 @@ ppTriggers (tr:rest)
       ++ show (tr_end tr) ++ ": "
       ++ concat (intersperse ", " (map ppReal (tr_values tr))) ++
       "\n" ++ ppTriggers rest
+
+branchBounds :: MContract -> [Trigger]
+branchBounds (d,c) = triggers (0,0) c
 
 -----------------------------------------------------------------------
 

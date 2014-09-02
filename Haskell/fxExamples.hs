@@ -33,3 +33,5 @@ run =  (putStrLn . ppCashflows . cashflows) allTouch'
 2014-09-13 Certain [D->us] USD 60000.0000
 
 -}
+
+trs = (putStrLn . ppTriggers . branchBounds) touchOptions
