@@ -142,16 +142,10 @@ i.e.\ for time points $\leq 0$.
 We can show that the operational semantics is sound w.r.t.\ the
 denotational semantics:
 \begin{theorem}
-  Let $c \in \type {Contract}$ and $\rho,\rho' \in \type{Env}$ such
-  that $\rho'(i,o) = \rho(i,o)$ for all $(i,o) \in
-  \mathsf{dom}(\rho)$.
-  \begin{enumerate}
-  \item If $c \cRed\rho\tau c'$, then $\cSem c {\rho'} (0) = \tau$ and
-    $\cSem c {\rho'} (i+1) = \cSem{c'}{\envAdv{\rho'}}(i)$ for all $i
-    \in \nats$, where $\envAdv{\rho'} (i) = \rho'(i+1)$
-  \item If there are no $c', \tau$ with $c \cRed\rho\tau c'$, then
-    $\cSem c \rho (0)$ is undefined.
-  \end{enumerate}
+  If $c \cRed\rho\tau c'$, then $\cSem c {\rho} (0) = \tau$ and $\cSem
+  c {\rho} (i+1) = \cSem{c'}{\envAdv{\rho}}(i)$ for all $i \in \nats$,
+  where $\envAdv{\rho} (i) = \rho(i+1)$. If there are no $c', \tau$
+  with $c \cRed\rho\tau c'$, then $\cSem c \rho (0)$ is undefined.
 \end{theorem}
 
 
