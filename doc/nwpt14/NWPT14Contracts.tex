@@ -99,7 +99,7 @@ using proof assistant Coq.
 \subsection{Example}
 \label{sec:example}
 
-\subsection{Semantics}
+\subsection{Denotational Semantics}
 \label{sec:semantics}
 
 We define a denotational semantics by mapping contracts to cash flows,
@@ -112,18 +112,45 @@ parties:
 \end{align*}
 
 The cash flow is a partial mapping since it may not be determined due
-to insufficient knowledge of the values of observables. The semantics
-of contracts depends on the valuation of observables, which is given
-by an environment:
+to insufficient knowledge about the observables. The semantics of
+contracts depends on the valuation of observables, which is given by
+an environment:
 \begin{align*}
   \type{Env} &= \ints \times \type{Observable} \pto A\\
   \cSem{\cdot}{\cdot}&\colon \type{Contract} \times \type{Env} \to
   \type{Flow}
 \end{align*}
 
-Secondly, we define an operational semantics in the form of a
-reduction semantics. This reduction semantics advances a contract by
-one time unit. We write $c \cRed \rho \tau c'$, to denote that $c$ is
+This denotational semantics is the foundation for the formalisation of
+symbolic contract analyses, contract management and contract
+transformations.
+
+
+\subsection{Contract Analysis}
+\label{sec:contract-analysis}
+
+\begin{itemize}
+\item Causality
+\item Horizon
+\item Depends on (what observables does the contract depend on)
+\item Triggers
+\end{itemize}
+
+
+\section{Contract Management and Transformation}
+\label{sec:contract-management}
+
+What do we want to do with contracts?
+
+- Transform contracts
+- Advancing a contract (reduction semantics of contracts).
+
+\subsection{Formal Treatment}
+\label{sec:properties}
+
+Apart from the denotational semantics our contract language is also
+equipped with a reduction semantics, which advances a contract by one
+time unit. We write $c \cRed \rho \tau c'$, to denote that $c$ is
 advanced to $c'$ in the environment $\rho$, where $\tau \in
 \type{Trans}$ indicates the transfers that are necessary (and
 sufficient) in order to advance $c$ to $c'$.
@@ -148,28 +175,6 @@ denotational semantics:
   with $c \cRed\rho\tau c'$, then $\cSem c \rho (0)$ is undefined.
 \end{theorem}
 
-
-\subsection{Contract Analysis}
-\label{sec:contract-analysis}
-
-\begin{itemize}
-\item Causality
-\item Horizon
-\item Depends on (what observables does the contract depend on)
-\item Triggers
-\end{itemize}
-
-
-\section{Contract Management and Transformation}
-\label{sec:contract-management}
-
-What do we want to do with contracts?
-
-- Transform contracts
-- Advancing a contract (reduction semantics of contracts).
-
-\subsection{Formal Treatment}
-\label{sec:properties}
 
 \begin{itemize}
 \item Soundness of reduction semantics
