@@ -1,4 +1,4 @@
-\documentclass[a4paper,debug]{easychair}
+\documentclass[a4paper,debug,twocolumn]{easychair}
 
 \usepackage[utf8]{inputenc}
 \usepackage[english]{babel}
@@ -15,10 +15,10 @@
 
 \begin{document}
 
-\title{Symbolic Contract Manipulation for Foreign Exchange Options
+\title{Towards Certified Management of Financial Contracts
 \thanks{Work partially supported by DSF grant No.\jbcomment{yaddayadda} (\textsc{Hiperfit})}}
 
-\titlerunning{Symb.Contract Manipulation for FX Options}
+%\titlerunning{Symb.Contract Manipulation for FX Options}
 
 \author{Patrick Bahr
     \and
@@ -39,7 +39,7 @@
 \clearpage
 \maketitle
 
-\jbcomment{2-3 pages of abstract}
+\section{Introduction}
 
 \comm{--}{just writing up some ideas...}
 
@@ -50,21 +50,62 @@ demonstrated the usefulness of DSLs \jbcomment{...}
 Today, many banks and financial software providers use languages internally which
 more or less follow their first design.
 
-\jbcomment{
-Possible structure:
+\section{Contract Language}
+\label{sec:contract-language}
 
-shortcomings of contract DSLs in use
+\subsection{Example}
+\label{sec:example}
 
-our approach: very simple, exploring the design space
+\subsection{Semantics}
+\label{sec:semantics}
 
-language presentation
 
-semantics
 
-possible analysis and transformations (claiming them proven)
+\subsection{Contract Analysis}
+\label{sec:contract-analysis}
 
-Future work: (1) more extensive analyses and (2) linking up to pricing frameworks
-}
+\begin{itemize}
+\item Causality
+\item Horizon
+\item Depends on (what observables does the contract depend on)
+\item Triggers
+\end{itemize}
+
+
+\section{Contract Management and Transformation}
+\label{sec:contract-management}
+
+What do we want to do with contracts?
+
+- Transform contracts
+- Advancing a contract (reduction semantics of contracts).
+
+\subsection{Formal Treatment}
+\label{sec:properties}
+
+\begin{itemize}
+\item Soundness of reduction semantics
+\item Correctness of contract equivalences
+\item Correctness of contract analysis functions
+\end{itemize}
+
+
+\subsection{Implementation}
+\label{sec:implementation}
+
+Implementation as a Haskell EDSL
+
+\section{Discussion and Future Work}
+\label{sec:disc-future-work}
+
+Future work:
+\begin{itemize}
+\item more extensive analyses (e.g. ``zooming'', scenario generation)
+\item code generation for pay-off function for pricing frameworks
+\end{itemize}
+
+
+
 
 
 \bibliographystyle{abbrv}
