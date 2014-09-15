@@ -235,7 +235,7 @@ cDependsOn (Both c1 c2) = mergeDs (cDependsOn c1) (cDependsOn c2)
 cDependsOn (If e c1 c2) 
     = mergeDs (eDependsOn e) (mergeDs (cDependsOn c1) (cDependsOn c2))
 cDependsOn (CheckWithin e d c1 c2) 
-    = mergeDs (eDependsOn e) 
+    = mergeDs (extendD d (eDependsOn e)) 
          (mergeDs (extendD d (cDependsOn c1)) (transD d (cDependsOn c2)))
 -- Zero and TransfOne: no dependencies
 cDependsOn _ = Deps []
