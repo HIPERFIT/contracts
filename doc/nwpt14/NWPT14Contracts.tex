@@ -3,11 +3,11 @@
 
 \usepackage[utf8]{inputenc}
 \usepackage[english]{babel}
-%\usepackage{amsmath}
-%\usepackage{amsfonts}
-%\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{stmaryrd}
 %\usepackage{graphicx}
-
 \usepackage{xcolor}
 
 \newcommand{\comm}[3][red]{{\small \color{#1}{$\spadesuit$#2: #3}}}
@@ -15,6 +15,21 @@
 \newcommand{\jbcomment}[1]{\comm[orange]{jb}{#1}}
 \newcommand{\pbcomment}[1]{\comm[green]{pb}{#1}}
 \newcommand{\mecomment}[1]{\comm[magenta]{me}{#1}}
+
+\newcommand\type[1]{\mathsf{#1}}
+\newcommand\reals{{\mathbb R}}
+\newcommand\nats{{\mathbb N}}
+\newcommand\ints{{\mathbb Z}}
+\newcommand\pto{\rightharpoonup}
+\newcommand\cSem[2]{{\mathcal C}\left\llbracket#1\right\rrbracket_{#2}}
+
+\newcommand\cRed[2]{\stackrel{#2}\Rightarrow_{#1}}
+\newcommand\cRedFun{f_{\Rightarrow}}
+\newcommand\envAdv[1]{#1\uparrow}
+
+
+\theoremstyle{plain} 
+\newtheorem{theorem}{Theorem} 
 
 \begin{document}
 
@@ -87,6 +102,57 @@ using proof assistant Coq.
 \subsection{Semantics}
 \label{sec:semantics}
 
+We define a denotational semantics by mapping contracts to cash flows,
+which are partial functions from time to transfers between two
+parties:
+\begin{align*}
+  \type{Trans} &= \type{Party} \times \type{Party} \times
+  \type{Currency} \to \reals\\
+  \type{Flow} &= \nats \pto Trans
+\end{align*}
+
+The cash flow is a partial mapping since it may not be determined due
+to insufficient knowledge of the values of observables. The semantics
+of contracts depends on the valuation of observables, which is given
+by an environment:
+\begin{align*}
+  \type{Env} &= \ints \times \type{Observable} \pto A\\
+  \cSem{\cdot}{\cdot}&\colon \type{Contract} \times \type{Env} \to
+  \type{Flow}
+\end{align*}
+
+Secondly, we define an operational semantics in the form of a
+reduction semantics. This reduction semantics advances a contract by
+one time unit. We write $c \cRed \rho \tau c'$, to denote that $c$ is
+advanced to $c'$ in the environment $\rho$, where $\tau \in
+\type{Trans}$ indicates the transfers that are necessary (and
+sufficient) in order to advance $c$ to $c'$.
+
+The reduction semantics can be implemented as a recursive function of
+type 
+\[
+\cRedFun \colon\type{Contract}\times \type{Env} \pto \type{Contract} \times \type{Trans}
+\]
+$\cRedFun$ takes a contract $c$ and an environment $\rho$, and returns
+the residual contract $c'$ and the transfers $\tau$ such that $c
+\cRed\rho\tau c'$. The argument $\rho$ typically contains the
+knowledge that we have about the observables up to the present time,
+i.e.\ for time points $\leq 0$.
+
+We can show that the operational semantics is sound w.r.t.\ the
+denotational semantics:
+\begin{theorem}
+  Let $c \in \type {Contract}$ and $\rho,\rho' \in \type{Env}$ such
+  that $\rho'(i,o) = \rho(i,o)$ for all $(i,o) \in
+  \mathsf{dom}(\rho)$.
+  \begin{enumerate}
+  \item If $c \cRed\rho\tau c'$, then $\cSem c {\rho'} (0) = \tau$ and
+    $\cSem c {\rho'} (i+1) = \cSem{c'}{\envAdv{\rho'}}(i)$ for all $i
+    \in \nats$, where $\envAdv{\rho'} (i) = \rho'(i+1)$
+  \item If there are no $c', \tau$ with $c \cRed\rho\tau c'$, then
+    $\cSem c \rho (0)$ is undefined.
+  \end{enumerate}
+\end{theorem}
 
 
 \subsection{Contract Analysis}
