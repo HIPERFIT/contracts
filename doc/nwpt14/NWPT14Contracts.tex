@@ -108,7 +108,7 @@ parties:
 \begin{align*}
   \type{Trans} &= \type{Party} \times \type{Party} \times
   \type{Currency} \to \reals\\
-  \type{Flow} &= \nats \pto Trans
+  \type{Flow} &= \nats \pto \type{Trans}
 \end{align*}
 
 The cash flow is a partial mapping since it may not be determined due
@@ -125,6 +125,14 @@ This denotational semantics is the foundation for the formalisation of
 symbolic contract analyses, contract management and contract
 transformations.
 
+An important property of the semantics of contracts is monotonicity,
+which is the property that
+\[
+\cSem c {\rho_1} \subseteq \cSem c {\rho_2} \text{ if }
+\rho_1\subseteq \rho_2
+\]
+where $\subseteq$ denotes the subset inclusion of the graph of two
+partial functions.
 
 \subsection{Contract Analysis}
 \label{sec:contract-analysis}
@@ -148,13 +156,39 @@ inductively defined predicate $\Pred{Causal}$ such that if
 $\Pred{Causal}(c)$, then $c$ is indeed causal. This is not unlike type
 checking, which provides a conservative approximation of type safety.
 
+
 \section{Contract Management and Transformation}
 \label{sec:contract-management}
 
-What do we want to do with contracts?
+\pbcomment{What do we precisely mean by contract management?}
 
-- Transform contracts
-- Advancing a contract (reduction semantics of contracts).
+Apart from a variety of analyses our framework provides functionality
+to transform contracts in meaningful ways. The most basic form of such
+transformations are provided by algebraic laws. These laws of the form
+$c_1 \equiv c_2$ state when it is safe to replace a contract $c_1$ by
+a contract $c_2$. Using our denotational semantics, these algebraic
+laws can be proved in a straightforward manner: we have $c_1 \equiv
+c_2$ iff $\cSem{c_1}\rho = \cSem{c_2}\rho$ for all $\rho \in
+\type{Env}$.
+
+More interesting are transformations that are based on knowledge about
+observables. That is, we transform a contract $c$ based on an
+environment $\rho \in \type{Env}$ that encodes the knowledge that we
+already have. We consider two examples, specialisation and reduction.
+
+\subsection{Specialisation}
+\label{sec:specialisation}
+
+A specialisation function $f$ takes a contract and an environment and
+returns a contract that is equivalent under the given
+environment. That is,
+\[
+\cSem{f(c,\rho)}\rho = \cSem c \rho
+\]
+
+Since $f$ specialises the contract $c$ to the environment $\rho$, one
+would hope to get the stronger property $\cSem{f(c,\rho)}\emptyset =
+\cSem c \rho$. However, in general this is not possible.
 
 \subsection{Reduction Semantics}
 \label{sec:reduction-semantics}
@@ -187,12 +221,6 @@ denotational semantics:
   with $c \cRed\rho\tau c'$, then $\cSem c \rho (0)$ is undefined.
 \end{theorem}
 
-
-\begin{itemize}
-\item Soundness of reduction semantics
-\item Correctness of contract equivalences
-\item Correctness of contract analysis functions
-\end{itemize}
 
 
 \subsection{Implementation}
