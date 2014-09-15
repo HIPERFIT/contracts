@@ -26,7 +26,7 @@
 \newcommand\cRed[2]{\stackrel{#2}\Rightarrow_{#1}}
 \newcommand\cRedFun{f_{\Rightarrow}}
 \newcommand\envAdv[1]{#1\uparrow}
-
+\newcommand\Pred[1]{\textsc{#1}}
 
 \theoremstyle{plain} 
 \newtheorem{theorem}{Theorem} 
@@ -129,13 +129,24 @@ transformations.
 \subsection{Contract Analysis}
 \label{sec:contract-analysis}
 
-\begin{itemize}
-\item Causality
-\item Horizon
-\item Depends on (what observables does the contract depend on)
-\item Triggers
-\end{itemize}
+When deaing with contracts we are interested in a number of properties
+such as causality (Does the cash-flow at each time $t$ depend only on
+observables at time $\leq t$?), horizon (From which time onwards is
+the cash-flow always zero?) and dependencies (Which observables does
+the cash-flow depend on?). Such properties can be characterised
+precisely using the denotational semantics. For example a contract $c$
+is causal iff for all $t \in \nats$, we have that
+\[
+\cSem c{\rho_1} (t) = \cSem c {\rho_2} (t) \text{ if } \forall s \le t\colon
+\rho_1(s)=\rho_2(s)
+\]
 
+
+Deciding these properties precisely is in general undecidable but we
+can provide conservative approximations.  For instance we have an
+inductively defined predicate $\Pred{Causal}$ such that if
+$\Pred{Causal}(c)$, then $c$ is indeed causal. This is not unlike type
+checking, which provides a conservative approximation of type safety.
 
 \section{Contract Management and Transformation}
 \label{sec:contract-management}
