@@ -1,5 +1,3 @@
-{-# LANGUAGE GADTs #-} -- only required until we have division on RealE
-
 -- contracts from Lexifi, used with the generic pricing engine
 
 module LexifiContracts
@@ -42,7 +40,7 @@ worstOff = (start, foldr mkDateCheck endCase (zip dDiffs premiums))
           endCase = iff (allAbove 0.75) (collectEUR 1000) 
                         (collectEUR (1000 * minRatio))
           minRatio = foldl1 minn 
-                            (zipWith (\id sp -> obs(id,0) !/! sp) idxs spots)
+                            (zipWith (\id sp -> obs(id,0) / sp) idxs spots)
           allAbove d = nott (foldl1 (!|!) 
                              (zipWith (fractionSmaller d) idxs spots))
            {- 0.75 < minimum [ obs(id,0) / sp | (id, sp) <- zip idxs spots ]
@@ -69,17 +67,10 @@ barrierRevConvert = (start,
           oneBelow d = foldl1 (!|!) (zipWith (fractionSmaller d) idxs spots)
           fractionSmaller d idx spot = obs(idx, 0) !<! d * spot
           minRatio = foldl1 minn 
-                            (zipWith (\id sp -> obs(id,0) !/! sp) idxs spots)
+                            (zipWith (\id sp -> obs(id,0) / sp) idxs spots)
           -- barrier check is accumulated (MEMO: does !|! shortcut evaluation?)
           breached = acc (\x -> x !|! oneBelow 0.7) 366 (oneBelow 0.7)
                                                    -- now till day 367
           collectEUR amount = scale amount (transfOne EUR "them" "us")
           -- same indexes, spot prices, helpers as in contract above
 
--- yeuch
-(!/!) :: RealE -> RealE -> RealE
-a !/! b = case (eval emptyEnv a, eval emptyEnv b) of
-            (R x, R y) -> (r (x / y))
-            other      -> error "cannot represent division on RealE right now"
-
---

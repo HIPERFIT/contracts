@@ -69,7 +69,7 @@ data Expr a where
     Not :: Expr Bool -> Expr Bool
     -- binary op.s, by type: +-*/ max min < = |
     -- on numerical arguments: +-*/ max min
-    Arith :: Num a => AOp -> Expr a -> Expr a -> Expr a
+    Arith :: (NumE a, Num a) => AOp -> Expr a -> Expr a -> Expr a
     Less  :: Ord a => Expr a -> Expr a -> Expr Bool
     Equal :: Eq a  => Expr a -> Expr a -> Expr Bool
     Or    :: Expr Bool -> Expr Bool -> Expr Bool
@@ -98,7 +98,7 @@ instance Show (Expr a) where
 par s = "(" ++ s ++ ")"
 
 -- | Supported arithmetic operations as a data type
-data AOp = Plus | Minus | Times | Max | Min
+data AOp = Plus | Minus | Times | Div | Max | Min
          deriving (Eq,Show)
 
 -- | pretty-printer for operations. The Bool value indicates an infix operator.
@@ -106,6 +106,7 @@ ppOp :: AOp -> (String,Bool)
 ppOp Plus   = ("+", True)
 ppOp Minus  = ("-", True)
 ppOp Times  = ("*", True)
+ppOp Div    = ("/", True)
 ppOp Max    = ("max ", False)
 ppOp Min    = ("min ", False)
 
@@ -114,6 +115,7 @@ instance Read AOp where
     readsPrec _ ('+':rest) = [(Plus,rest)]
     readsPrec _ ('-':rest) = [(Minus,rest)]
     readsPrec _ ('*':rest) = [(Times,rest)]
+    readsPrec _ ('/':rest) = [(Div,rest)]
     readsPrec _ ('m':'a':'x':rest) = [(Max,rest)]
     readsPrec _ ('m':'i':'n':rest) = [(Min,rest)]
     readsPrec _ _ = []
@@ -124,22 +126,25 @@ type IntE = Expr Int
 type RealE = Expr Double
 
 -- | arithmetics smart constructor, trying to optimise by evaluating constants
-arith :: Num a => AOp -> Expr a -> Expr a -> Expr a
+arith :: (Num a, NumE a) => AOp -> Expr a -> Expr a -> Expr a
 arith op (I i1) (I i2) = I (opsem op i1 i2)
 arith op (R r1) (R r2) = R (opsem op r1 r2)
 arith Plus e1 e2  = Arith Plus  e1 e2
 arith Minus e1 e2 = Arith Minus e1 e2
 arith Times e1 e2 = Arith Times e1 e2
+arith Div e1 e2 = Arith Div e1 e2
 arith Max e1 e2   = Arith Max   e1 e2
 arith Min e1 e2   = Arith Min   e1 e2
 
 -- | semantics of the arithmetic operators, for 'arith' smart constructor
-opsem :: (Ord a, Num a) => AOp -> a -> a -> a
+opsem :: (Ord a, Num a, NumE a) => AOp -> a -> a -> a
 opsem Plus = (+)
 opsem Minus = (-)
 opsem Times = (*)
 opsem Max = max
 opsem Min = min
+opsem Div = divide -- overloaded using NumE helper class below
+
 
 -- | Expression equality is defined using hashExpr (considering commutativity)
 instance Eq (Expr a) where
@@ -180,7 +185,7 @@ hashExp vs e a =
 ----------------------------------------
 
 -- | Num instance, enabling us to write 'e1 + e2' for Expr a with Num a
-instance (MkExpr a, Num a) =>
+instance (NumE a, Num a) =>
     Num (Expr a) where
     (+) = arith Plus
     (*) = arith Times
@@ -192,21 +197,25 @@ instance (MkExpr a, Num a) =>
 -- there's a pattern... f a = (constr a) (f (content a))
 
 -- | Num instances are possible through this - slightly weird - helper
--- class which extracts constructors and values from an expression
-class Num a => MkExpr a where
+-- class which extracts constructors and values from an expression.
+-- We also use this class to overload division (truncating on 'IntE',
+-- conventional on 'RealE')
+class Num a => NumE a where
     constr  :: a -> Expr a
+    divide :: a -> a -> a
 
 -- NB do we _ever_ use Int expressions? Maybe dump this whole weird thing
-instance MkExpr Int where
+instance NumE Int where
     constr = I
+    divide = div
 
-instance MkExpr Double where
+instance NumE Double where
     constr = R
+    divide = (/)
 
 -- | Fractional instance for Expr Double, enables fractional literals
--- (and division, not used yet)
-instance (MkExpr a, Fractional a) => Fractional (Expr a) where
-    (/) = undefined -- arith Div, when we have a division operator
+instance (NumE a, Fractional a) => Fractional (Expr a) where
+    (/) = arith Div
     -- recip x = 1 / x -- default
     fromRational x = constr (fromRational x)
 
@@ -233,7 +242,7 @@ infixl 4 !=!
 infixl 3 !|!
 
 -- +, -, * come from the Num instance
-maxx,minn :: Num a => Expr a -> Expr a -> Expr a
+maxx,minn :: (NumE a, Num a) => Expr a -> Expr a -> Expr a
 maxx = arith Max -- instance magic would require an Ord instance...
 minn = arith Min -- ...which requires an Eq instance
 

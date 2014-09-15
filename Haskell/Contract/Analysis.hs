@@ -211,6 +211,7 @@ eDependsOn (Not a) = eDependsOn a
 eDependsOn (Arith _ a b) = mergeDs (eDependsOn a) (eDependsOn b)
 eDependsOn (Less a b)  = mergeDs (eDependsOn a) (eDependsOn b)
 eDependsOn (Equal a b) = mergeDs (eDependsOn a) (eDependsOn b)
+eDependsOn (Or a b)    = mergeDs (eDependsOn a) (eDependsOn b)
 -- more interesting case
 eDependsOn (Acc (_,a) d b) = mergeDs (eDependsOn b) (extendD d (eDependsOn a))
 -- boring cases: I R B V
