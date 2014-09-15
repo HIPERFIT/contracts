@@ -1,4 +1,5 @@
 \documentclass[a4paper,debug,twocolumn]{easychair}
+%\documentclass[a4paper,debug]{easychair}
 
 \usepackage[utf8]{inputenc}
 \usepackage[english]{babel}
@@ -12,6 +13,8 @@
 \newcommand{\comm}[3][red]{{\small \color{#1}{$\spadesuit$#2: #3}}}
 %\renewcommand{\comm}[3][]{}
 \newcommand{\jbcomment}[1]{\comm[orange]{jb}{#1}}
+\newcommand{\pbcomment}[1]{\comm[green]{pb}{#1}}
+\newcommand{\mecomment}[1]{\comm[magenta]{me}{#1}}
 
 \begin{document}
 
@@ -41,14 +44,39 @@
 
 \section{Introduction}
 
-\comm{--}{just writing up some ideas...}
-
 Financial computations are among the domains where (embedded) Domain specific
 languages (EDSLs) first came into widespread use.
-The seminal work on modelling derivatives by Peyton-Jones and Eber~\cite{ICFP00SPJEber}
-demonstrated the usefulness of DSLs \jbcomment{...}
-Today, many banks and financial software providers use languages internally which
-more or less follow their first design.
+The seminal work on modelling derivatives by Peyton-Jones and Eber~\cite{SPJ2000}
+demonstrated the usefulness of DSLs for financial software.
+%
+Eber's company \emph{LexiFi}, a leading software provider
+for financial institutions, has designed their entire software portfolio
+around contract language MLFi~\cite{MLFi} (ML for finance).
+
+What was a complete novelty in 2000 has become common-place since.
+Today, many banks and financial software providers use contract DSLs internally
+which follow their first design to some extent.
+However, the in-house languages we have encountered within our work in project
+\textsc{Hiperfit}~\cite{TFP11Hiperfit} are sometimes disappointing with respect
+to what could be achieved.
+%
+Some contract languages are used to ease pay-out batch processing and suffer
+from unfavourable data models when used for pricing.
+%
+Other languages are used mainly for pricing and valuation, and contain many
+bolted-on extensions for bespoke stochastic models and in-house pricing
+software, which get in the way of readability and symbolic contract processing.
+\jbcomment{tone down? how to substantiate it?}
+
+
+In this paper, we present a small simple contract language which rigorously
+relegates any artefacts of modelling and computation from its core, and show
+that plenty of information can be derived from, and useful manipulations defined
+on, just the symbolic contract specification, independent of any stochastic
+aspects of the modelled contracts.
+Contracts modelled in our language can be analysed and transformed for their
+management according to a precise cash-flow semantics, modelled and checked
+using proof assistant Coq.
 
 \section{Contract Language}
 \label{sec:contract-language}
