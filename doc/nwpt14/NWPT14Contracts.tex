@@ -1,0 +1,73 @@
+\documentclass[a4paper,debug]{easychair}
+
+\usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
+%\usepackage{amsmath}
+%\usepackage{amsfonts}
+%\usepackage{amssymb}
+%\usepackage{graphicx}
+
+\usepackage{xcolor}
+
+\newcommand{\comm}[3][red]{{\small \color{#1}{$\spadesuit$#2: #3}}}
+%\renewcommand{\comm}[3][]{}
+\newcommand{\jbcomment}[1]{\comm[orange]{jb}{#1}}
+
+\begin{document}
+
+\title{Symbolic Contract Manipulation for Foreign Exchange Options
+\thanks{Work partially supported by DSF grant No.\jbcomment{yaddayadda} (\textsc{Hiperfit})}}
+
+\titlerunning{Symb.Contract Manipulation for FX Options}
+
+\author{Patrick Bahr
+    \and
+        Jost Berthold 
+    \and 
+        Martin Elsman 
+    \and 
+        Fritz Henglein\\
+}
+
+\institute{University of Copenhagen\\
+    Dept. of Computer Science (DIKU)\\
+    \email{\{paba,berthold,mael,henglein\}@di.ku.dk}\\
+}
+
+\authorrunning{Bahr, Berthold, Elsman, Henglein}
+
+\clearpage
+\maketitle
+
+\jbcomment{2-3 pages of abstract}
+
+\comm{--}{just writing up some ideas...}
+
+Financial computations are among the domains where (embedded) Domain specific
+languages (EDSLs) first came into widespread use.
+The seminal work on modelling derivatives by Peyton-Jones and Eber~\cite{ICFP00SPJEber}
+demonstrated the usefulness of DSLs \jbcomment{...}
+Today, many banks and financial software providers use languages internally which
+more or less follow their first design.
+
+\jbcomment{
+Possible structure:
+
+shortcomings of contract DSLs in use
+
+our approach: very simple, exploring the design space
+
+language presentation
+
+semantics
+
+possible analysis and transformations (claiming them proven)
+
+Future work: (1) more extensive analyses and (2) linking up to pricing frameworks
+}
+
+
+\bibliographystyle{abbrv}
+\bibliography{NWPT14Contracts}
+
+\end{document}
