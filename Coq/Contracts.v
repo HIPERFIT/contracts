@@ -243,7 +243,9 @@ Fixpoint Bsem (e : bexp) : env -> option bool :=
  [None], which indicates that the set of transfers is undefined (read:
  "bottom"). *)
 
-Definition transfers := option (party -> party -> currency -> Z).
+Definition trans := party -> party -> currency -> Z.
+
+Definition transfers := option trans.
 
 
 
@@ -424,6 +426,94 @@ Proof.
       + assumption.
 Qed.
 
+(********** Reduction semantics **********)
+
+Fixpoint adv_rexp (d : nat) (e : rexp) : rexp :=
+  match e with
+    | RLit r => RLit r
+    | RBin op e1 e2 => RBin op (adv_rexp d e1) (adv_rexp d e2)
+    | RNeg e' => RNeg (adv_rexp d e')
+    | Obs o i => Obs o (d +# i)
+  end.
+
+Fixpoint adv_bexp (d : nat) (e : bexp) : bexp :=
+  match e with
+    | BLit b => BLit b
+    | BChoice c i => BChoice c (d +# i)
+    | BOp op e1 e2 => BOp op (adv_bexp d e1) (adv_bexp d e2)
+    | RCmp op e1 e2 => RCmp op (adv_rexp d e1) (adv_rexp d e2)
+    | BNot e' => BNot (adv_bexp d e')
+  end.
+
+
+Fixpoint red' (rho : env) (c : contract) : option (contract * transfers) :=
+  match c with
+     | Zero => Some (Zero , None)
+     | TransfOne c p1 p2 => Some (Zero, singleton_trans c p1 p2 1)
+     | Scale e c1 => match red' rho c1 with
+                       | Some (c',t) => match t with
+                          | Some t' => match R[| e |] (fst rho) with
+                            | Some v => Some (Scale (adv_rexp 1 e) c', Some (fun p1 p2 c => (t' p1 p2 c * v)%Z))
+                            | None  => None
+                                       end
+                          | None => Some (Scale (adv_rexp 1 e) c', None)
+                                        end
+                       | _ => None 
+                     end
+     | Transl n c1 => match n with
+                          | 0 => red' rho c1
+                          | S n' => Some (Transl n' c1, None)
+                      end
+     | Both c1 c2 => match red' rho c1, red' rho c2 with
+                        | Some (c1', t1), Some (c2', t2) => 
+                          let t := match t1, t2 with
+                                    | None, None => None
+                                    | None, Some t2' => Some t2'
+                                    | Some t1', None => Some t1'
+                                    | Some t1', Some t2' => Some (fun p1 p2 c => t1' p1 p2 c + t2' p1 p2 c)%Z
+                                  end
+                          in Some (Both c1' c2', t)
+                        | _, _ => None
+                     end
+     | IfWithin b n c1 c2 => match B[|b|] rho with
+                               | None => None
+                               | Some true => red' rho c1
+                               | Some false => match n with
+                                                | 0 => red' rho c2
+                                                | S n => Some (IfWithin b n c1 c2, None)
+                                               end
+                             end
+  end.
+
+Definition mk_empty_trans (t : transfers) : trans :=
+  match t with
+    | None => (fun p1 p2 c => 0)%Z
+    | Some t => t
+  end.
+
+Definition red (rho : env) (c : contract) : option (contract * trans) := 
+  match red' rho c with
+      | None => None
+      | Some (c, t) => Some (c, mk_empty_trans t)
+  end.
+
+Theorem red_complete c rho : red rho c = None -> C[|c|]rho 0 = None.
+Proof.
+  unfold red. intro H. remember (red' rho c) as R. destruct R.
+  destruct p. destruct t. inversion H. inversion H. clear H.
+  induction c; simpl; try (inversion HeqR).
+  - destruct (red' rho c). destruct p. destruct t. destruct (R[|r|](fst rho)).
+    inversion H0. reflexivity. inversion H0. unfold scale_trace. unfold compose.
+    rewrite IHc by auto. unfold scale_trans. apply option_map2_none.
+  - destruct n; tryfalse. unfold delay_trace. simpl. rewrite adv_env_0. auto.
+  - destruct (red' rho c1). destruct p. destruct (red' rho c2). destruct p. inversion H0.
+    unfold add_trace. rewrite IHc2. apply option_map2_none. reflexivity.
+    unfold add_trace. rewrite IHc1; reflexivity.
+  - destruct n; simpl; unfold within_sem.
+    + destruct (B[|b|]rho). destruct b0; auto. reflexivity.
+    + destruct (B[|b|]rho). destruct b0. auto. inversion H0. reflexivity.
+Qed.
+  
 
 (********** Equivalence of contracts **********)
 
@@ -465,23 +555,6 @@ Proof.
   symmetry in HeqC1. apply H0 in HeqC1. contradiction.
 Qed.
 
-
-Fixpoint adv_rexp (d : nat) (e : rexp) : rexp :=
-  match e with
-    | RLit r => RLit r
-    | RBin op e1 e2 => RBin op (adv_rexp d e1) (adv_rexp d e2)
-    | RNeg e' => RNeg (adv_rexp d e')
-    | Obs o i => Obs o (d +# i)
-  end.
-
-Fixpoint adv_bexp (d : nat) (e : bexp) : bexp :=
-  match e with
-    | BLit b => BLit b
-    | BChoice c i => BChoice c (d +# i)
-    | BOp op e1 e2 => BOp op (adv_bexp d e1) (adv_bexp d e2)
-    | RCmp op e1 e2 => RCmp op (adv_rexp d e1) (adv_rexp d e2)
-    | BNot e' => BNot (adv_bexp d e')
-  end.
 
 Lemma adv_rexp_obs d e rho : R[|adv_rexp d e|]rho = R[|e|](adv_inp d rho).
 Proof.
