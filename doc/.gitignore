@@ -7,3 +7,5 @@
 *.synctex.gz
 *.toc
 *.vrb
+*.blg
+*.bbl

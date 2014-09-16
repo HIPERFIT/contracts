@@ -34,7 +34,8 @@
 \begin{document}
 
 \title{Towards Certified Management of Financial Contracts
-\thanks{Work partially supported by DSF grant No.\jbcomment{yaddayadda} (\textsc{Hiperfit})}}
+\thanks{Work partially supported by the Danish Council for Strategic Research
+(DSF) under contract number 10-092299 (\textsc{Hiperfit}).}}
 
 \titlerunning{Towards Certified Management of Financial Contracts}
 
@@ -93,11 +94,85 @@ Contracts modelled in our language can be analysed and transformed for their
 management according to a precise cash-flow semantics, modelled and checked
 using proof assistant Coq.
 
+
 \section{Contract Language}
 \label{sec:contract-language}
 
+Financial contracts essentially define future transactions (\emph{cash-flows})
+between different parties who agree on a contract, and typically depend on
+\emph{observable} underlying values, such as foreign exchange rates, stock
+prices, or market indexes.
+%
+Decisions can be taken by any of the involved parties (which are modelled
+just like the observables), and contracts may involve \emph{alternatives}
+depending on decisions and observables, which possibly repeat.
+Finally, contracts may be combined, leading to 
+the following set of contracts atoms and combinators:
+
+%\jbcomment{or in the Appendix?}
+\vspace*{-3ex}
+{\footnotesize
+
+\begin{align*}
+\emph{zero} &: \type{Contract}\\
+\emph{transfer} &: \type{Party} \times \type{Party} \times \type{Currency}\to \type{Contract}\\
+\emph{scale}&: \type{RealE} \times \type{Contract} \to \type{Contract}\\
+\emph{translate}&: \type{Int} \times \type{Contract} \to \type{Contract}\\ 
+\emph{checkWithin}&:  \type{BoolE} \times \type{Int} \times \type{Contract} \times \type{Contract} %\\&
+\to \type{Contract}\\
+\emph{both}&: \type{Contract} \times \type{Contract} \to \type{Contract}
+\end{align*}
+\vspace*{-3ex}
+
+}
+
+In our small language, we focus on foreign exchange (FX) and stock market
+derivatives, but the concepts generalise easily. Likewise, cash-flows are
+based on a fixed set of \emph{currencies}, where they could instead allow for
+arbitrary assets.
+%\jbcomment{Currency is a closed type, while observables are open (just strings)}
+
+Amounts in contracts may be scaled using observed values, and generally
+numbers $\in \mathbb{R}$. Likewise, alternatives depend on predicates
+$\in \mathbb{B}$. Both are modelled in a simple expression language,
+where 
+observable values have type $\type{RealE}$, choices made by a party
+have type $\type{BoolE}$.\jbcomment{is that so?}
+
+The observables and choices are ``observed'' with a given offset from the
+current day. In general, all definitions use \emph{relative time}, aiding
+the compositionality of contracts.
+We also define a special expression \emph{acc} which \emph{accumulates} a
+value over a given number of days from today.
+
+\vspace*{-2ex}
+{\footnotesize
+\[
+\emph{acc} : (\type{Expr} \to \type{Expr}) \to \type{Int} \to \type{Expr} \to \type{Expr}
+\]
+}
+\vspace*{-3ex}
+
 \subsection{Example}
 \label{sec:example}
+
+As a simple example, consider an \emph{FX option} on US dollars:
+Party X may, within 90 days, decide whether to buy $100$ US dollars for
+a fixed rate $r$ of Danish Crowns from Party Y.
+
+\vspace*{-2ex}
+{\footnotesize
+\begin{align*}
+option &= \emph{checkWithin}(chosenBy(X,0), 90, trade, zero)\\
+trade &= \emph{scale}(100, both(transfer(Y, X,\type{USD}), pay))\\
+pay &= \emph{scale}(r, transfer(X, Y,\type{DKK}))
+\end{align*}
+
+%\vspace*{-2ex}
+}
+
+More complex examples are given in the appendix, using our implementation as a
+Haskell EDSL.
 
 \subsection{Denotational Semantics}
 \label{sec:semantics}
@@ -238,10 +313,17 @@ Future work:
 \end{itemize}
 
 
-
-
-
 \bibliographystyle{abbrv}
 \bibliography{NWPT14Contracts}
+
+\newpage
+\appendix
+
+\section*{Appendix}
+\subsection*{Additional Contract Examples}
+\jbcomment{Something from the FX portfolio, plus some asian option and the Lexifi barrier product (both use acc)}
+
+\subsection*{Other digressive stuff}
+\jbcomment{what else goes here? otherwise drop it}
 
 \end{document}
