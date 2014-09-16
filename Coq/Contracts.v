@@ -4,6 +4,7 @@ Require Import Basics.
 Require Import ZArith.
 Require Import LibTactics.
 Require Import NPeano.
+Require Import CpdtTactics.
 Import Compare_dec.
 
 Infix "∘" := compose (at level 40, left associativity).
@@ -311,15 +312,118 @@ Fixpoint Csem (c : contract) : env -> trace :=
     end
       where "'C[|' e '|]'" := (Csem e).
 
+
+Class Partial t := {
+  lep : t -> t -> Prop
+                  }. 
+
+Infix "⊆" := lep (at level 40).
+
+Instance none_Partial A : Partial (option A) := {
+  lep t1 t2  := forall z , t1 = Some z -> t2 = Some z
+  }.
+
+
+Instance single_Partial A B : Partial (A -> option B) := {
+  lep t1 t2  := forall i z , t1 i = Some z -> t2 i = Some z
+  }.
+
+
+Instance double_Partial A B C : Partial (A -> B -> option C) := {
+  lep t1 t2  := forall i j z , t1 i j = Some z -> t2 i j = Some z
+  }.
+
+Instance nested_Partial T1 T2 (p1:Partial T1) (p2 : Partial T2) : Partial (T1 * T2) := {
+  lep t1 t2  := lep (fst t1) (fst t2) /\ lep (snd t1) (snd t2)
+  }.
+
+Lemma lep_some A (o : option A) x : Some x ⊆ o -> Some x = o.
+Proof.
+  simpl. intros. symmetry. auto.
+Qed. 
+
+Lemma Rsem_monotone e rho1 rho2 : rho1 ⊆ rho2 -> R[| e |]rho1 ⊆ R[| e |]rho2.
+Proof.
+  intro S; induction e; simpl; intros; auto.
+  - destruct (R[|e1|]rho1); destruct (R[|e2|]rho1); tryfalse.
+    apply lep_some in IHe1. apply lep_some in IHe2. 
+    rewrite <- IHe1. rewrite <- IHe2. simpl in *. auto.
+  - destruct (R[|e|]rho1); tryfalse. apply lep_some in IHe. rewrite <- IHe. auto. 
+Qed.
+
+Lemma Bsem_monotone e rho1 rho2 : rho1 ⊆ rho2 -> B[| e |]rho1 ⊆ B[| e |]rho2.
+Proof.
+  intro S; induction e; simpl; intros; auto.
+  - crush.
+  - destruct S as [S1 S2]. 
+    remember (R[|r|](fst rho1)) as X1. remember (R[|r0|](fst rho1)) as X2.
+    pose (Rsem_monotone r _ _ S1) as R1. pose (Rsem_monotone r0 _ _ S1) as R2.
+    destruct X1; tryfalse. destruct X2; tryfalse. 
+    rewrite <- HeqX1 in R1. rewrite <- HeqX2 in R2.
+    simpl in *. erewrite R1 by auto. erewrite R2 by auto.
+    auto.
+  - destruct (B[|e|]rho1); tryfalse. erewrite IHe by auto. assumption.
+  - destruct (B[|e1|]rho1); tryfalse. destruct (B[|e2|]rho1); tryfalse.
+    erewrite IHe1 by auto. erewrite IHe2 by auto.  assumption.
+Qed.
+
+
+
+Lemma adv_inp_monotone A (in1 in2 : inp A) n : in1 ⊆ in2 -> adv_inp n in1 ⊆ adv_inp n in2.
+Proof. 
+  unfold lep, adv_inp. simpl. intros. remember (in1 (n +# i) j) as X.
+  destruct X;tryfalse. apply H. rewrite <- H0. auto. 
+Qed.
+
+Lemma adv_env_monotone rho1 rho2 n : rho1 ⊆ rho2 -> adv_env n rho1 ⊆ adv_env n rho2.
+Proof. 
+  intros. destruct rho1. destruct rho2. destruct H. split; apply adv_inp_monotone;
+  auto.
+Qed.
+
+
+Theorem Csem_monotone c rho1 rho2 : rho1 ⊆ rho2 -> C[| c |]rho1 ⊆ C[| c |]rho2.
+Proof.
+  generalize dependent rho1. generalize dependent rho2. 
+  induction c; intros rho2 rho1 S; simpl; intros; auto.
+  - pose S as S'. destruct S' as [S1 S2]. 
+    remember (R[|r|] (fst rho1)) as Y. destruct Y; tryfalse.
+    pose (Rsem_monotone r (fst rho1) (fst rho2) S1). 
+    unfold scale_trace in *. unfold compose in *.
+    rewrite <- HeqY in *. apply lep_some in l. rewrite <- l.
+    remember (C[|c|] rho1 i) as X.
+    pose (IHc _ _ S i) as IHi. 
+    destruct X; tryfalse. rewrite <- HeqX in * by auto. erewrite IHi by auto.
+    auto.
+  - simpl. apply adv_env_monotone with (n := n) in S. apply IHc in S.
+    simpl in S. unfold delay_trace in *. destruct (leb n i); auto.
+  - unfold add_trace, add_trans in *. 
+    remember (C[|c1|] rho1 i) as X1. remember (C[|c2|] rho1 i) as X2.
+    pose (IHc1 _ _ S i) as IHi1. pose (IHc2 _ _ S i) as IHi2. 
+    destruct X1; tryfalse. destruct X2; tryfalse. 
+    symmetry in HeqX1. apply IHi1 in HeqX1.
+    symmetry in HeqX2. apply IHi2 in HeqX2. crush.
+  - (* pose S as S'. destruct S' as [S1 S2]. *)
+    generalize dependent rho1.
+    generalize dependent rho2.
+    generalize dependent i.
+    induction n; intros.
+    * simpl. simpl in H.  remember (B[|b|]rho1) as B.
+      pose (Bsem_monotone b (rho1) (rho2) S) as HB. 
+      destruct B; tryfalse. symmetry in HeqB. apply HB in HeqB.
+      rewrite HeqB. destruct b0. eapply IHc1; eauto.
+      eapply IHc2; eauto.
+    * simpl. simpl in H. remember (B[|b|]rho1) as B.
+      pose (Bsem_monotone b (rho1) (rho2) S) as HB. 
+      destruct B; tryfalse. symmetry in HeqB. apply HB in HeqB.
+      rewrite HeqB. destruct b0. eapply IHc1; eauto.
+      unfold delay_trace in *. destruct (leb 1 i).
+      + eapply IHn. apply adv_env_monotone. eassumption. assumption.
+      + assumption.
+Qed.
+
+
 (********** Equivalence of contracts **********)
-
-(* [t1 ⊆ t2] iff [t1] and [t2] coincide in all points that [t1] is
-defined. *)
-
-Definition letrace (t1 t2 : trace) : Prop :=
-  forall i z , t1 i = Some z -> t2 i = Some z.
-
-Infix "⊆" := letrace (at level 40).
 
 (* Full equivalence. *)
 
@@ -354,7 +458,7 @@ Infix "≃" := wequiv (at level 40).
 
 Lemma lequiv_total c1 c2 r : c1 ⊑ c2 -> total (C[|c1|]r) -> C[|c1|]r = C[|c2|]r.
 Proof.
-  unfold lequiv, total, letrace. intros.   apply functional_extensionality. intro.
+  unfold lequiv, total, lep. intros.   apply functional_extensionality. intro.
   remember (C[|c1|] r x) as C1. destruct C1. erewrite H. reflexivity. auto.
   symmetry in HeqC1. apply H0 in HeqC1. contradiction.
 Qed.
@@ -412,7 +516,7 @@ Theorem transl_ifwithin e d t c1 c2 :
   IfWithin (adv_bexp d e) t (Transl d c1) (Transl d c2) ⊑
   Transl d (IfWithin e t c1 c2).
 Proof.
-  unfold lequiv, letrace. simpl. induction t; intros.
+  unfold lequiv, lep. simpl. induction t; intros.
   simpl in *. rewrite adv_bexp_env in *. remember (B[|e|](adv_env d rho)) as b.
   destruct b. destruct b;  assumption. 
   unfold const_trace, bot_trans in H. inversion H.
@@ -460,7 +564,7 @@ Proof.
   unfold wequiv. intros. destruct H. apply lequiv_total. apply transl_ifwithin. assumption.
   
   
-  unfold lequiv, letrace. simpl. generalize dependent rho. induction t; intros.
+  unfold lequiv, lep. simpl. generalize dependent rho. induction t; intros.
   simpl in *. rewrite adv_bexp_env in *. remember (B[|e|](adv_env d rho)) as b.
   destruct b. destruct b; reflexivity.
   unfold total in H. 
