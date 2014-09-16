@@ -86,6 +86,36 @@ Proof.
 Qed.
 
 
+Class Partial t := {
+  lep : t -> t -> Prop
+                  }. 
+
+Infix "⊆" := lep (at level 40).
+
+Instance none_Partial A : Partial (option A) := {
+  lep t1 t2  := forall z , t1 = Some z -> t2 = Some z
+  }.
+
+Lemma lep_some A (o : option A) x : Some x ⊆ o -> Some x = o.
+Proof.
+  simpl. intros. symmetry. auto.
+Qed. 
+
+
+Instance single_Partial A B : Partial (A -> option B) := {
+  lep t1 t2  := forall i z , t1 i = Some z -> t2 i = Some z
+  }.
+
+
+Instance double_Partial A B C : Partial (A -> B -> option C) := {
+  lep t1 t2  := forall i j z , t1 i j = Some z -> t2 i j = Some z
+  }.
+
+Instance nested_Partial T1 T2 (p1:Partial T1) (p2 : Partial T2) : Partial (T1 * T2) := {
+  lep t1 t2  := lep (fst t1) (fst t2) /\ lep (snd t1) (snd t2)
+  }.
+
+
 (* Move observations into the future. *)
 
 Definition adv_inp {A} (d : nat) (e : inp A) : inp A
@@ -312,35 +342,7 @@ Fixpoint Csem (c : contract) : env -> trace :=
     end
       where "'C[|' e '|]'" := (Csem e).
 
-
-Class Partial t := {
-  lep : t -> t -> Prop
-                  }. 
-
-Infix "⊆" := lep (at level 40).
-
-Instance none_Partial A : Partial (option A) := {
-  lep t1 t2  := forall z , t1 = Some z -> t2 = Some z
-  }.
-
-
-Instance single_Partial A B : Partial (A -> option B) := {
-  lep t1 t2  := forall i z , t1 i = Some z -> t2 i = Some z
-  }.
-
-
-Instance double_Partial A B C : Partial (A -> B -> option C) := {
-  lep t1 t2  := forall i j z , t1 i j = Some z -> t2 i j = Some z
-  }.
-
-Instance nested_Partial T1 T2 (p1:Partial T1) (p2 : Partial T2) : Partial (T1 * T2) := {
-  lep t1 t2  := lep (fst t1) (fst t2) /\ lep (snd t1) (snd t2)
-  }.
-
-Lemma lep_some A (o : option A) x : Some x ⊆ o -> Some x = o.
-Proof.
-  simpl. intros. symmetry. auto.
-Qed. 
+(********** Monotonicity of the semantics **********)
 
 Lemma Rsem_monotone e rho1 rho2 : rho1 ⊆ rho2 -> R[| e |]rho1 ⊆ R[| e |]rho2.
 Proof.
@@ -404,8 +406,7 @@ Proof.
     symmetry in HeqX1. apply IHi1 in HeqX1.
     symmetry in HeqX2. apply IHi2 in HeqX2. 
     auto. erewrite HeqX1. erewrite HeqX2. auto.
-  - (* pose S as S'. destruct S' as [S1 S2]. *)
-    generalize dependent rho1.
+  - generalize dependent rho1.
     generalize dependent rho2.
     generalize dependent i.
     induction n; intros.
