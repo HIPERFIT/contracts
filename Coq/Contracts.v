@@ -4,7 +4,7 @@ Require Import Basics.
 Require Import ZArith.
 Require Import LibTactics.
 Require Import NPeano.
-Require Import CpdtTactics.
+
 Import Compare_dec.
 
 Infix "∘" := compose (at level 40, left associativity).
@@ -354,7 +354,7 @@ Qed.
 Lemma Bsem_monotone e rho1 rho2 : rho1 ⊆ rho2 -> B[| e |]rho1 ⊆ B[| e |]rho2.
 Proof.
   intro S; induction e; simpl; intros; auto.
-  - crush.
+  - destruct S. auto.
   - destruct S as [S1 S2]. 
     remember (R[|r|](fst rho1)) as X1. remember (R[|r0|](fst rho1)) as X2.
     pose (Rsem_monotone r _ _ S1) as R1. pose (Rsem_monotone r0 _ _ S1) as R2.
@@ -402,7 +402,8 @@ Proof.
     pose (IHc1 _ _ S i) as IHi1. pose (IHc2 _ _ S i) as IHi2. 
     destruct X1; tryfalse. destruct X2; tryfalse. 
     symmetry in HeqX1. apply IHi1 in HeqX1.
-    symmetry in HeqX2. apply IHi2 in HeqX2. crush.
+    symmetry in HeqX2. apply IHi2 in HeqX2. 
+    auto. erewrite HeqX1. erewrite HeqX2. auto.
   - (* pose S as S'. destruct S' as [S1 S2]. *)
     generalize dependent rho1.
     generalize dependent rho2.
