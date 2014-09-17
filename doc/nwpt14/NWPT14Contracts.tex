@@ -20,6 +20,7 @@
 \newcommand\reals{{\mathbb R}}
 \newcommand\nats{{\mathbb N}}
 \newcommand\ints{{\mathbb Z}}
+\newcommand\bools{{\mathbb B}}
 \newcommand\pto{\rightharpoonup}
 \newcommand\cSem[2]{{\mathcal C}\left\llbracket#1\right\rrbracket_{#2}}
 
@@ -112,19 +113,18 @@ the following set of contracts atoms and combinators:
 
 %\jbcomment{or in the Appendix?}
 \vspace*{-3ex}
-{\footnotesize
+{\small
 
 \begin{align*}
-\emph{zero} &: \type{Contract}\\
-\emph{transfer} &: \type{Party} \times \type{Party} \times \type{Currency}\to \type{Contract}\\
-\emph{scale}&: \type{RealE} \times \type{Contract} \to \type{Contract}\\
-\emph{translate}&: \type{Int} \times \type{Contract} \to \type{Contract}\\ 
-\emph{checkWithin}&:  \type{BoolE} \times \type{Int} \times \type{Contract} \times \type{Contract} %\\&
-\to \type{Contract}\\
-\emph{both}&: \type{Contract} \times \type{Contract} \to \type{Contract}
+\emph{zero} &: \type{Contr}\\
+\emph{transfer} &: \type{Party} \times \type{Party} \times \type{Currency}\to \type{Contr}\\
+\emph{scale}&: \type{Expr}_\reals \times \type{Contr} \to \type{Contr}\\
+\emph{translate}&: \nats \times \type{Contr} \to \type{Contr}\\ 
+\emph{checkWithin}&:  \type{Expr}_\bools \times \nats \times \type{Contr} \times \type{Contr} %\\&
+\to \type{Contr}\\
+\emph{both}&: \type{Contr} \times \type{Contr} \to \type{Contr}
 \end{align*}
 \vspace*{-3ex}
-
 }
 
 In our small language, we focus on foreign exchange (FX) and stock market
@@ -133,12 +133,10 @@ based on a fixed set of \emph{currencies}, where they could instead allow for
 arbitrary assets.
 %\jbcomment{Currency is a closed type, while observables are open (just strings)}
 
-Amounts in contracts may be scaled using observed values, and generally
-numbers $\in \mathbb{R}$. Likewise, alternatives depend on predicates
-$\in \mathbb{B}$. Both are modelled in a simple expression language,
-where 
-observable values have type $\type{RealE}$, choices made by a party
-have type $\type{BoolE}$.\jbcomment{is that so?}
+Amounts in contracts may be scaled using real-valued expression
+($\type{Expr}_\reals$), which may refer to observables. Likewise,
+alternatives depend on Boolean predicates ($\type{Expr}_\bools$), which may refer on external
+decisions.
 
 The observables and choices are ``observed'' with a given offset from the
 current day. In general, all definitions use \emph{relative time}, aiding
@@ -147,9 +145,9 @@ We also define a special expression \emph{acc} which \emph{accumulates} a
 value over a given number of days from today.
 
 \vspace*{-2ex}
-{\footnotesize
+{\small
 \[
-\emph{acc} : (\type{Expr} \to \type{Expr}) \to \type{Int} \to \type{Expr} \to \type{Expr}
+\emph{acc} : (\type{Expr} \to \type{Expr}) \to \nats \to \type{Expr} \to \type{Expr}
 \]
 }
 \vspace*{-3ex}
@@ -178,9 +176,8 @@ Haskell EDSL.
 \subsection{Denotational Semantics}
 \label{sec:semantics}
 
-We define a denotational semantics by mapping contracts to cash-flows,
-which are partial functions from time to transfers between two
-parties:
+The semantics of a contract is given by its cash-flow, which is a
+partial mapping from time to transfers between two parties:
 \begin{align*}
   \type{Trans} &= \type{Party} \times \type{Party} \times
   \type{Currency} \to \reals\\
@@ -188,12 +185,10 @@ parties:
 \end{align*}
 
 The cash-flow is a partial mapping since it may not be determined due
-to insufficient knowledge about the observables. The semantics of
-contracts depends on the valuation of observables, which is given by
-an environment:
+to insufficient knowledge about observables and external decisions,
+which is provided by an environment $\rho\in\type{Env}$:
 \begin{align*}
-  \type{Env} &= \ints \times \type{Observable} \pto A\\
-  \cSem{\cdot}{\cdot}&\colon \type{Contract} \times \type{Env} \to
+  \cSem{\cdot}{\cdot}&\colon \type{Contr} \times \type{Env} \to
   \type{Flow}
 \end{align*}
 
@@ -213,17 +208,20 @@ partial functions.
 \subsection{Contract Analysis}
 \label{sec:contract-analysis}
 
-When deaing with contracts we are interested in a number of properties
-such as causality (Does the cash-flow at each time $t$ depend only on
-observables at time $\leq t$?), horizon (From which time onwards is
-the cash-flow always zero?) and dependencies (Which observables does
-the cash-flow depend on?). Such properties can be characterised
-precisely using the denotational semantics. For example a contract $c$
-is causal iff for all $t \in \nats$, we have that
+When dealing with contracts we are interested in a number of semantic
+properties of contracts, e.g.\ causality (Does the cash-flow at each
+time $t$ depend only on observables at time $\leq t$?), horizon (From
+which time onwards is the cash-flow always zero?) and dependencies
+(Which observables does the cash-flow depend on?). Such properties can
+be characterised precisely using the denotational semantics. For
+example a contract $c$ is causal iff for all $t \in \nats$, we have
+that
 \[
 \cSem c{\rho_1} (t) = \cSem c {\rho_2} (t) \text{ if } \forall s \le t\colon
 \rho_1(s)=\rho_2(s)
 \]
+That is, the cash flow at time $t$ does not depend on observables and
+decisions after $t$.
 
 
 Deciding these properties precisely is in general undecidable but we
@@ -242,15 +240,16 @@ Apart from a variety of analyses our framework provides functionality
 to transform contracts in meaningful ways. The most basic form of such
 transformations are provided by algebraic laws. These laws of the form
 $c_1 \equiv c_2$ state when it is safe to replace a contract $c_1$ by
-a contract $c_2$. Using our denotational semantics, these algebraic
-laws can be proved in a straightforward manner: we have $c_1 \equiv
-c_2$ iff $\cSem{c_1}\rho = \cSem{c_2}\rho$ for all $\rho \in
+an equivalent contract $c_2$. Using our denotational semantics, these
+algebraic laws can be proved in a straightforward manner: we have $c_1
+\equiv c_2$ iff $\cSem{c_1}\rho = \cSem{c_2}\rho$ for all $\rho \in
 \type{Env}$.
 
 More interesting are transformations that are based on knowledge about
-observables. That is, we transform a contract $c$ based on an
-environment $\rho \in \type{Env}$ that encodes the knowledge that we
-already have. We consider two examples, specialisation and reduction.
+observables and external decisions. That is, we transform a contract
+$c$ based on an environment $\rho \in \type{Env}$ that encodes the
+knowledge that we already have. We consider two examples,
+specialisation and reduction.
 
 \subsection{Specialisation}
 \label{sec:specialisation}
@@ -280,7 +279,7 @@ sufficient) in order to advance $c$ to $c'$.
 The reduction semantics can be implemented as a recursive function of
 type 
 \[
-\cRedFun \colon\type{Contract}\times \type{Env} \pto \type{Contract} \times \type{Trans}
+\cRedFun \colon\type{Contr}\times \type{Env} \pto \type{Contr} \times \type{Trans}
 \]
 $\cRedFun$ takes a contract $c$ and an environment $\rho$, and returns
 the residual contract $c'$ and the transfers $\tau$ such that $c
@@ -288,13 +287,13 @@ the residual contract $c'$ and the transfers $\tau$ such that $c
 knowledge that we have about the observables up to the present time,
 i.e.\ for time points $\leq 0$.
 
-We can show that the operational semantics is sound w.r.t.\ the
-denotational semantics:
+We can show that the reduction semantics is sound and complete w.r.t.\
+the denotational semantics:
 \begin{theorem}
   If $c \cRed\rho\tau c'$, then $\cSem c {\rho} (0) = \tau$ and $\cSem
   c {\rho} (i+1) = \cSem{c'}{\envAdv{\rho}}(i)$ for all $i \in \nats$,
-  where $\envAdv{\rho} (i) = \rho(i+1)$. If there are no $c', \tau$
-  with $c \cRed\rho\tau c'$, then $\cSem c \rho (0)$ is undefined.
+  where $\envAdv{\rho} (i) = \rho(i+1)$. If $\cSem c \rho (0) = \tau$
+  then there is some $c'$ with $c \cRed\rho\tau c'$.
 \end{theorem}
 
 
