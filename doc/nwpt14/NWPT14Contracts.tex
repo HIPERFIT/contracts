@@ -60,10 +60,11 @@
 
 \section{Introduction}
 
-Financial computations are among the domains where (embedded) Domain specific
-languages (EDSLs) first came into widespread use.
-The seminal work on modelling derivatives by Peyton-Jones and Eber~\cite{SPJ2000}
-demonstrated the usefulness of DSLs for financial software.
+Financial computations are among the domains where (embedded)
+domain-specific languages (EDSLs) first came into widespread use.  The
+seminal work on modelling derivatives by Peyton-Jones and
+Eber~\cite{SPJ2000} demonstrated the usefulness of DSLs for financial
+software.
 %
 Eber's company \emph{LexiFi}, a leading software provider
 for financial institutions, has designed their entire software portfolio
@@ -177,7 +178,7 @@ Haskell EDSL.
 \subsection{Denotational Semantics}
 \label{sec:semantics}
 
-We define a denotational semantics by mapping contracts to cash flows,
+We define a denotational semantics by mapping contracts to cash-flows,
 which are partial functions from time to transfers between two
 parties:
 \begin{align*}
@@ -186,7 +187,7 @@ parties:
   \type{Flow} &= \nats \pto \type{Trans}
 \end{align*}
 
-The cash flow is a partial mapping since it may not be determined due
+The cash-flow is a partial mapping since it may not be determined due
 to insufficient knowledge about the observables. The semantics of
 contracts depends on the valuation of observables, which is given by
 an environment:
