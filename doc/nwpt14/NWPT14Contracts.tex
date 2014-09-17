@@ -34,9 +34,9 @@
 
 \begin{document}
 
-\title{Towards Certified Management of Financial Contracts
-\thanks{Work partially supported by the Danish Council for Strategic Research
-(DSF) under contract number 10-092299 (\textsc{Hiperfit}).}}
+\title{Towards Certified Management of Financial Contracts\thanks{Work
+    partially supported by the Danish Council for Strategic Research
+    (DSF) under contract number 10-092299 (\textsc{Hiperfit}).}}
 
 \titlerunning{Towards Certified Management of Financial Contracts}
 
@@ -92,7 +92,7 @@ relegates any artefacts of modelling and computation from its core, and show
 that plenty of information can be derived from, and useful manipulations defined
 on, just the symbolic contract specification, independent of any stochastic
 aspects of the modelled contracts.
-Contracts modelled in our language can be analysed and transformed for their
+Contracts modelled in our language are analysed and transformed for their
 management according to a precise cash-flow semantics, modelled and checked
 using proof assistant Coq.
 
@@ -116,13 +116,13 @@ the following set of contracts atoms and combinators:
 {\small
 
 \begin{align*}
-\emph{zero} &: \type{Contr}\\
-\emph{transfer} &: \type{Party} \times \type{Party} \times \type{Currency}\to \type{Contr}\\
-\emph{scale}&: \type{Expr}_\reals \times \type{Contr} \to \type{Contr}\\
-\emph{translate}&: \nats \times \type{Contr} \to \type{Contr}\\ 
-\emph{checkWithin}&:  \type{Expr}_\bools \times \nats \times \type{Contr} \times \type{Contr} %\\&
+\mathit{zero} &: \type{Contr}\\
+\mathit{transfer} &: \type{Party} \times \type{Party} \times \type{Currency}\to \type{Contr}\\
+\mathit{scale}&: \type{Expr}_\reals \times \type{Contr} \to \type{Contr}\\
+\mathit{translate}&: \nats \times \type{Contr} \to \type{Contr}\\ 
+\mathit{checkWithin}&:  \type{Expr}_\bools \times \nats \times \type{Contr} \times \type{Contr} %\\&
 \to \type{Contr}\\
-\emph{both}&: \type{Contr} \times \type{Contr} \to \type{Contr}
+\mathit{both}&: \type{Contr} \times \type{Contr} \to \type{Contr}
 \end{align*}
 \vspace*{-3ex}
 }
@@ -138,16 +138,16 @@ Amounts in contracts may be scaled using real-valued expression
 alternatives depend on Boolean predicates ($\type{Expr}_\bools$), which may refer on external
 decisions.
 
-The observables and choices are ``observed'' with a given offset from the
-current day. In general, all definitions use \emph{relative time}, aiding
-the compositionality of contracts.
-We also define a special expression \emph{acc} which \emph{accumulates} a
-value over a given number of days from today.
+The observables and choices are ``observed'' with a given offset from
+the current day. In general, all definitions use \emph{relative time},
+aiding the compositionality of contracts.  We also define a special
+expression $\mathit{acc}$ which \emph{accumulates} a value over a
+given number of days from today.
 
 \vspace*{-2ex}
 {\small
 \[
-\emph{acc} : (\type{Expr} \to \type{Expr}) \to \nats \to \type{Expr} \to \type{Expr}
+\mathit{acc} : (\type{Expr} \to \type{Expr}) \to \nats \to \type{Expr} \to \type{Expr}
 \]
 }
 \vspace*{-3ex}
@@ -162,16 +162,16 @@ a fixed rate $r$ of Danish Crowns from Party Y.
 \vspace*{-2ex}
 {\footnotesize
 \begin{align*}
-option &= \emph{checkWithin}(chosenBy(X,0), 90, trade, zero)\\
-trade &= \emph{scale}(100, both(transfer(Y, X,\type{USD}), pay))\\
-pay &= \emph{scale}(r, transfer(X, Y,\type{DKK}))
+\mathit{option} &= \mathit{checkWithin}(\mathit{chosenBy}(X,0), 90, \mathit{trade}, \mathit{zero})\\
+\mathit{trade} &= \mathit{scale}(100, both(\mathit{transfer}(Y, X,\type{USD}), pay))\\
+\mathit{pay} &= \mathit{scale}(r, \mathit{transfer}(X, Y,\type{DKK}))
 \end{align*}
 
 %\vspace*{-2ex}
 }
 
-More complex examples are given in the appendix, using our implementation as a
-Haskell EDSL.
+More complex examples are given in the appendix, using our
+implementation of the contract language as a Haskell EDSL.
 
 \subsection{Denotational Semantics}
 \label{sec:semantics}
@@ -297,20 +297,20 @@ the denotational semantics:
 \end{theorem}
 
 
-
-\subsection{Implementation}
-\label{sec:implementation}
-
-Implementation as a Haskell EDSL
-
 \section{Discussion and Future Work}
 \label{sec:disc-future-work}
 
-Future work:
-\begin{itemize}
-\item more extensive analyses (e.g. ``zooming'', scenario generation)
-\item code generation for pay-off function for pricing frameworks
-\end{itemize}
+We have an implementation of the presented contract language as an
+EDSL in Haskell, including the surrounding contract management
+framework. The denotational semantics provides a solid foundation that
+both gives an intuitive understanding of contracts and facilitates
+formal reasoning in a theorem prover.
+
+For future work we plan to implement and certify more extensive
+analyses and transformations, e.g.\ scenario generation and
+``zooming'' (changing the granularity of time). Moreover, an important
+goal is to generate from a contract efficient code to calculate its
+payoff.
 
 
 \bibliographystyle{abbrv}
