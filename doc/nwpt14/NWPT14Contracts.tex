@@ -201,10 +201,12 @@ The cash-flow is a partial mapping since it may not be determined due
 to insufficient knowledge about observables and external decisions,
 provided by an environment $\rho\in\type{Env}$:
 \begin{align*}
-  \type{Env} = &\ \nats \to X \to  \reals \cup \bools\\
+  \type{Env} = &\ \ints \to X \pto  \reals \cup \bools\\
   \cSem{\cdot}{\cdot}&\colon \type{Contr} \times \type{Env} \to
   \type{Flow}
 \end{align*}
+Note that the environment is a partial mapping from $\ints$, i.e.\ it
+may provide information about the past.
 
 This denotational semantics is the foundation for the formalisation of
 symbolic contract analyses, contract management and %contract
@@ -228,18 +230,11 @@ time $t$ depend only on observables at time $\leq t$?), horizon (From
 which time onwards is the cash-flow always zero?) and dependencies
 (Which observables does the cash-flow depend on?). Such properties can
 be characterised precisely using the denotational semantics. For
-example a contract $c$ is causal iff for all $t \in \nats$, we have
-that
-%\vspace*{-2ex}
-\begin{align*}
-\forall \rho_1, \rho_2 \in \type{Env} \text{ satisfying } 
-\rho_1(s)=\rho_2(s) \forall s \le t:\\
-%
-\cSem c{\rho_1} (t) = \cSem c {\rho_2} (t)
-\end{align*}
-
-That is, the cash-flows at time $t$ do not depend on observables and
-decisions after $t$.
+example a contract $c$ is causal iff for all $t \in \nats$ and
+$\rho_1, \rho_2 \in \type{Env}$ such that $s \le t$ implies
+$\rho_1(s)=\rho_2(s)$ for all $s \in \ints$, we have that $\cSem
+c{\rho_1} (t) = \cSem c {\rho_2} (t)$. That is, the cash-flows at any
+time $t$ do not depend on observables and decisions after $t$.
 
 It is in general undecidable whether a contract is causal, but we
 can provide conservative approximations.  For instance we have an
