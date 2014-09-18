@@ -234,8 +234,6 @@ checking, which provides a conservative approximation of type safety.
 \section{Contract Management and Transformation}
 \label{sec:contract-management}
 
-\pbcomment{What do we precisely mean by contract management?}
-
 Apart from a variety of analyses our framework provides functionality
 to transform contracts in meaningful ways. The most basic form of such
 transformations are provided by algebraic laws. These laws of the form
@@ -254,16 +252,14 @@ specialisation and reduction.
 \subsection{Specialisation}
 \label{sec:specialisation}
 
-A specialisation function $f$ takes a contract and an environment and
-returns a contract that is equivalent under the given
-environment. That is,
-\[
-\cSem{f(c,\rho)}\rho = \cSem c \rho
-\]
+A specialisation function $f$ performs a partial evaluation of a
+contract $c$ under a given environment $\rho$. The resulting contract
+$f(c,\rho)$ is equivalent to $c$ under the environment $\rho$. More
+generally, we have that $\cSem{f(c,\rho)}{\rho'} = \cSem c \rho$ for
+any environment $\rho' \subseteq \rho$, including the empty
+environment.
 
-Since $f$ specialises the contract $c$ to the environment $\rho$, one
-would hope to get the stronger property $\cSem{f(c,\rho)}\emptyset =
-\cSem c \rho$. However, in general this is not possible.
+
 
 \subsection{Reduction Semantics}
 \label{sec:reduction-semantics}
