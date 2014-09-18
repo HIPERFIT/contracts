@@ -2,13 +2,16 @@ Require Import Denotational.
 
 (* advancing contracts and expressions *)
 
-Fixpoint adv_rexp (d : Z) (e : rexp) : rexp :=
+Fixpoint adv_rexp {n} (d : Z) (e : rexp' n) : rexp' n :=
   match e with
-    | RLit r => RLit r
-    | RBin op e1 e2 => RBin op (adv_rexp d e1) (adv_rexp d e2)
-    | RNeg e' => RNeg (adv_rexp d e')
-    | Obs o i => Obs o (d + i)%Z
+    | RLit _ r => RLit r
+    | RBin _ op e1 e2 => RBin op (adv_rexp d e1) (adv_rexp d e2)
+    | RNeg _ e' => RNeg (adv_rexp d e')
+    | Obs _ o i => Obs o (d + i)%Z
+    | RVar _ a => RVar a
+    | RAcc _ f n z => RAcc (adv_rexp d f) n (adv_rexp d z)
   end.
+
 
 Fixpoint adv_bexp (d : Z) (e : bexp) : bexp :=
   match e with
@@ -20,9 +23,15 @@ Fixpoint adv_bexp (d : Z) (e : bexp) : bexp :=
   end.
 
 
-Lemma adv_rexp_obs d e rho : R[|adv_rexp d e|]rho = R[|e|](adv_inp d rho).
+Lemma adv_rexp_obs n (vars : vector (option Z) n) d (e : rexp' n) rho : 
+  R'[|adv_rexp d e|] vars rho = R'[|e|] vars (adv_inp d rho).
 Proof.
-  induction e; simpl; first [reflexivity | f_equal; assumption].
+  generalize dependent rho. induction e;intros; simpl; first [reflexivity | f_equal; assumption | auto].
+  rewrite IHe1. rewrite IHe2. reflexivity.
+  rewrite IHe. reflexivity.
+  induction n0.
+  - simpl. apply IHe2.
+  - simpl. rewrite IHn0. rewrite adv_inp_swap. apply IHe1. 
 Qed.
 
 Lemma adv_rexp_env d e rho : R[|adv_rexp d e|](fst rho) = R[|e|](fst (adv_env d rho)).

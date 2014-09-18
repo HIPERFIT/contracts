@@ -30,6 +30,9 @@ Proof.
   simpl. intros. symmetry. auto.
 Qed. 
 
+Instance vector_Partial n A : Partial (vector (option A) n) := {
+  lep v1 v2 := forall i z, nth v1 i = Some z -> nth v2 i = Some z
+}.
 
 Instance single_Partial A B : Partial (A -> option B) := {
   lep t1 t2  := forall i z , t1 i = Some z -> t2 i = Some z
@@ -122,17 +125,28 @@ Qed.
 
 (* Semantics of real expressions. *)
 
-Reserved Notation "'R[|' e '|]' r" (at level 9).
+Fixpoint acc {A} (f : nat -> A -> A) (n : nat) (z : A) : A :=
+  match n with
+    | 0 => z
+    | S n' => f n (acc f n' z)
+  end.
 
-Fixpoint Rsem (e : rexp) : obs -> option Z :=
-  fun rho => 
+Reserved Notation "'R'[|' e '|]'" (at level 9).
+
+Fixpoint Rsem' {n} (e : rexp' n) : vector (option Z) n -> obs -> option Z :=
     match e with
-      | RLit r => Some r
-      | RBin op e1 e2 => option_map2 (RBinOp op) R[|e1|]rho R[|e2|]rho
-      | RNeg e => option_map (Zminus 0) R[|e|]rho
-      | Obs obs t => rho t obs
+      | RLit _ r => fun vars rho => Some r
+      | RBin _ op e1 e2 => fun vars rho =>  option_map2 (RBinOp op) (R'[|e1|] vars rho) (R'[|e2|] vars rho)
+      | RNeg _ e => fun vars rho => option_map (Zminus 0) (R'[|e|] vars rho)
+      | Obs _ obs t => fun vars rho => rho t obs
+      | RVar _ v => fun vars rho => nth vars v 
+      | RAcc _ f m z => fun vars rho => 
+                          acc (fun m x => R'[| f |] (x :: vars) (adv_inp (Z.of_nat m) rho)) m (R'[|z|] vars rho)
     end
-      where "'R[|' e '|]' r" := (Rsem e r). 
+      where "'R'[|' e '|]'" := (Rsem' e ). 
+
+
+Notation "'R[|' e '|]' r" := (R'[|e|] (vnil (option Z)) r) (at level 9).
 
 (* Semantics of binary Boolean operations. *)
 

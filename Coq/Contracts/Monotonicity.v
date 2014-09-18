@@ -1,18 +1,52 @@
 Require Export Denotational.
 Require Import Advance.
 Require Import Tactics.
+Require Import Equality.
 Open Scope Z.
 
 (********** Monotonicity of the denotational semantics **********)
 
-Lemma Rsem_monotone e rho1 rho2 : rho1 ⊆ rho2 -> R[| e |]rho1 ⊆ R[| e |]rho2.
-Proof.
-  intro S; induction e; simpl; intros; auto.
-  - destruct (R[|e1|]rho1); destruct (R[|e2|]rho1); tryfalse.
-    apply lep_some in IHe1. apply lep_some in IHe2. 
-    rewrite <- IHe1. rewrite <- IHe2. simpl in *. auto.
-  - destruct (R[|e|]rho1); tryfalse. apply lep_some in IHe. rewrite <- IHe. auto. 
+Lemma adv_inp_monotone A (in1 in2 : inp A) n : in1 ⊆ in2 -> adv_inp n in1 ⊆ adv_inp n in2.
+Proof. 
+  unfold lep, adv_inp. simpl. intros. remember (in1 (n + i) j) as X.
+  destruct X;tryfalse. apply H. rewrite <- H0. auto. 
 Qed.
+
+Lemma lep_vcons A n (v1 v2 : vector (option A) n) x1 x2 :
+  x1 ⊆ x2 -> v1 ⊆ v2 -> (x1 :: v1) ⊆ (x2 :: v2).
+Proof.
+  intros. intros. simpl. intros. dependent destruction i.
+  auto. simpl in *. auto.
+Qed. 
+Lemma lep_vnil A : vnil (option A) ⊆ vnil (option A).
+Proof. intro. auto. Qed.
+
+Hint Resolve lep_vcons lep_vnil.
+
+Lemma Rsem_monotone' n (vars1 vars2 : vector (option Z) n) e rho1 rho2 : 
+  rho1 ⊆ rho2 -> vars1 ⊆ vars2 -> R'[| e |] vars1 rho1 ⊆ R'[| e |] vars2 rho2.
+Proof.
+  generalize dependent rho1. generalize dependent rho2. 
+  generalize dependent vars1. generalize dependent vars2. 
+  induction e; try solve [simpl; intros; auto].
+  - simpl. intros. 
+    remember (R'[|e1|] vars1 rho1) as R1; remember (R'[|e2|] vars1 rho1) as R2.
+    destruct R1;destruct R2; tryfalse.
+    symmetry in HeqR1. eapply IHe1 in HeqR1.
+    symmetry in HeqR2. eapply IHe2 in HeqR2.
+    rewrite HeqR1. rewrite HeqR2. auto. auto. auto. auto. auto.
+  - simpl. intros. remember (R'[|e|] vars1 rho1) as R.
+    destruct R; tryfalse.
+    symmetry in HeqR. eapply IHe in HeqR.
+    rewrite HeqR. auto. auto. auto.
+  - induction n0.
+    + simpl in *. eapply IHe2.
+    + intros. simpl. apply IHe1. apply adv_inp_monotone. auto. 
+      apply lep_vcons;auto. simpl. apply IHn0; auto. 
+Qed.
+
+Corollary Rsem_monotone  e rho1 rho2 : rho1 ⊆ rho2 -> R[| e |]rho1 ⊆ R[| e |]rho2.
+Proof. intros. apply Rsem_monotone'; auto. Qed.
 
 Lemma Bsem_monotone e rho1 rho2 : rho1 ⊆ rho2 -> B[| e |]rho1 ⊆ B[| e |]rho2.
 Proof.
@@ -30,13 +64,6 @@ Proof.
     erewrite IHe1 by auto. erewrite IHe2 by auto.  assumption.
 Qed.
 
-
-
-Lemma adv_inp_monotone A (in1 in2 : inp A) n : in1 ⊆ in2 -> adv_inp n in1 ⊆ adv_inp n in2.
-Proof. 
-  unfold lep, adv_inp. simpl. intros. remember (in1 (n + i) j) as X.
-  destruct X;tryfalse. apply H. rewrite <- H0. auto. 
-Qed.
 
 Lemma adv_env_monotone rho1 rho2 n : rho1 ⊆ rho2 -> adv_env n rho1 ⊆ adv_env n rho2.
 Proof. 

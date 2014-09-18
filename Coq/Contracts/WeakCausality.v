@@ -2,6 +2,8 @@ Require Import Causality.
 Require Import Advance.
 
 (* Weak provable causality *)
+(* This file is outdated, use StrongCausality.v instead *)
+
 
 Reserved Notation "'R|-' c" (at level 20).
 

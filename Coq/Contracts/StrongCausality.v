@@ -7,20 +7,31 @@ Require Import Tactics.
 
 Reserved Notation "d 'R||-' c" (at level 20).
 
-Inductive rppc : nat -> rexp -> Prop:=
-| rppc_obs : forall o i, Z.to_nat i R||- Obs o i
-| rppc_lit : forall q, 0 R||- (RLit q)
-| rppc_bin : forall op e1 e2 d1 d2, d1 R||- e1 -> d2 R||- e2 -> max d1 d2 R||- RBin op e1 e2
-| rppc_neg : forall e d, d R||- e -> d R||- RNeg e
+Inductive rppc : forall {n}, Z -> rexp' n -> Prop:=
+| rppc_obs : forall d n o i,  (i <= d)%Z ->  d R||- Obs o i (n:=n)
+| rppc_lit : forall d n q, d R||- RLit q (n:=n)
+| rppc_bin : forall n op e1 e2 d, d R||- e1 -> d R||- e2 -> d R||- RBin op e1 e2  (n:=n)
+| rppc_neg : forall n e d, d R||- e -> d R||- RNeg e  (n:=n)
+| rppc_var : forall d n q, d R||- RVar q (n:=n)
+| rppc_acc : forall d n f m z, (d - Z.of_nat m)  R||- f -> d R||- z -> d R||- RAcc f m z (n:=n)
+
                                          where "d 'R||-' e" := (rppc d e). 
+
+Lemma rppc_open d d' n (e : rexp' n) : d R||- e -> (d <= d')%Z -> d' R||- e.
+Proof.
+  intros P. generalize dependent d'. induction P; intros; constructor; auto.
+  - omega.
+  - apply IHP1. omega.
+Qed.
+
 
 Reserved Notation "d 'B||-' c" (at level 20).
 
-Inductive bppc : nat -> bexp -> Prop:=
-| bppc_lit : forall b, 0 B||- (BLit b)
-| rppc_ch : forall ch i, Z.to_nat i B||- BChoice ch i
-| bppc_cmp : forall cmp e1 e2 d1 d2, d1 R||- e1 -> d2 R||- e2 -> max d1 d2 B||- RCmp cmp e1 e2
-| bppc_op : forall op e1 e2 d1 d2, d1 B||- e1 -> d2 B||- e2 -> max d1 d2 B||- BOp op e1 e2
+Inductive bppc : Z -> bexp -> Prop:=
+| bppc_lit : forall d b, d B||- (BLit b)
+| rppc_ch : forall d ch i, (i <= d)%Z -> d B||- BChoice ch i
+| bppc_cmp : forall cmp (e1 e2 : rexp) d, d R||- e1 -> d R||- e2 -> d B||- RCmp cmp e1 e2
+| bppc_op : forall op e1 e2 d, d B||- e1 -> d B||- e2 -> d B||- BOp op e1 e2
 | bppc_not : forall e d, d B||- e -> d B||- BNot e
                                          where "d 'B||-' e" := (bppc d e). 
 
@@ -56,7 +67,7 @@ Reserved Notation "d '||-' c" (at level 20).
 Inductive ppc : option nat -> contract -> Prop :=
 | ppc_transl : forall d c b, b ||- c -> oplus d b ||- Transl d c
 | ppc_transf : forall cur p1 p2, Some 0 ||- TransfOne cur p1 p2
-| ppc_scale : forall e c b d, ole d b ->  d R||- e -> b ||- c -> b ||- Scale e c
+| ppc_scale : forall (e : rexp) c b d, ole d b ->  (Z.of_nat d) R||- e -> b ||- c -> b ||- Scale e c
 | ppc_both : forall c1 c2 d1 d2, d1 ||- c1 -> d2 ||- c2 -> omin d1 d2 ||- Both c1 c2
 | ppc_zero : None ||- Zero
 | ppc_if : forall c1 c2 b l d1 d2, 0 B||- b -> d1 ||- c1 -> d2 ||- c2 
@@ -77,29 +88,50 @@ Qed.
 
 Ltac env_until_max := eauto using env_until_le, Z.le_max_l, Z.le_max_r.
 
-Lemma rppc_inp_until e d r1 r2 : d R||-e  -> inp_until (Z.of_nat d) r1 r2 -> R[|e|]r1 = R[|e|]r2.
+Lemma inp_until_adv A d1 d2 (r1 r2 : inp A) : 
+  inp_until d1 (adv_inp d2 r1) (adv_inp d2 r2) <-> inp_until (d1+d2) r1 r2.
 Proof.
-  intros R O. induction R; simpl; try solve [f_equal; auto].
-
-  unfold inp_until in O. rewrite O. reflexivity. pose (Z_le_dec i 0%Z) as Z.
-  destruct Z. eapply Z.le_trans. apply l. apply Zle_0_nat. rewrite Z2Nat.id; omega.
-  rewrite Nat2Z.inj_max in *.
-
-  f_equal; first [apply IHR1|apply IHR2]; inp_until_max.
+  unfold inp_until,adv_inp. split; intros.
+  - pose (H (z - d2)%Z). 
+    assert (d2 + (z - d2) = z)%Z as E. omega. rewrite E in *. 
+    apply e. omega.
+  - apply H. omega.
 Qed.
 
-Lemma bppc_env_until e d r1 r2 : d B||-e -> env_until (Z.of_nat d) r1 r2 -> B[|e|]r1 = B[|e|]r2.
+Lemma rppc_inp_until' n (vars : vector (option Z) n) (e : rexp' n) d r1 r2 : 
+  d R||-e  -> inp_until d r1 r2 -> R'[|e|] vars r1 = R'[|e|] vars r2.
+Proof.
+  intros R. generalize dependent r1. generalize dependent r2. 
+  induction R; intros r2 r1 O; simpl; try solve [f_equal; auto].
+
+  unfold inp_until in O. simpl. rewrite O. reflexivity. auto.
+  
+  induction m.
+  - simpl. auto.
+  - simpl. rewrite IHm. apply  IHR1. rewrite inp_until_adv.
+    simpl. assert (d - Z.pos (Pos.of_succ_nat m) + Z.pos (Pos.of_succ_nat m) = d)%Z.
+    omega. rewrite H. auto. eapply rppc_open. 
+    eassumption. rewrite Nat2Z.inj_succ. omega.
+    intros. apply IHR1. 
+    apply inp_until_le with (d1 := (d - Z.of_nat m)%Z). rewrite Nat2Z.inj_succ.
+    omega. auto.
+Qed.
+
+Corollary rppc_inp_until (e : rexp) d r1 r2 : 
+  d R||-e  -> inp_until d r1 r2 -> R[|e|] r1 = R[|e|] r2.
+Proof. apply rppc_inp_until'. Qed.
+
+Lemma bppc_env_until e d r1 r2 : d B||-e -> env_until d r1 r2 -> B[|e|]r1 = B[|e|]r2.
 Proof.
   intros R O. induction R; simpl; try solve [f_equal; auto].
 
-  destruct O. unfold inp_until in *. rewrite H0. reflexivity.
-  remember (0 <=? i)%Z as L. symmetry in HeqL. destruct L.
-  rewrite <- Zle_is_le_bool in HeqL. rewrite Z2Nat.id; omega.
-  rewrite Z.leb_gt in HeqL. pose (Zle_0_nat (Z.to_nat i)). omega.
-  rewrite Nat2Z.inj_max in *.
-  destruct O. f_equal; eapply rppc_inp_until; inp_until_max.
-  rewrite Nat2Z.inj_max in *.
-  f_equal; first [apply IHR1|apply IHR2]; env_until_max.
+  destruct O. unfold inp_until in *. rewrite H1. reflexivity.
+  remember (0 <=? i)%Z as L. omega. 
+  
+  destruct O. 
+  eapply rppc_inp_until in H.
+  eapply rppc_inp_until in H0. rewrite H. rewrite H0.
+  reflexivity. auto. auto.
 Qed.
 
 Lemma delay_trace_empty d : delay_trace d (const_trace empty_trans) = const_trace empty_trans.
@@ -274,7 +306,7 @@ Proof.
   remember (B[|b|]r2) as bl. destruct bl. destruct b0. eapply IHppc1; eassumption. 
   eapply IHppc2; eassumption. auto.
 
-  rewrite bppc_env_until with (r2:=r2) (d:=0) by assumption.
+  rewrite bppc_env_until with (r2:=r2) (d:=0%Z) by assumption.
   remember (B[|b|]r2) as bl. destruct bl. destruct b0.  eapply IHppc1; eassumption. 
   unfold delay_trace. remember (leb 1 d) as L. destruct L. 
   symmetry in HeqL. rewrite leb_iff in HeqL. apply IHl. apply env_until_adv. simpl.  
