@@ -100,64 +100,28 @@ using proof assistant Coq.
 \section{Contract Language}
 \label{sec:contract-language}
 
+\subsection{Language Constructs}
+\label{sec:language-constructs}
+
 Financial contracts essentially define future transactions (\emph{cash-flows})
-between different parties who agree on a contract, and typically depend on
-\emph{observable} underlying values, such as foreign exchange rates, stock
-prices, or market indexes.
-%
-Decisions can be taken by any of the involved parties (which are modelled
-just like the observables), and contracts may involve \emph{alternatives}
-depending on decisions and observables, which possibly repeat.
-Finally, contracts may be combined, leading to 
-the following set of contracts atoms and combinators:
+between different parties who agree on a contract.
+Amounts in contracts may be \emph{scaled} using real-valued expression
+($\type{Expr}_\reals$), which may refer to \emph{observable} underlying
+values, such as foreign exchange rates, stock prices, or market indexes.
+Likewise, contracts can contain \emph{alternatives} depending on Boolean
+predicates ($\type{Expr}_\bools$), which may refer to these observables,
+as well as external \emph{decisions} taken by the parties involved.
 
-%\jbcomment{or in the Appendix?}
-\vspace*{-3ex}
-{\small
+Observables and choices in our contract language are ``observed'' with
+a given offset from the current day.
+In general, all definitions use \emph{relative time},
+aiding the compositionality of contracts.  
 
-\begin{align*}
-\mathit{zero} &: \type{Contr}\\
-\mathit{transfer} &: \type{Party} \times \type{Party} \times \type{Currency}\to \type{Contr}\\
-\mathit{scale}&: \type{Expr}_\reals \times \type{Contr} \to \type{Contr}\\
-\mathit{translate}&: \nats \times \type{Contr} \to \type{Contr}\\ 
-\mathit{checkWithin}&:  \type{Expr}_\bools \times \nats \times \type{Contr} \times \type{Contr} %\\&
-\to \type{Contr}\\
-\mathit{both}&: \type{Contr} \times \type{Contr} \to \type{Contr}
-\end{align*}
-\vspace*{-3ex}
-}
-
-In our small language, we focus on foreign exchange (FX) and stock market
-derivatives, but the concepts generalise easily. Likewise, cash-flows are
-based on a fixed set of \emph{currencies}, where they could instead allow for
-arbitrary assets.
-%\jbcomment{Currency is a closed type, while observables are open (just strings)}
-
-Amounts in contracts may be scaled using real-valued expression
-($\type{Expr}_\reals$), which may refer to observables. Likewise,
-alternatives depend on Boolean predicates ($\type{Expr}_\bools$), which may refer on external
-decisions.
-
-The observables and choices are ``observed'' with a given offset from
-the current day. In general, all definitions use \emph{relative time},
-aiding the compositionality of contracts.  We also define a special
-expression $\mathit{acc}$ which \emph{accumulates} a value over a
-given number of days from today.
-
-\vspace*{-2ex}
-{\small
-\[
-\mathit{acc} : (\type{Expr} \to \type{Expr}) \to \nats \to \type{Expr} \to \type{Expr}
-\]
-}
-\vspace*{-3ex}
-
-\subsection{Example}
-\label{sec:example}
-
+A common contract structure is to \emph{repeat} a choice
+between alternatives until a given end date.
 As a simple example, consider an \emph{FX option} on US dollars:
 Party X may, within 90 days, decide whether to buy $100$ US dollars for
-a fixed rate $r$ of Danish Crowns from Party Y.
+a fixed rate $r$ of Danish Kroner from Party Y.
 
 \vspace*{-2ex}
 {\footnotesize
@@ -169,9 +133,58 @@ a fixed rate $r$ of Danish Crowns from Party Y.
 
 %\vspace*{-2ex}
 }
+%
+%More complex examples are given in the appendix, using our
+%implementation of the contract language as a Haskell EDSL.
 
-More complex examples are given in the appendix, using our
-implementation of the contract language as a Haskell EDSL.
+The \emph{checkWithin} construct which generalises an alternative by
+iterating the decision (\emph{chosenBy}) of party X.
+If X chooses at one day before the end (90 days), the \emph{trade} comes
+into effect, consisting of two transfers (\emph{both}) between the parties.
+Otherwise, the contract becomes empty (\emph{zero}) after 90 days.
+
+The contracts atoms and combinators of the language are:
+
+%\jbcomment{or in the Appendix?}
+\vspace*{-3ex}
+{\small
+
+\begin{align*}
+\mathit{zero} &: \type{Contr}\\[-0.6ex]
+\mathit{transfer} &: \type{Party} \times \type{Party} \times \type{Currency}\to \type{Contr}\\[-0.6ex]
+\mathit{scale}&: \type{Expr}_\reals \times \type{Contr} \to \type{Contr}\\[-0.6ex]
+\mathit{translate}&: \nats \times \type{Contr} \to \type{Contr}\\[-0.6ex]
+\mathit{checkWithin}&:  \type{Expr}_\bools \times \nats \times \type{Contr} \times \type{Contr} %\\&
+\to \type{Contr}\\[-0.6ex]
+\mathit{both}&: \type{Contr} \times \type{Contr} \to \type{Contr}
+\end{align*}
+\vspace*{-3ex}
+}
+
+\emph{translate(n)} simply translates a contract $n$ days into the future.
+
+%We present foreign exchange (FX) and stock market
+%derivatives, but the concepts generalise easily. Likewise, cash-flows are
+%based on a fixed set of \emph{currencies}, where they could instead allow for
+%arbitrary assets.
+%\jbcomment{Currency is a closed type, while observables are open (just strings)}
+
+In the expression language, we also define a special
+expression $\mathit{acc}$ which \emph{accumulates} a value over a
+given number of days from today.
+
+\vspace*{-2ex}
+{\small
+\[
+\mathit{acc} : (\type{Expr}_\alpha \to \type{Expr}_\alpha) \to \nats \to \type{Expr}_\alpha \to \type{Expr}_\alpha
+\]
+}
+\vspace*{-3ex}
+
+The accumulator can be used to compute averages (for so-called Asian options),
+or more generally to carry forward a state while computing values.
+%\jbcomment{explain: general -- carries state, for instance computing averages}
+
 
 \subsection{Denotational Semantics}
 \label{sec:semantics}
@@ -186,18 +199,19 @@ partial mapping from time to transfers between two parties:
 
 The cash-flow is a partial mapping since it may not be determined due
 to insufficient knowledge about observables and external decisions,
-which is provided by an environment $\rho\in\type{Env}$:
+provided by an environment $\rho\in\type{Env}$:
 \begin{align*}
+  \type{Env} = &\ \nats \to X \to  \reals \cup \bools\\
   \cSem{\cdot}{\cdot}&\colon \type{Contr} \times \type{Env} \to
   \type{Flow}
 \end{align*}
 
 This denotational semantics is the foundation for the formalisation of
-symbolic contract analyses, contract management and contract
+symbolic contract analyses, contract management and %contract
 transformations.
 
 An important property of the semantics of contracts is monotonicity,
-which is the property that
+i.e.
 \[
 \cSem c {\rho_1} \subseteq \cSem c {\rho_2} \text{ if }
 \rho_1\subseteq \rho_2
@@ -216,15 +230,18 @@ which time onwards is the cash-flow always zero?) and dependencies
 be characterised precisely using the denotational semantics. For
 example a contract $c$ is causal iff for all $t \in \nats$, we have
 that
-\[
-\cSem c{\rho_1} (t) = \cSem c {\rho_2} (t) \text{ if } \forall s \le t\colon
-\rho_1(s)=\rho_2(s)
-\]
-That is, the cash flow at time $t$ does not depend on observables and
+%\vspace*{-2ex}
+\begin{align*}
+\forall \rho_1, \rho_2 \in \type{Env} \text{ satisfying } 
+\rho_1(s)=\rho_2(s) \forall s \le t:\\
+%
+\cSem c{\rho_1} (t) = \cSem c {\rho_2} (t)
+\end{align*}
+
+That is, the cash-flows at time $t$ do not depend on observables and
 decisions after $t$.
 
-
-Deciding these properties precisely is in general undecidable but we
+It is in general undecidable whether a contract is causal, but we
 can provide conservative approximations.  For instance we have an
 inductively defined predicate $\Pred{Causal}$ such that if
 $\Pred{Causal}(c)$, then $c$ is indeed causal. This is not unlike type
