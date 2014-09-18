@@ -48,7 +48,9 @@ Definition omin (m n : option nat) : option nat :=
                    end
       | None => n
   end.
-                     
+
+Open Scope nat.                  
+   
 Definition ole (m : nat) (n : option nat) : Prop := 
   match n with
      | Some n' => m <= n'
@@ -73,10 +75,6 @@ Inductive pc : option nat -> contract -> Prop :=
                                      -> omin d1 (oplus l d2) |-  IfWithin b l c1 c2
                                             where "d '|-' c" := (pc d c). 
 
-Lemma inp_until_le {A} d1 d2 (r1 r2 : inp A) : Z.le d2 d1 -> inp_until d1 r1 r2 -> inp_until d2 r1 r2.
-Proof. 
-  unfold inp_until. intros. apply H0. omega.
-Qed.
 
 Ltac inp_until_max := eauto using inp_until_le, Z.le_max_l, Z.le_max_r.
 
@@ -86,16 +84,6 @@ Proof.
 Qed.
 
 Ltac env_until_max := eauto using env_until_le, Z.le_max_l, Z.le_max_r.
-
-Lemma inp_until_adv A d1 d2 (r1 r2 : inp A) : 
-  inp_until d1 (adv_inp d2 r1) (adv_inp d2 r2) <-> inp_until (d1+d2) r1 r2.
-Proof.
-  unfold inp_until,adv_inp. split; intros.
-  - pose (H (z - d2)%Z). 
-    assert (d2 + (z - d2) = z)%Z as E. omega. rewrite E in *. 
-    apply e. omega.
-  - apply H. omega.
-Qed.
 
 Lemma rpc_inp_until' n (vars : vector (option Z) n) (e : rexp' n) d r1 r2 : 
   d R|-e  -> inp_until d r1 r2 -> R'[|e|] vars r1 = R'[|e|] vars r2.
@@ -108,9 +96,8 @@ Proof.
   induction m.
   - simpl. auto.
   - simpl. rewrite IHm. apply  IHR1. rewrite inp_until_adv.
-    simpl. apply inp_until_le with (d1:=d). 
+    eapply inp_until_le. eassumption.
     pose (Zlt_neg_0 (Pos.of_succ_nat m)). omega.
-    assumption.
 Qed.
 
 Corollary rpc_inp_until (e : rexp) d r1 r2 : 
@@ -270,7 +257,7 @@ Proof.
   destruct R1; destruct R2; try auto. 
   remember (leb d d0) as D. symmetry in HeqD. destruct D. rewrite leb_iff in HeqD.
   inversion H2 as [H2' H2'']. apply inj_le in HeqD.
-  pose (inp_until_le _ _ _ _ HeqD H2') as O.
+  pose (inp_until_le _ _ _ _ H2' HeqD ) as O.
   pose (IHpc _ _ _ H2) as IH. destruct IH. left.
   rewrite H3. reflexivity. destruct H3. right. left. rewrite H3.
   reflexivity. right. right. rewrite H3. simpl. 

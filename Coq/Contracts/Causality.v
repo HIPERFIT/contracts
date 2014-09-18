@@ -1,6 +1,8 @@
 Require Export Denotational.
 Require Export Advance.
 
+Open Scope Z.
+
 (********** Causality **********)
 
 (* [obs_until d r1 r2] iff [r1] [r2] coincide at [d] and earlier. *)
@@ -21,17 +23,11 @@ Definition causal (c : contract) : Prop :=
 Lemma inp_until_adv {A} d t (r1 r2 : inp A): 
   inp_until d (adv_inp t r1) (adv_inp t r2) <-> inp_until (t + d) r1 r2.
 Proof.
-  split.
-  unfold inp_until in *. intros.
-  pose (H (z - t)%Z) as H'.
-  unfold adv_inp in H'. 
-  assert (t + (z - t) = z)%Z as E by omega.
-  rewrite E in H'. apply H'. omega.
-
-  unfold inp_until in *. intros.
-  unfold adv_inp. 
-
-  pose (H (t + z)%Z) as H'.  apply H'. omega.
+  unfold inp_until,adv_inp. split; intros.
+  - pose (H (z - t)%Z). 
+    assert (t + (z - t) = z)%Z as E. omega. rewrite E in *. 
+    apply e. omega.
+  - apply H. omega.
 
 Qed.
 
@@ -48,4 +44,9 @@ Proof.
   intros.
   assert (1 + (d - 1) = d)%Z by omega.
   rewrite env_until_adv. rewrite H1. assumption.
+Qed.
+
+Lemma inp_until_le {A} d1 d2 (r1 r2 : inp A) : inp_until d1 r1 r2 ->  d2 <= d1 -> inp_until d2 r1 r2.
+Proof. 
+  unfold inp_until. intros. apply H. omega.
 Qed.

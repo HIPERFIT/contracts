@@ -2,16 +2,19 @@ Require Import Causality.
 Require Import Advance.
 
 (* Weak provable causality *)
-(* This file is outdated, use StrongCausality.v instead *)
 
 
 Reserved Notation "'R|-' c" (at level 20).
 
-Inductive rpc : rexp -> Prop:=
-| rpc_obs : forall o i, Z.le i 0 -> R|- Obs o i
-| rpc_lit : forall q, R|- (RLit q)
-| rpc_bin : forall op e1 e2, R|- e1 -> R|- e2 -> R|- RBin op e1 e2
-| rpc_neg : forall e, R|- e -> R|- RNeg e
+Open Scope Z.
+
+Inductive rpc : forall {n}, rexp' n -> Prop:=
+| rpc_obs : forall n o i, i <= 0 -> R|- Obs o i (n:=n)
+| rpc_lit : forall n q, R|- RLit q (n:=n)
+| rpc_bin : forall n op e1 e2, R|- e1 -> R|- e2 -> R|- RBin op e1 e2 (n:=n)
+| rpc_neg : forall n e, R|- e -> R|- RNeg e (n:=n)
+| rpc_var : forall n q, R|- RVar q (n:=n)
+| rpc_acc : forall n f l z, R|- f -> R|- z -> R|- RAcc f l z (n:=n)
                                          where "'R|-' e" := (rpc e). 
 
 Reserved Notation "'B|-' c" (at level 20).
@@ -38,22 +41,30 @@ Inductive pc : contract -> Prop :=
 (* Below follows the proof that provable causality is sound (i.e. it
 implies semantic causality). *)
 
-Lemma rpc_inp_until e d r1 r2 : R|-e -> inp_until (Z.of_nat d) r1 r2 -> R[|e|]r1 = R[|e|]r2.
+Lemma rpc_inp_until' n (e : rexp' n) d r1 r2 vars : 
+  R|-e -> 0 <= d -> inp_until d r1 r2 -> R'[|e|]vars r1 = R'[|e|]vars r2.
 Proof.
-  intros R O. induction R; simpl; try (f_equal; assumption).
-
-  unfold inp_until in O. rewrite O. reflexivity. 
-  eapply Z.le_trans. apply H. apply Nat2Z.is_nonneg.
+  intros R D O.   generalize dependent vars. generalize dependent r2. generalize dependent r1.
+  induction R; intros; simpl; try solve [f_equal; auto].
+  - unfold inp_until in O. rewrite O. reflexivity. omega.
+  - induction l. 
+    + simpl. auto.
+    + simpl. rewrite IHl. apply IHR1. rewrite inp_until_adv.
+      eapply inp_until_le. eassumption. 
+      pose (Zlt_neg_0 (Pos.of_succ_nat l)). omega.
 Qed.
 
-Lemma bpc_env_until e d r1 r2 : B|-e -> env_until (Z.of_nat d) r1 r2 -> B[|e|]r1 = B[|e|]r2.
+Corollary rpc_inp_until (e : rexp) d r1 r2 : 
+  R|-e -> 0 <= d -> inp_until d r1 r2 -> R[|e|] r1 = R[|e|]r2.
+Proof. apply rpc_inp_until'. Qed.
+
+Lemma bpc_env_until e d r1 r2 : B|-e -> 0 <= d -> env_until d r1 r2 -> B[|e|]r1 = B[|e|]r2.
 Proof.
-  intros R O. destruct O. induction R; simpl; try (f_equal; assumption).
+  intros R D O. destruct O. induction R; simpl; try (f_equal; assumption).
 
-  unfold inp_until in *. rewrite H0. reflexivity.
-  eapply Z.le_trans. apply H1. apply Nat2Z.is_nonneg.
+  unfold inp_until in *. rewrite H0. reflexivity. omega.
 
-  f_equal; eapply rpc_inp_until; eassumption.
+  f_equal; eapply rpc_inp_until; eauto. 
 Qed.
 
 
@@ -64,7 +75,7 @@ Proof.
   unfold delay_trace.
   remember (leb d d0) as C. destruct C.
     symmetry in HeqC. apply leb_complete in HeqC.
-    apply IHpc. rewrite env_until_adv. assert (Z.of_nat d + Z.of_nat(d0 - d) = Z.of_nat d0)%Z as D.
+    apply IHpc. rewrite env_until_adv. assert (Z.of_nat d + Z.of_nat(d0 - d) = Z.of_nat d0) as D.
     rewrite <- Nat2Z.inj_add. f_equal. omega.
     rewrite D. assumption.
     
@@ -73,8 +84,8 @@ Proof.
   reflexivity.
 
   unfold scale_trace, compose. erewrite IHpc by apply H1.
-  unfold scale_trans. destruct H1. rewrite rpc_inp_until with (r2:=fst r2) (d:=d) by assumption. 
-reflexivity. 
+  unfold scale_trans. destruct H1. rewrite rpc_inp_until with (r2:=fst r2) (d:=Z.of_nat d) by (auto; omega).
+  reflexivity. 
 
   unfold add_trace. f_equal; auto.
 
@@ -83,11 +94,11 @@ reflexivity.
   generalize dependent d. generalize dependent r1. generalize dependent r2. 
   induction l; intros; simpl.
   
-  erewrite bpc_env_until with (r2:=r2) by eassumption. 
+  rewrite bpc_env_until with (r2:=r2) (d:=Z.of_nat d) by (eauto;omega). 
   remember (B[|b|]r2) as bl. destruct bl. destruct b0. eapply IHpc1; eassumption. 
   eapply IHpc2; eassumption. reflexivity. 
 
-  erewrite bpc_env_until with (r2:=r2) by eassumption. 
+  rewrite bpc_env_until with (r2:=r2) (d:=Z.of_nat d) by (eauto;omega). 
   remember (B[|b|]r2) as bl. destruct bl. destruct b0.  eapply IHpc1; eassumption. 
   unfold delay_trace. remember (leb 1 d) as L. destruct L.  apply IHl. 
   rewrite Nat2Z.inj_sub.
