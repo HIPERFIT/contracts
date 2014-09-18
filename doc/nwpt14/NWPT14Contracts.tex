@@ -36,7 +36,7 @@
 
 \title{Towards Certified Management of Financial Contracts\thanks{Work
     partially supported by the Danish Council for Strategic Research
-    (DSF) under contract number 10-092299 (\textsc{Hiperfit}).}}
+    (DSF) under contract number 10-092299 (\textsc{Hiperfit}~\cite{TFP11Hiperfit}).}}
 
 \titlerunning{Towards Certified Management of Financial Contracts}
 
@@ -61,41 +61,48 @@
 
 \section{Introduction}
 
-Financial computations are among the domains where (embedded)
-domain-specific languages (EDSLs) first came into widespread use.  The
-seminal work on modelling derivatives by Peyton-Jones and
-Eber~\cite{SPJ2000} demonstrated the usefulness of DSLs for financial
-software.
-%
-Eber's company \emph{LexiFi}, a leading software provider
-for financial institutions, has designed their entire software portfolio
-around contract language MLFi~\cite{MLFi} (ML for finance).
+Banks and financial institutions nowadays often use domain-specific
+languages (DSLs) for describing complex financial contracts, in
+particular, for specifying how asset transfers for a specific contract
+depends on underlying observables, such as interest rates, currency
+rates, and stock prices.
 
-What was a complete novelty in 2000 has become common-place since.
-Today, many banks and financial software providers use contract DSLs internally
-which follow their first design to some extent.
-However, the in-house languages we have encountered within our work in project
-\textsc{Hiperfit}~\cite{TFP11Hiperfit} are sometimes disappointing with respect
-to what could be achieved.
-%
-Some contract languages are used to ease pay-out batch processing and suffer
-from unfavourable data models when used for pricing.
-%
-Other languages are used mainly for pricing and valuation, and contain many
-bolted-on extensions for bespoke stochastic models and in-house pricing
-software, which get in the way of readability and symbolic contract processing.
-\jbcomment{tone down? how to substantiate it?}
+The seminal work by Peyton-Jones and Eber on financial
+contracts~\cite{SPJ2000} shows how an algebraic approach to contract
+specification can be used for valuation of contracts (when combined
+with a model of the underlying observables) and for managing how
+contracts evolve under so-called fixings\footnote{Underlying
+  observables gradually become fixed when time passes by.} and
+decision-taking, with the contracts eventually evaporating into the
+empty contract, for which no party have further obligations. The ideas
+have emerged into Eber's company \emph{LexiFi}, which has become a
+leading software provider for a range of financial institutions, with
+all contract management operations centralised around a
+domain-specific contract language hosted in MLFi~\cite{MLFi}, a
+derivative of the functional programming language OCaml.
 
+In this paper, we present a small simple contract language, which
+rigorously relegates any artifacts of modeling and computation from
+its core. The language shares the same vision as the previously
+mentioned work with the addition that it (a) allows for specifying
+multi-party contracts (such as entire portfolios), (b) has good
+algebraic properties, well suited for formal reasoning, and yet (c)
+allows for expressing many interesting contracts appearing in
+real-world portfolios, such as various variations of so-called barrier
+options.
 
-In this paper, we present a small simple contract language which rigorously
-relegates any artefacts of modelling and computation from its core, and show
-that plenty of information can be derived from, and useful manipulations defined
-on, just the symbolic contract specification, independent of any stochastic
-aspects of the modelled contracts.
-Contracts modelled in our language are analysed and transformed for their
-management according to a precise cash-flow semantics, modelled and checked
-using proof assistant Coq.
+We show that plenty of information can be derived from, and useful
+manipulations defined on, just the symbolic contract specification,
+independent of any stochastic aspects of the modeled contracts.
+Contracts modeled in our language are analysed and transformed for
+management according to a precise cash-flow semantics, modeled and
+checked using the Coq proof assistant.
 
+Implementations of the contract language in Haskell and Coq are
+available on Github\footnote{See
+  \url{https://github.com/jberthold/contracts} together with
+  machine-checkable proofs (in Coq) of the key properties of the
+  contract language.}
 
 \section{Contract Language}
 \label{sec:contract-language}
