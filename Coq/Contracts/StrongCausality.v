@@ -13,7 +13,7 @@ Inductive rpc : forall {n}, Z -> rexp' n -> Prop:=
 | rpc_bin : forall n op e1 e2 d, d R|- e1 -> d R|- e2 -> d R|- RBin op e1 e2  (n:=n)
 | rpc_neg : forall n e d, d R|- e -> d R|- RNeg e  (n:=n)
 | rpc_var : forall d n q, d R|- RVar q (n:=n)
-| rpc_acc : forall d n f m z, (d - Z.of_nat m)  R|- f -> d R|- z -> d R|- RAcc f m z (n:=n)
+| rpc_acc : forall d n f m z, d  R|- f -> d R|- z -> d R|- RAcc f m z (n:=n)
 
                                          where "d 'R|-' e" := (rpc d e). 
 
@@ -21,7 +21,6 @@ Lemma rpc_open d d' n (e : rexp' n) : d R|- e -> (d <= d')%Z -> d' R|- e.
 Proof.
   intros P. generalize dependent d'. induction P; intros; constructor; auto.
   - omega.
-  - apply IHP1. omega.
 Qed.
 
 
@@ -109,12 +108,9 @@ Proof.
   induction m.
   - simpl. auto.
   - simpl. rewrite IHm. apply  IHR1. rewrite inp_until_adv.
-    simpl. assert (d - Z.pos (Pos.of_succ_nat m) + Z.pos (Pos.of_succ_nat m) = d)%Z.
-    omega. rewrite H. auto. eapply rpc_open. 
-    eassumption. rewrite Nat2Z.inj_succ. omega.
-    intros. apply IHR1. 
-    apply inp_until_le with (d1 := (d - Z.of_nat m)%Z). rewrite Nat2Z.inj_succ.
-    omega. auto.
+    simpl. apply inp_until_le with (d1:=d). 
+    pose (Zlt_neg_0 (Pos.of_succ_nat m)). omega.
+    assumption.
 Qed.
 
 Corollary rpc_inp_until (e : rexp) d r1 r2 : 

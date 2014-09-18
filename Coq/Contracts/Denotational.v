@@ -141,7 +141,7 @@ Fixpoint Rsem' {n} (e : rexp' n) : vector (option Z) n -> obs -> option Z :=
       | Obs _ obs t => fun vars rho => rho t obs
       | RVar _ v => fun vars rho => nth vars v 
       | RAcc _ f m z => fun vars rho => 
-                          acc (fun m x => R'[| f |] (x :: vars) (adv_inp (Z.of_nat m) rho)) m (R'[|z|] vars rho)
+                          acc (fun m x => R'[| f |] (x :: vars) (adv_inp (- Z.of_nat m) rho)) m (R'[|z|] vars rho)
     end
       where "'R'[|' e '|]'" := (Rsem' e ). 
 
