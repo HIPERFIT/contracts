@@ -47,11 +47,18 @@ Proof.
   intros R D O.   generalize dependent vars. generalize dependent r2. generalize dependent r1.
   induction R; intros; simpl; try solve [f_equal; auto].
   - unfold inp_until in O. rewrite O. reflexivity. omega.
-  - induction l. 
-    + simpl. auto.
+  - remember (adv_inp (- Z.of_nat l) r1) as r1'.
+    remember (adv_inp (- Z.of_nat l) r2) as r2'.
+    assert (inp_until (Z.of_nat l + d) r1' r2') as I.
+    subst. rewrite inp_until_adv. 
+    assert (- Z.of_nat l + (Z.of_nat l + d) = d) as L.
+    omega. rewrite L. assumption.
+    clear Heqr1' Heqr2'.
+    induction l. 
+    + simpl. apply IHR2. simpl in I. assumption.
     + simpl. rewrite IHl. apply IHR1. rewrite inp_until_adv.
-      eapply inp_until_le. eassumption. 
-      pose (Zlt_neg_0 (Pos.of_succ_nat l)). omega.
+      eapply inp_until_le. eassumption. simpl. omega.
+      eapply inp_until_le. apply I. rewrite Nat2Z.inj_succ. omega.
 Qed.
 
 Corollary rpc_inp_until (e : rexp) d r1 r2 : 

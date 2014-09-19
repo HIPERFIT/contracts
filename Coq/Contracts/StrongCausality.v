@@ -5,6 +5,8 @@ Require Import Tactics.
 
 (* Strong provable causality *)
 
+Open Scope Z.
+
 Reserved Notation "d 'R|-' c" (at level 20).
 
 Inductive rpc : forall {n}, Z -> rexp' n -> Prop:=
@@ -85,6 +87,8 @@ Qed.
 
 Ltac env_until_max := eauto using env_until_le, Z.le_max_l, Z.le_max_r.
 
+Open Scope Z.
+
 Lemma rpc_inp_until' n (vars : vector (option Z) n) (e : rexp' n) d r1 r2 : 
   d R|-e  -> inp_until d r1 r2 -> R'[|e|] vars r1 = R'[|e|] vars r2.
 Proof.
@@ -92,12 +96,20 @@ Proof.
   induction R; intros r2 r1 O; simpl; try solve [f_equal; auto].
 
   unfold inp_until in O. simpl. rewrite O. reflexivity. auto.
-  
+  remember (adv_inp (- Z.of_nat m) r1) as r1'.
+  remember (adv_inp (- Z.of_nat m) r2) as r2'.
+  assert (inp_until (Z.of_nat m + d) r1' r2') as I.
+  subst. rewrite inp_until_adv. 
+  assert (- Z.of_nat m + (Z.of_nat m + d) = d) as L.
+  omega. rewrite L. assumption.
+  clear Heqr1' Heqr2'.
+
   induction m.
   - simpl. auto.
   - simpl. rewrite IHm. apply  IHR1. rewrite inp_until_adv.
     eapply inp_until_le. eassumption.
-    pose (Zlt_neg_0 (Pos.of_succ_nat m)). omega.
+    rewrite Nat2Z.inj_succ. rewrite Zpos_P_of_succ_nat. omega.
+    eapply inp_until_le. apply I. rewrite Nat2Z.inj_succ.  omega.
 Qed.
 
 Corollary rpc_inp_until (e : rexp) d r1 r2 : 
@@ -128,6 +140,7 @@ Proof.
   reflexivity. 
 Qed.
 
+Open Scope nat.                  
 
 Definition wcausal (c : contract) : Prop :=
   forall d r1 r2,  env_until (Z.of_nat d) r1 r2 -> 

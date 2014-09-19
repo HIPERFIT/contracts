@@ -39,10 +39,17 @@ Proof.
     destruct R; tryfalse.
     symmetry in HeqR. eapply IHe in HeqR.
     rewrite HeqR. auto. auto. auto.
-  - induction n0.
-    + simpl in *. eapply IHe2.
-    + intros. simpl. apply IHe1. apply adv_inp_monotone. auto. 
-      apply lep_vcons;auto. simpl. apply IHn0; auto. 
+  - simpl. intros. 
+    remember (adv_inp (- Z.of_nat n0) rho1) as rho1'. 
+    remember (adv_inp (- Z.of_nat n0) rho2) as rho2'. 
+    assert (rho1' ⊆ rho2') as Sub.
+    subst. apply adv_inp_monotone. auto.
+    clear Heqrho1' Heqrho2'.
+    generalize dependent z. induction n0.
+    + simpl in *. eapply IHe2; eauto. 
+    + intros. simpl. eapply IHe1. apply adv_inp_monotone. eauto.
+      apply lep_vcons;auto. simpl. intros. apply IHn0; auto. apply H2.
+      simpl. apply H0. apply H1.
 Qed.
 
 Corollary Rsem_monotone  e rho1 rho2 : rho1 ⊆ rho2 -> R[| e |]rho1 ⊆ R[| e |]rho2.

@@ -23,15 +23,21 @@ Fixpoint adv_bexp (d : Z) (e : bexp) : bexp :=
   end.
 
 
+
 Lemma adv_rexp_obs n (vars : vector (option Z) n) d (e : rexp' n) rho : 
   R'[|adv_rexp d e|] vars rho = R'[|e|] vars (adv_inp d rho).
 Proof.
   generalize dependent rho. induction e;intros; simpl; first [reflexivity | f_equal; assumption | auto].
   rewrite IHe1. rewrite IHe2. reflexivity.
   rewrite IHe. reflexivity.
+
+  assert (adv_inp (- Z.of_nat n0) (adv_inp d rho) = adv_inp d (adv_inp (- Z.of_nat n0) rho)) as J.
+  repeat rewrite adv_inp_iter. f_equal. omega.
+  rewrite J. remember (adv_inp (- Z.of_nat n0) rho) as rho'. 
+  clear Heqrho' J.
   induction n0.
   - simpl. apply IHe2.
-  - simpl. rewrite IHn0. rewrite adv_inp_swap. apply IHe1. 
+  - intros. simpl. rewrite IHn0. rewrite adv_inp_swap. apply IHe1. 
 Qed.
 
 Lemma adv_rexp_env d e rho : R[|adv_rexp d e|](fst rho) = R[|e|](fst (adv_env d rho)).

@@ -140,8 +140,10 @@ Fixpoint Rsem' {n} (e : rexp' n) : vector (option Z) n -> obs -> option Z :=
       | RNeg _ e => fun vars rho => option_map (Zminus 0) (R'[|e|] vars rho)
       | Obs _ obs t => fun vars rho => rho t obs
       | RVar _ v => fun vars rho => nth vars v 
-      | RAcc _ f m z => fun vars rho => 
-                          acc (fun m x => R'[| f |] (x :: vars) (adv_inp (- Z.of_nat m) rho)) m (R'[|z|] vars rho)
+      | RAcc _ f l z => fun vars rho => 
+                          let rho' := adv_inp (- Z.of_nat l) rho
+                          in acc (fun m x => R'[| f |] (x :: vars) 
+                                            (adv_inp (Z.of_nat m) rho')) l (R'[|z|] vars rho')
     end
       where "'R'[|' e '|]'" := (Rsem' e ). 
 
