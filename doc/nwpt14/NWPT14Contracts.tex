@@ -287,11 +287,11 @@ environment.
 
 
 Apart from the denotational semantics our contract language is also
-equipped with a reduction semantics, which advances a contract by one
-time unit. We write $c \cRed \rho \tau c'$, to denote that $c$ is
-advanced to $c'$ in the environment $\rho$, where $\tau \in
-\type{Trans}$ indicates the transfers that are necessary (and
-sufficient) in order to advance $c$ to $c'$.
+equipped with a reduction semantics~\cite{andersen06sttt}, which
+advances a contract by one time unit. We write $c \cRed \rho \tau c'$,
+to denote that $c$ is advanced to $c'$ in the environment $\rho$,
+where $\tau \in \type{Trans}$ indicates the transfers that are
+necessary (and sufficient) in order to advance $c$ to $c'$.
 
 The reduction semantics can be implemented as a recursive function of
 type 
