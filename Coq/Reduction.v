@@ -85,3 +85,57 @@ Proof.
         unfold delay_trace in H. simpl in *. inversion H. eexists. constructor; auto.
     + destruct n; simpl in *; rewrite <- HeqB in *; inversion H.
 Qed.
+
+
+Fixpoint RedFun (c : contract) (rho : env) : option (contract * trans) :=
+  match c with
+    | Zero => Some (Zero, empty_trans')
+    | TransfOne c p1 p2 => Some (Zero, singleton_trans' c p1 p2 1)
+    | Scale e c => match RedFun c rho, R[|e|](fst rho) with
+                       | Some (c', t), Some v => Some (Scale (adv_rexp (-1) e) c', scale_trans' v t)
+                       | _, _ => None
+                   end
+    | Transl l c => match l with
+                      | O => RedFun c rho
+                      | S l' => Some (Transl l' c, empty_trans')
+                    end
+    | Both c1 c2 => match RedFun c1 rho, RedFun c2 rho with
+                      | Some (c1', t1), Some (c2', t2) => Some (Both c1' c2', add_trans' t1 t2)
+                      | _, _ => None
+                    end
+    | IfWithin b l c1 c2 => match B[|b|] rho with
+                              | Some false => match l with
+                                                | O => RedFun c2 rho
+                                                | S l' => Some (IfWithin b l' c1 c2, empty_trans')
+                                              end
+                              | Some true => RedFun c1 rho
+                              | None => None
+                            end
+  end.
+
+Lemma redfun_red c rho c' t : RedFun c rho = Some (c', t) -> Red c rho c' t.
+Proof.
+  generalize dependent c'. generalize dependent t.
+  induction c; intros t c' R; simpl in R; try solve [inversion R;auto].
+  - remember (RedFun c rho) as RF. destruct RF. destruct p.
+    remember (R[|r|](fst rho)) as RS. destruct RS. inversion R. auto.
+    inversion R. inversion R.
+  - destruct n. auto. inversion R. auto.
+  - destruct (RedFun c1 rho) as [p1| ]. destruct (RedFun c2 rho) as [p2| ].
+    destruct p1, p2. inversion R. auto. destruct p1. inversion R. inversion R.
+  - remember (B[|b|]rho) as BS. destruct BS. destruct b0. constructor; auto.
+    destruct n. constructor; auto. inversion R. constructor; auto. inversion R.
+Qed.
+
+
+Ltac rewr_assumption := idtac; match goal with
+                          | [R: _ = _ |- _ ] => rewrite R
+                        end.
+
+Lemma red_redfun c rho c' t : Red c rho c' t -> RedFun c rho = Some (c', t).
+Proof.
+  intros R. induction R; simpl; repeat rewr_assumption; auto.
+Qed.
+
+Theorem Red_function c rho c' t : RedFun c rho = Some (c', t) <-> Red c rho c' t.
+Proof. split. apply redfun_red. apply red_redfun. Qed.
