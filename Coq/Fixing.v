@@ -13,18 +13,56 @@ Definition constFoldBin {n} (op : BinOp) (e1 e2 : rexp' n) : rexp' n :=
     | _ => RBin op e1 e2
   end.
 
-Fixpoint constFoldAcc {n} (f : nat -> option Z -> rexp' (S n)) (l : nat) (z : rexp' n) : rexp' n :=
-  match l with
-    | 0 => z
-    | S l' => match constFoldAcc f l' z with
-                | RLit r => f l (Some r) 
-                | _ => 
+Fixpoint lift {n} (e : rexp' n) : rexp' (S n) :=
+  match e with
+    | RLit _ r => RLit r
+    | RBin n op e1 e2 => RBin op (lift e1) (lift e2)
+    | RNeg _ e' => RNeg (lift e')
+    | Obs _ obs t =>  Obs obs t
+    | RVar _ i => RVar (FS i)
+    | RAcc _ f l z => RAcc (lift f) l (lift z)
+end.
 
-let zo := match z with
-                          | RLit r => Some r 
-                          | _ => None
-                        end
-              in f l zo
+(* Substitution (not capture avoiding!) *)
+Fixpoint subst {n m} (e : rexp' n) : vector (rexp' m) n -> rexp' m :=
+  match e with
+    | RLit _ r => fun s => RLit r
+    | RBin n op e1 e2 =>  fun s => RBin op (subst e1 s) (subst e2 s)
+    | RNeg _ e' => fun s => RNeg (subst e' s)
+    | Obs _ obs t => fun s => Obs obs t
+    | RVar _ i => fun s => nth s i
+    | RAcc _ f l z => fun s => RAcc (subst f (RVar F1 :: vmap lift s)) l (subst z s)
+end.
+
+Fixpoint mkvector {A} (n : nat) : (fin n -> A) -> vector A n :=
+  match n with
+    | O => fun f => vnil A
+    | S n => fun f => f F1 :: mkvector n (f ∘ FS)
+  end.
+
+Lemma mkvector_nth A n f i : nth (@mkvector A n f) i = f i.
+Proof.
+  generalize dependent n. induction i.
+  - reflexivity.
+  - simpl. rewrite IHi. reflexivity.
+Qed.
+
+Definition constSubst {n} (r : Z) (e : rexp' (S n)) : rexp' n 
+  :=  subst e (RLit r :: mkvector n RVar).
+
+Fixpoint constFoldAcc {n} (f : nat -> Z -> rexp' n)  (l : nat) (z : rexp' n) : 
+  rexp' n + (nat * rexp' n) :=
+  match l with
+    | O => inl z
+    | S l' => match constFoldAcc f l' z with
+                | inl (RLit _ r) => inl (f l r)
+                | inl e => inr (O, e)
+                | inr (n, e) => inr (S n, e)
+              end
+end.
+
+
+                   
 Fixpoint Rfixing {n} (e : rexp' n) : obs -> rexp' n :=
   fun rho =>
     match e with
@@ -39,31 +77,10 @@ Fixpoint Rfixing {n} (e : rexp' n) : obs -> rexp' n :=
                          | None => Obs obs t
                        end
       | RVar _ v => RVar v 
-      | RAcc _ f m z => RAcc f m (Rfixing z rho)
+      | RAcc _ f l z => let rho' := adv_inp (0 - Z.of_nat l) rho in
+                        let f' i z := Rfixing (constSubst z f) (adv_inp (Z.of_nat i)  rho')
+                        in match constFoldAcc f' l (Rfixing z rho') with
+                             | inl e => e
+                             | inr (l', e') => RAcc f l' e'
+                           end
     end.
-
-Fixpoint Bfixing (e : bexp) : env ->  bexp :=
-  fun rho => 
-    match e with
-      | BLit r => BLit r
-      | BChoice choice t => match snd rho t choice with
-                              | Some b => BLit b
-                              | None => BChoice choice t
-                            end
-      | BOp op e1 e2 =>  BOp op (Bfixing e1 rho) (Bfixing e2 rho)
-      | BNot e => BNot (Bfixing e rho)
-      | RCmp cmp e1 e2 => RCmp cmp (Rfixing e1 (fst rho)) (Rfixing e2 (fst rho))
-    end.
-
-
-Fixpoint Cfixing (c : contract) : env -> contract :=
-  fun rho => 
-    match c with
-      | Zero => Zero
-      | TransfOne _ _ _ => c
-      | Scale e c' => Sclae (Rfixing e rho (fst rho)) (Cfixing c' rho)
-      | Transl d c' => Transl d (Cfixing c (adv_env (Z.of_nat d) rho))
-      | Both c1 c2 => Both c1 c2 (C[|c1|]rho) (C[|c2|]rho)
-      | IfWithin e d c1 c2 => within_sem C[|c1|] C[|c2|] e rho d
-    end
-      where "'C[|' e '|]'" := (Csem e).
