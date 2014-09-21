@@ -14,3 +14,5 @@ is as follows:
   checks and prove them sound.
 - [Reduction.v](Reduction.v) defines the reduction semantics and
   proves it sound and complete.
+- [Horizon.v](Horizon.v) defines the (syntactic) horizon of a contract
+  and proves that it is semantically correct.
