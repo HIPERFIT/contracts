@@ -1,8 +1,6 @@
 Require Import Denotational.
 
-Definition Admit {A} : A. admit. Defined.
-
-Open Scope Z.
+(* Fixing (a.k.a. partial evaluation, a.k.a. specialisation) of contracts. *)
 
 Definition constFoldBin {n} (op : BinOp) (e1 e2 : rexp' n) : rexp' n :=
   match e1 with
