@@ -9,13 +9,13 @@ Open Scope Z.
 
 Reserved Notation "d 'R|-' c" (at level 20).
 
-Inductive rpc : forall {n}, Z -> rexp' n -> Prop:=
-| rpc_obs : forall d n o i,  (i <= d)%Z ->  d R|- Obs o i (n:=n)
-| rpc_lit : forall d n q, d R|- RLit q (n:=n)
-| rpc_bin : forall n op e1 e2 d, d R|- e1 -> d R|- e2 -> d R|- RBin op e1 e2  (n:=n)
-| rpc_neg : forall n e d, d R|- e -> d R|- RNeg e  (n:=n)
-| rpc_var : forall d n q, d R|- RVar q (n:=n)
-| rpc_acc : forall d n f m z, d  R|- f -> d R|- z -> d R|- RAcc f m z (n:=n)
+Inductive rpc : forall {V}, Z -> rexp' V -> Prop:=
+| rpc_obs : forall d V o i,  (i <= d)%Z ->  d R|- Obs o i (V:=V)
+| rpc_lit : forall d V q, d R|- RLit q (V:=V)
+| rpc_bin : forall V op e1 e2 d, d R|- e1 -> d R|- e2 -> d R|- RBin op e1 e2  (V:=V)
+| rpc_neg : forall V e d, d R|- e -> d R|- RNeg e  (V:=V)
+| rpc_var : forall d V q, d R|- RVar q (V:=V)
+| rpc_acc : forall d V f m z, d  R|- f -> d R|- z -> d R|- RAcc f m z (V:=V)
 
                                          where "d 'R|-' e" := (rpc d e). 
 
@@ -89,7 +89,7 @@ Ltac env_until_max := eauto using env_until_le, Z.le_max_l, Z.le_max_r.
 
 Open Scope Z.
 
-Lemma rpc_inp_until' n (vars : vector (option Z) n) (e : rexp' n) d r1 r2 : 
+Lemma rpc_inp_until' V (vars : Env (option Z) V) (e : rexp' V) d r1 r2 : 
   d R|-e  -> inp_until d r1 r2 -> R'[|e|] vars r1 = R'[|e|] vars r2.
 Proof.
   intros R. generalize dependent r1. generalize dependent r2. 

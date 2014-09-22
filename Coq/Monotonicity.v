@@ -12,18 +12,8 @@ Proof.
   destruct X;tryfalse. apply H. rewrite <- H0. auto. 
 Qed.
 
-Lemma lep_vcons A n (v1 v2 : vector (option A) n) x1 x2 :
-  x1 ⊆ x2 -> v1 ⊆ v2 -> (x1 :: v1) ⊆ (x2 :: v2).
-Proof.
-  intros. intros. simpl. intros. dependent destruction i.
-  auto. simpl in *. auto.
-Qed. 
-Lemma lep_vnil A : vnil (option A) ⊆ vnil (option A).
-Proof. intro. auto. Qed.
 
-Hint Resolve lep_vcons lep_vnil.
-
-Lemma Rsem_monotone' n (vars1 vars2 : vector (option Z) n) e rho1 rho2 : 
+Lemma Rsem_monotone' V (vars1 vars2 : Env (option Z) V) e rho1 rho2 : 
   rho1 ⊆ rho2 -> vars1 ⊆ vars2 -> R'[| e |] vars1 rho1 ⊆ R'[| e |] vars2 rho2.
 Proof.
   generalize dependent rho1. generalize dependent rho2. 
@@ -39,16 +29,17 @@ Proof.
     destruct R; tryfalse.
     symmetry in HeqR. eapply IHe in HeqR.
     rewrite HeqR. auto. auto. auto.
-  - simpl. intros. 
-    remember (adv_inp (- Z.of_nat n0) rho1) as rho1'. 
-    remember (adv_inp (- Z.of_nat n0) rho2) as rho2'. 
+  - intros. eapply EnvLe_lookup. assumption.
+  - simpl. intros. auto.
+    remember (adv_inp (- Z.of_nat n) rho1) as rho1'. 
+    remember (adv_inp (- Z.of_nat n) rho2) as rho2'. 
     assert (rho1' ⊆ rho2') as Sub.
     subst. apply adv_inp_monotone. auto.
     clear Heqrho1' Heqrho2'.
-    generalize dependent z. induction n0.
-    + simpl in *. eapply IHe2; eauto. 
-    + intros. simpl. eapply IHe1. apply adv_inp_monotone. eauto.
-      apply lep_vcons;auto. simpl. intros. apply IHn0; auto. apply H2.
+    generalize dependent z. induction n.
+    + simpl in *. eapply IHe0; eauto. 
+    + intros. simpl. eapply IHe. apply adv_inp_monotone. eauto.
+      constructor. simpl. intros. apply IHn; auto. apply H2.
       simpl. apply H0. apply H1.
 Qed.
 

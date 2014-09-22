@@ -8,13 +8,13 @@ Reserved Notation "'R|-' c" (at level 20).
 
 Open Scope Z.
 
-Inductive rpc : forall {n}, rexp' n -> Prop:=
-| rpc_obs : forall n o i, i <= 0 -> R|- Obs o i (n:=n)
-| rpc_lit : forall n q, R|- RLit q (n:=n)
-| rpc_bin : forall n op e1 e2, R|- e1 -> R|- e2 -> R|- RBin op e1 e2 (n:=n)
-| rpc_neg : forall n e, R|- e -> R|- RNeg e (n:=n)
-| rpc_var : forall n q, R|- RVar q (n:=n)
-| rpc_acc : forall n f l z, R|- f -> R|- z -> R|- RAcc f l z (n:=n)
+Inductive rpc : forall {V}, rexp' V -> Prop:=
+| rpc_obs : forall V o i, i <= 0 -> R|- Obs o i (V:=V)
+| rpc_lit : forall V q, R|- RLit q (V:=V)
+| rpc_bin : forall V op e1 e2, R|- e1 -> R|- e2 -> R|- RBin op e1 e2 (V:=V)
+| rpc_neg : forall V e, R|- e -> R|- RNeg e (V:=V)
+| rpc_var : forall V q, R|- RVar q (V:=V)
+| rpc_acc : forall V f l z, R|- f -> R|- z -> R|- RAcc f l z (V:=V)
                                          where "'R|-' e" := (rpc e). 
 
 Reserved Notation "'B|-' c" (at level 20).

@@ -1,6 +1,6 @@
 Require Import String.
 Require Import ZArith.
-Require Export Vector.
+Require Export Scope.
 
 Definition observable := string.
 Definition currency := string.
@@ -36,22 +36,22 @@ Inductive iexp : Set :=
 
 (* Real expressions (for simplicity, we use integers, though). *)
 
-Inductive rexp' : nat -> Type :=
-| RLit n : Z -> rexp' n
-| RBin n : BinOp -> rexp' n -> rexp' n -> rexp' n
-| RNeg  n : rexp' n -> rexp' n
-| Obs n : observable -> Z -> rexp' n
-| RVar n : fin n -> rexp' n
-| RAcc n : rexp' (S n) -> nat -> rexp' n -> rexp' n. 
+Inductive rexp' : Type -> Type :=
+| RLit V : Z -> rexp' V
+| RBin V : BinOp -> rexp' V -> rexp' V -> rexp' V
+| RNeg  V : rexp' V -> rexp' V
+| Obs V : observable -> Z -> rexp' V
+| RVar V : V -> rexp' V
+| RAcc V : Scope rexp' V -> nat -> rexp' V -> rexp' V. 
 
-Implicit Arguments RLit [[n]].
-Implicit Arguments RBin [[n]].
-Implicit Arguments RNeg [[n]].
-Implicit Arguments Obs [[n]].
-Implicit Arguments RVar [[n]].
-Implicit Arguments RAcc [[n]].
+Implicit Arguments RLit [[V]].
+Implicit Arguments RBin [[V]].
+Implicit Arguments RNeg [[V]].
+Implicit Arguments Obs [[V]].
+Implicit Arguments RVar [[V]].
+Implicit Arguments RAcc [[V]].
 
-Definition rexp := rexp' 0.
+Definition rexp := rexp' ZeroT.
 
 Inductive bexp : Type :=
 | BLit : bool -> bexp

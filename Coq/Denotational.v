@@ -30,9 +30,31 @@ Proof.
   simpl. intros. symmetry. auto.
 Qed. 
 
-Instance vector_Partial n A : Partial (vector (option A) n) := {
-  lep v1 v2 := forall i z, nth v1 i = Some z -> nth v2 i = Some z
-}.
+Inductive EnvLe {A} : forall {V}, Env (option A) V -> Env (option A) V -> Prop :=
+| EnvLeEmpty V (f : V -> option A) : EnvLe (Empty f) (Empty f)
+| EnvLeExtend V (e1 e2 : Env (option A) V) x1 x2 : x1 ⊆ x2 -> EnvLe e1 e2 -> EnvLe (Extend x1 e1) (Extend x2 e2)
+.
+
+Hint Constructors EnvLe.
+
+Instance env_Partial A V : Partial (Env (option A) V) := {
+  lep := EnvLe
+  }.
+
+Lemma EnvLeEmpty' A V (f : V -> option A) : Empty f ⊆ Empty f.
+constructor. Qed.
+
+Lemma EnvLeExtend' A V (e1 e2 : Env (option A) V) x1 x2 : 
+  x1 ⊆ x2 -> e1 ⊆ e2 -> Extend x1 e1 ⊆ Extend x2 e2.
+constructor; assumption. Qed.
+
+Lemma EnvLe_lookup {V A} (e1 e2 : Env (option A) V) (v : V) : e1 ⊆ e2 -> lookupEnv e1 v ⊆ lookupEnv e2 v.
+Proof. 
+  intros L. induction L. simpl. auto. destruct v. simpl. intros. apply IHL. auto.
+  simpl. intros. destruct u. auto.
+Qed.
+
+Hint Resolve EnvLe_lookup EnvLeEmpty' EnvLeExtend'.
 
 Instance single_Partial A B : Partial (A -> option B) := {
   lep t1 t2  := forall i z , t1 i = Some z -> t2 i = Some z
@@ -133,22 +155,22 @@ Fixpoint acc {A} (f : nat -> A -> A) (n : nat) (z : A) : A :=
 
 Reserved Notation "'R'[|' e '|]'" (at level 9).
 
-Fixpoint Rsem' {n} (e : rexp' n) : vector (option Z) n -> obs -> option Z :=
+Fixpoint Rsem' {A} (e : rexp' A) : Env (option Z) A -> obs -> option Z :=
     match e with
       | RLit _ r => fun vars rho => Some r
       | RBin _ op e1 e2 => fun vars rho =>  option_map2 (RBinOp op) (R'[|e1|] vars rho) (R'[|e2|] vars rho)
       | RNeg _ e => fun vars rho => option_map (Zminus 0) (R'[|e|] vars rho)
       | Obs _ obs t => fun vars rho => rho t obs
-      | RVar _ v => fun vars rho => nth vars v 
+      | RVar _ v => fun vars rho => lookupEnv vars v 
       | RAcc _ f l z => fun vars rho => 
                           let rho' := adv_inp (- Z.of_nat l) rho
-                          in acc (fun m x => R'[| f |] (x :: vars) 
+                          in acc (fun m x => R'[| f |] (Extend x vars) 
                                             (adv_inp (Z.of_nat m) rho')) l (R'[|z|] vars rho')
     end
       where "'R'[|' e '|]'" := (Rsem' e ). 
 
 
-Notation "'R[|' e '|]' r" := (R'[|e|] (vnil (option Z)) r) (at level 9).
+Notation "'R[|' e '|]' r" := (R'[|e|] (Empty (zero _)) r) (at level 9).
 
 (* Semantics of binary Boolean operations. *)
 
