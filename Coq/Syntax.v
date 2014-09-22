@@ -67,3 +67,10 @@ Inductive contract : Type :=
  | Transl : nat -> contract -> contract
  | Both : contract -> contract -> contract
  | IfWithin : bexp -> nat -> contract -> contract -> contract.
+
+
+Definition transl (l : nat) : contract -> contract := 
+  match l with
+    | O => id
+    | _ => Transl l
+  end.
