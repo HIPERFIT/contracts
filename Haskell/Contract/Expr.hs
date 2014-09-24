@@ -63,7 +63,7 @@ data Expr a where
     -- observables and external choices
     Obs :: (String, Int) -> Expr Double
     ChosenBy :: (String, Int) -> Expr Bool
-    -- accumulator. Acc(f,i,a) := f/i(...(f/2(f/1(a))))
+    -- accumulator. Acc(f,i,a) := f(f/-1(...(f/2-i(f/1-i(a/-i)))))
     Acc :: (Var, Expr a) -> Int -> Expr a -> Expr a
     -- unary op.s: only "not"
     Not :: Expr Bool -> Expr Bool
@@ -377,7 +377,7 @@ eval env e =
                              Just r  -> B (r /= 0)
                              Nothing -> e
          --
-         Acc (v,e) i a -> let a' = eval env a
+         Acc (v,e) i a -> let a' = eval (promote env (- i)) a
                           in if i <= 0 then a
                               else if certainExp a'
                                    then error "missing variable env"

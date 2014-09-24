@@ -56,11 +56,11 @@ worstOff = (start, foldr mkDateCheck endCase (zip dDiffs premiums))
 -- barrier breached and at least one end index lower than at start
 barrierRevConvert :: MContract
 barrierRevConvert = (start,
-                     both (transl 367 (collectEUR 100))
-                          (iff breached
-                           (transl 367 
-                            (iff (oneBelow 1) (collectEUR minRatio) (collectEUR 1000)))
-                           zero))
+                     (transl 367 (both 
+                       (collectEUR 100)
+                       (iff breached
+                           (iff (oneBelow 1) (collectEUR minRatio) (collectEUR 1000))
+                           zero))))
     where start = at "2012-01-27"
           idxs   = [ "DJ_Eurostoxx_50", "Nikkei_225", "SP_500" ]
           spots  = [ 3758.05, 11840, 1200 ]
