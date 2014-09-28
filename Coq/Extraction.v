@@ -13,9 +13,8 @@ Extract Inlined Constant andb => "(&&)".
 Extract Inlined Constant option_map => "fmap".
 
 Extract Inductive nat => "Int" ["0" "succ"] "(\fO fS n -> if n==0 then fO () else fS (n-1))".
-Extract Inductive Z => "Int" ["0" "succ" "pred"].
-Extract Inductive positive => "Int" ["foobar" "foobar" "0"].
-Extract Inductive N => "Int" ["foobar" "foobar"].
+Extract Inductive Z => "Int" ["0" "id" "negate"].
+Extract Inductive positive => "Int" ["foobar" "foobar" "1"].
 
 Extract Inlined Constant Z.leb => "(<=)".
 Extract Inlined Constant Z.add => "(+)".
