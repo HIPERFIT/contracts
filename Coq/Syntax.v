@@ -1,5 +1,5 @@
-Require Import String.
-Require Import ZArith.
+Require Export String.
+Require Export ZArith.
 Require Export Scope.
 
 Definition observable := string.
