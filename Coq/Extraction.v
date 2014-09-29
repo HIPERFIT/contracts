@@ -1,6 +1,7 @@
 Require Import Denotational.
 Require Import Reduction.
 Require Import Horizon.
+Require Import SyntacticCausality.
 
 
 Extraction Language Haskell.
@@ -47,4 +48,5 @@ Extract Inductive Ascii.ascii => "Char" ["'a'"]. (* TODO: real translation *)
 Extraction "Contract.hs" 
   contract
   horizon
-  RedFun.
+  RedFun
+  pc_dec.
