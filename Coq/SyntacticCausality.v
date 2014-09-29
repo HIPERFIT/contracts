@@ -1,7 +1,10 @@
 Require Import Causality.
 Require Import Advance.
 
-(* Weak provable causality *)
+(* Syntactic causality. We define a simple syntactic notion of
+causality that conservatively approximates the semantic notion. In
+short a contract is syntactically causal if observables and external
+choices are never queried at a positive offset. *)
 
 
 Reserved Notation "'R|-' c" (at level 20).
@@ -21,7 +24,7 @@ Reserved Notation "'B|-' c" (at level 20).
 
 Inductive bpc : bexp -> Prop:=
 | bpc_lit : forall b, B|- (BLit b)
-| rpc_ch : forall ch i, Z.le i 0 -> B|- BChoice ch i
+| rpc_ch : forall ch i, i <= 0 -> B|- BChoice ch i
 | bpc_cmp : forall cmp e1 e2, R|- e1 -> R|- e2 -> B|- RCmp cmp e1 e2
 | bpc_op : forall op e1 e2, B|- e1 -> B|- e2 -> B|- BOp op e1 e2
 | bpc_not : forall e, B|- e -> B|- BNot e

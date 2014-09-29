@@ -9,9 +9,9 @@ is as follows:
 - [Equivalence.v](Equivalence.v) proves some contract equivalences.
 - [Monotonicity.v](Monotonicity.v) proves monotonicity of the
   denotational semantics.
-- [WeakCausality.v](WeakCausality.v) and
-  [StrongCausality.v](StrongCausality.v) implement syntactic causality
-  checks and prove them sound.
+- [SyntacticCausality.v](SyntacticCausality.v) and
+  [ContextualCausality.v](ContextualCausality.v) implement syntactic
+  causality checks and prove them sound.
 - [Reduction.v](Reduction.v) defines the reduction semantics and
   proves it sound and complete.
 - [Horizon.v](Horizon.v) defines the (syntactic) horizon of a contract

@@ -3,7 +3,10 @@ Require Import Advance.
 Require Import FunctionalExtensionality.
 Require Import Tactics.
 
-(* Strong provable causality *)
+(* Contextual syntactic causality. This syntactic notion of causality
+is more permissive than plain syntactic causality. However, the
+causality property that follows from this syntactic notion of
+causality is slightly weaker. *)
 
 Open Scope Z.
 
