@@ -16,3 +16,17 @@ is as follows:
   proves it sound and complete.
 - [Horizon.v](Horizon.v) defines the (syntactic) horizon of a contract
   and proves that it is semantically correct.
+
+
+Extraction
+==========
+
+The [Extraction](Extraction) subdirectory implements a simple
+extraction of the Coq definitions to Haskell code using Coq's built-in
+extraction facility. To extract the Coq definitions to Haskell use the
+Makefile in [Extraction](Extraction):
+
+```shell
+cd Extraction
+make
+```
