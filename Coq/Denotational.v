@@ -149,10 +149,10 @@ Qed.
 
 (* Semantics of real expressions. *)
 
-Fixpoint acc {A} (f : nat -> A -> A) (n : nat) (z : A) : A :=
+Fixpoint RAcc_sem {A} (f : nat -> A -> A) (n : nat) (z : A) : A :=
   match n with
     | 0 => z
-    | S n' => f n (acc f n' z)
+    | S n' => f n (RAcc_sem f n' z)
   end.
 
 Reserved Notation "'R'[|' e '|]'" (at level 9).
@@ -166,7 +166,7 @@ Fixpoint Rsem' {A} (e : rexp' A) : Env (option Z) A -> obs -> option Z :=
       | RVar _ v => fun vars rho => lookupEnv vars v 
       | RAcc _ f l z => fun vars rho => 
                           let rho' := adv_inp (- Z.of_nat l) rho
-                          in acc (fun m x => R'[| f |] (Extend x vars) 
+                          in RAcc_sem (fun m x => R'[| f |] (Extend x vars) 
                                             (adv_inp (Z.of_nat m) rho')) l (R'[|z|] vars rho')
     end
       where "'R'[|' e '|]'" := (Rsem' e ). 

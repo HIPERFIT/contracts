@@ -1,4 +1,5 @@
 {-# LANGUAGE GADTs #-}
+module Contract where
 
 import Prelude hiding (EQ, LT)
 
@@ -11,6 +12,7 @@ data PEnv a v v' where
   PExtend :: a -> PEnv a v v' -> PEnv a (Succ v) v'
   PSkip :: PEnv a v v' -> PEnv a (Succ v) (Succ v')
 
+data ZeroT
 
 unsafeCoerce = id
 
