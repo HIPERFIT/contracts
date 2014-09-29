@@ -30,13 +30,6 @@ Inductive BoolOp : Set :=
 | And : BoolOp
 | Or : BoolOp.
 
-Inductive iexp : Set :=
-| ILit : Z -> iexp
-| IBin : BinOp -> iexp -> iexp -> iexp 
-| INeg : iexp -> iexp.
-
-(* Real expressions (for simplicity, we use integers, though). *)
-
 Inductive rexp' : Type -> Type :=
 | RLit V : R -> rexp' V
 | RBin V : BinOp -> rexp' V -> rexp' V -> rexp' V
