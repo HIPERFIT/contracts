@@ -12,7 +12,7 @@ Infix ":>" := (@Vars) (at level 60, right associativity).
 
 Definition Succ (a : Type) : Type := a :> unit.
 
-Inductive ZeroT : Type := .
+Inductive ZeroT : Set := .
 
 Definition zero (A : Type) (z : ZeroT) : A :=
   match z with
