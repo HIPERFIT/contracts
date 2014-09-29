@@ -1,0 +1,4 @@
+#!/bin/sh
+coqc -I .. Extraction.v
+cp Header.hs Contract.hs
+sed -n '/^data Vars/,$p' ContractExtracted.hs >> Contract.hs

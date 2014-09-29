@@ -1,8 +1,12 @@
 {-# LANGUAGE GADTs #-}
 
-module Contract where
-
 import Prelude hiding (EQ, LT)
+
+data Env a v where
+  Empty :: (v -> a) -> Env a v
+  Extend :: a -> Env a v -> Env a (Succ v)
+
+unsafeCoerce = id
 
 data Vars a v =
    Old a
@@ -14,16 +18,12 @@ zero1 :: a1
 zero1 =
   Prelude.error "absurd case"
 
-data Env a x where
-   Empty :: (x -> a) -> Env a x
-   Extend :: a -> Env a x -> Env a (Succ x)
-
 lookupEnv :: (Env a1 a2) -> a2 -> a1
 lookupEnv e =
   case e of {
    Empty f -> f;
    Extend b r -> (\v ->
-    case v of {
+    case unsafeCoerce v of {
      Old v' -> lookupEnv r v';
      New u -> b})}
 
@@ -86,7 +86,7 @@ adv_inp :: Int -> (Inp a1) -> Inp a1
 adv_inp d e x =
   e ((+) d x)
 
-type Env0 = (,) Obs0 Choices
+type Ext = (,) Obs0 Choices
 
 rBinOp :: BinOp -> Int -> Int -> Int
 rBinOp op =
@@ -133,7 +133,7 @@ rsem' e vars rho =
    RAcc f l z ->
     let {rho' = adv_inp (negate (id l)) rho} in
     acc (\m x ->
-      rsem' f (Extend x vars) (adv_inp (id m) rho')) l
+      rsem' f (Extend x (unsafeCoerce vars)) (adv_inp (id m) rho')) l
       (rsem' z vars rho')}
 
 bBinOp :: BoolOp -> Bool -> Bool -> Bool
@@ -149,7 +149,7 @@ rCompare cmp =
    LT -> (\x y -> not ((<=) y x));
    LTE -> (<=)}
 
-bsem :: Bexp -> Env0 -> Maybe Bool
+bsem :: Bexp -> Ext -> Maybe Bool
 bsem e rho =
   case e of {
    BLit r -> Just r;
@@ -189,18 +189,18 @@ adv_rexp d e =
    RAcc f n z -> RAcc (adv_rexp d f) n (adv_rexp d z);
    x -> x}
 
-redFun :: Contract -> Env0 -> Maybe ((,) Contract Trans)
+redFun :: Contract -> Ext -> Maybe ((,) Contract Trans)
 redFun c rho =
   case c of {
    Zero -> Just ((,) Zero empty_trans');
-   TransfOne c0 p1 p2 -> Just ((,) Zero (singleton_trans' c0 p1 p2 (succ 0)));
+   TransfOne c0 p1 p2 -> Just ((,) Zero (singleton_trans' c0 p1 p2 (id 1)));
    Scale e c0 ->
     case redFun c0 rho of {
      Just p ->
       case p of {
        (,) c' t ->
         case rsem' e (Empty (\_ -> zero1)) (fst rho) of {
-         Just v -> Just ((,) (Scale (adv_rexp (pred 0) e) c')
+         Just v -> Just ((,) (Scale (adv_rexp (negate 1) e) c')
           (scale_trans' v t));
          Nothing -> Nothing}};
      Nothing -> Nothing};
@@ -244,4 +244,31 @@ horizon c =
    Both c1 c2 -> max (horizon c1) (horizon c2);
    IfWithin b l c1 c2 -> (+) l (max (horizon c1) (horizon c2));
    _ -> 0}
+
+rpc_dec :: (Rexp' a1) -> Bool
+rpc_dec e =
+  case e of {
+   RBin b e1 e2 -> (&&) (rpc_dec e1) (rpc_dec e2);
+   RNeg e' -> rpc_dec e';
+   Obs o i -> (<=) i 0;
+   RAcc f n z -> (&&) (rpc_dec f) (rpc_dec z);
+   _ -> True}
+
+bpc_dec :: Bexp -> Bool
+bpc_dec e =
+  case e of {
+   BLit b -> True;
+   BChoice c i -> (<=) i 0;
+   RCmp c e1 e2 -> (&&) (rpc_dec e1) (rpc_dec e2);
+   BNot e' -> bpc_dec e';
+   BOp b e1 e2 -> (&&) (bpc_dec e1) (bpc_dec e2)}
+
+pc_dec :: Contract -> Bool
+pc_dec c =
+  case c of {
+   Scale e c0 -> (&&) (rpc_dec e) (pc_dec c0);
+   Transl n c0 -> pc_dec c0;
+   Both c1 c2 -> (&&) (pc_dec c1) (pc_dec c2);
+   IfWithin e n c1 c2 -> (&&) ((&&) (bpc_dec e) (pc_dec c1)) (pc_dec c2);
+   _ -> True}
 

@@ -44,8 +44,9 @@ Extract Inductive string => "String" ["[]" "(:)"].
 
 Extract Inductive Ascii.ascii => "Char" ["'a'"]. (* TODO: real translation *)
 
+Extract Inductive Env => "Env" [ "Empty" "Extend" ].
 
-Extraction "Contract.hs" 
+Extraction "ContractExtracted.hs" 
   contract
   horizon
   RedFun
