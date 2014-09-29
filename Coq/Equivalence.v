@@ -8,14 +8,14 @@ Require Import Tactics.
 (* Full equivalence. *)
 
 Definition equiv (c1 c2 : contract) : Prop := 
-  forall rho : env, C[|c1|]rho = C[|c2|]rho.
+  forall rho : ext, C[|c1|]rho = C[|c2|]rho.
 Infix "≡" := equiv (at level 40).
 
 (* [c1 ⊑ c2] iff the semantics of [c1] and [c2] coincidese "in all
 places" that [c1]'s semantics is defined. *)
 
 Definition lequiv (c1 c2 : contract) : Prop := 
-  forall rho : env, C[|c1|]rho ⊆ C[|c2|]rho.
+  forall rho : ext, C[|c1|]rho ⊆ C[|c2|]rho.
 
 Infix "⊑" := lequiv (at level 40).
 
@@ -26,7 +26,7 @@ Definition total (t : trace) : Prop :=
 semantics. *)
 
 Definition wequiv (c1 c2 : contract) : Prop := 
-  forall rho : env, total (C[|c1|]rho) \/ total (C[|c2|]rho) -> 
+  forall rho : ext, total (C[|c1|]rho) \/ total (C[|c2|]rho) -> 
                     C[|c1|]rho = C[|c2|]rho.
 
 
@@ -57,13 +57,13 @@ Theorem transl_ifwithin e d t c1 c2 :
   Transl d (IfWithin e t c1 c2).
 Proof.
   unfold lequiv, lep. simpl. induction t; intros.
-  simpl in *. rewrite adv_bexp_env in *. remember (B[|e|](adv_env (Z.of_nat d) rho)) as b.
+  simpl in *. rewrite adv_bexp_ext in *. remember (B[|e|](adv_ext (Z.of_nat d) rho)) as b.
   destruct b. destruct b;  assumption. 
   unfold const_trace, bot_trans in H. inversion H.
 
-  simpl in *.  rewrite adv_bexp_env in *. 
-  remember (B[|e|](adv_env (Z.of_nat d) rho)) as b. repeat destruct b. assumption. 
-  rewrite adv_env_swap. rewrite delay_trace_swap. 
+  simpl in *.  rewrite adv_bexp_ext in *. 
+  remember (B[|e|](adv_ext (Z.of_nat d) rho)) as b. repeat destruct b. assumption. 
+  rewrite adv_ext_swap. rewrite delay_trace_swap. 
   unfold delay_trace at 1.
   unfold delay_trace at 1 in H. 
   remember (leb 1 i) as L. destruct L.
@@ -105,14 +105,14 @@ Proof.
   
   
   unfold lequiv, lep. simpl. generalize dependent rho. induction t; intros.
-  simpl in *. rewrite adv_bexp_env in *. remember (B[|e|](adv_env (Z.of_nat d) rho)) as b.
+  simpl in *. rewrite adv_bexp_ext in *. remember (B[|e|](adv_ext (Z.of_nat d) rho)) as b.
   destruct b. destruct b; reflexivity.
   unfold total in H. 
   contradiction (H d (bot_trans_delay_at d)). 
 
-  simpl in *.  rewrite adv_bexp_env in *. 
-  remember (B[|e|](adv_env (Z.of_nat d) rho)) as b. repeat destruct b. reflexivity.
-  rewrite adv_env_swap. rewrite delay_trace_swap. 
-  rewrite IHt. reflexivity. rewrite delay_trace_swap in H. rewrite adv_env_swap.
+  simpl in *.  rewrite adv_bexp_ext in *. 
+  remember (B[|e|](adv_ext (Z.of_nat d) rho)) as b. repeat destruct b. reflexivity.
+  rewrite adv_ext_swap. rewrite delay_trace_swap. 
+  rewrite IHt. reflexivity. rewrite delay_trace_swap in H. rewrite adv_ext_swap.
   apply total_delay in H. assumption. apply bot_trans_delay_total in H. contradiction.
 Qed.

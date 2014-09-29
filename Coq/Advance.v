@@ -40,26 +40,26 @@ Proof.
   - intros. simpl. rewrite IHn. rewrite adv_inp_swap. apply IHe. 
 Qed.
 
-Lemma adv_rexp_env d e rho : R[|adv_rexp d e|](fst rho) = R[|e|](fst (adv_env d rho)).
+Lemma adv_rexp_ext d e rho : R[|adv_rexp d e|](fst rho) = R[|e|](fst (adv_ext d rho)).
 Proof.
   destruct rho. simpl. apply adv_rexp_obs.
 Qed.
 
 
-Lemma adv_env_ch d rho : snd (adv_env d rho) = adv_inp d (snd rho).
+Lemma adv_ext_ch d rho : snd (adv_ext d rho) = adv_inp d (snd rho).
 Proof.
-  unfold adv_env. destruct rho. reflexivity.
+  unfold adv_ext. destruct rho. reflexivity.
 Qed.
 
-Lemma adv_env_obs d rho : fst (adv_env d rho) = adv_inp d (fst rho).
+Lemma adv_ext_obs d rho : fst (adv_ext d rho) = adv_inp d (fst rho).
 Proof.
-  unfold adv_env. destruct rho. reflexivity.
+  unfold adv_ext. destruct rho. reflexivity.
 Qed.
 
 
-Lemma adv_bexp_env d e rho : B[|adv_bexp d e|]rho = B[|e|](adv_env d rho).
+Lemma adv_bexp_ext d e rho : B[|adv_bexp d e|]rho = B[|e|](adv_ext d rho).
 Proof.
   induction e; simpl; try first [reflexivity | f_equal; assumption].
-  rewrite adv_env_ch. reflexivity.
-  repeat rewrite adv_rexp_obs. rewrite adv_env_obs. reflexivity.
+  rewrite adv_ext_ch. reflexivity.
+  repeat rewrite adv_rexp_obs. rewrite adv_ext_obs. reflexivity.
 Qed.

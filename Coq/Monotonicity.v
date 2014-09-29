@@ -63,7 +63,7 @@ Proof.
 Qed.
 
 
-Lemma adv_env_monotone rho1 rho2 n : rho1 ⊆ rho2 -> adv_env n rho1 ⊆ adv_env n rho2.
+Lemma adv_ext_monotone rho1 rho2 n : rho1 ⊆ rho2 -> adv_ext n rho1 ⊆ adv_ext n rho2.
 Proof. 
   intros. destruct rho1. destruct rho2. destruct H. split; apply adv_inp_monotone;
   auto.
@@ -83,7 +83,7 @@ Proof.
     pose (IHc _ _ S i) as IHi. 
     destruct X; tryfalse. rewrite <- HeqX in * by auto. erewrite IHi by auto.
     auto.
-  - simpl. apply adv_env_monotone with (n := Z.of_nat n) in S. apply IHc in S.
+  - simpl. apply adv_ext_monotone with (n := Z.of_nat n) in S. apply IHc in S.
     simpl in S. unfold delay_trace in *. destruct (leb n i); auto.
   - unfold add_trace, add_trans in *. 
     remember (C[|c1|] rho1 i) as X1. remember (C[|c2|] rho1 i) as X2.
@@ -106,6 +106,6 @@ Proof.
       destruct B; tryfalse. symmetry in HeqB. apply HB in HeqB.
       rewrite HeqB. destruct b0. eapply IHc1; eauto.
       unfold delay_trace in *. destruct (leb 1 i).
-      + eapply IHn. apply adv_env_monotone. eassumption. assumption.
+      + eapply IHn. apply adv_ext_monotone. eassumption. assumption.
       + assumption.
 Qed.

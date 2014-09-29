@@ -6,7 +6,7 @@ Require Import Tactics.
 
 
 
-Inductive Red : contract -> env -> contract -> trans -> Prop :=
+Inductive Red : contract -> ext -> contract -> trans -> Prop :=
 | red_zero rho : Red Zero rho Zero empty_trans'
 | red_transf c p1 p2 rho : Red (TransfOne c p1 p2) rho Zero (singleton_trans' c p1 p2 1)
 | red_scale e rho c c' t v :  R[| e |] (fst rho) = Some v -> Red c rho c' t ->
@@ -28,7 +28,7 @@ Proof.
   - reflexivity.
   - reflexivity.
   - unfold scale_trace, compose. rewrite IHR. rewrite H. reflexivity.
-  - unfold delay_trace. simpl. rewrite adv_env_0. 
+  - unfold delay_trace. simpl. rewrite adv_ext_0. 
     assumption.
   - unfold delay_trace. reflexivity.
   - unfold add_trace. rewrite IHR1. rewrite IHR2. reflexivity.
@@ -37,15 +37,15 @@ Proof.
   - destruct n; simpl; rewrite H; assumption.
 Qed.
 
-Theorem red_sound2 c c' i rho t  : Red c rho c' t ->  C[|c|]rho (S i) = C[|c'|](adv_env 1 rho) i.
+Theorem red_sound2 c c' i rho t  : Red c rho c' t ->  C[|c|]rho (S i) = C[|c'|](adv_ext 1 rho) i.
 Proof.
   intros R. induction R; simpl.
   - reflexivity.
   - reflexivity.
-  - unfold scale_trace, compose. rewrite -> adv_rexp_env. rewrite adv_env_iter. simpl.
-    rewrite adv_env_0. rewrite IHR.  reflexivity.
-  - unfold delay_trace. rewrite adv_env_0. assumption.
-  - unfold delay_trace. simpl. rewrite adv_env_iter. 
+  - unfold scale_trace, compose. rewrite -> adv_rexp_ext. rewrite adv_ext_iter. simpl.
+    rewrite adv_ext_0. rewrite IHR.  reflexivity.
+  - unfold delay_trace. rewrite adv_ext_0. assumption.
+  - unfold delay_trace. simpl. rewrite adv_ext_iter. 
     assert (Z.pos (Pos.of_succ_nat n) = (1 + Z.of_nat n)%Z).
     assert (1%Z = Z.of_nat 1) by reflexivity. rewrite H.
     rewrite <- Nat2Z.inj_add. reflexivity.
@@ -68,7 +68,7 @@ Proof.
     destruct R as [c'].
     eexists. apply red_scale; auto. apply H0.
   - unfold delay_trace in *. destruct n; simpl in *. 
-    + rewrite adv_env_0 in *. apply IHc in H. destruct H as [c'].
+    + rewrite adv_ext_0 in *. apply IHc in H. destruct H as [c'].
       eexists. constructor. apply H.
     + inversion H. eexists. constructor.
   -  unfold add_trace in *.
@@ -87,7 +87,7 @@ Proof.
 Qed.
 
 
-Fixpoint RedFun (c : contract) (rho : env) : option (contract * trans) :=
+Fixpoint RedFun (c : contract) (rho : ext) : option (contract * trans) :=
   match c with
     | Zero => Some (Zero, empty_trans')
     | TransfOne c p1 p2 => Some (Zero, singleton_trans' c p1 p2 1)

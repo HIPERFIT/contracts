@@ -65,7 +65,7 @@ Corollary rpc_inp_until (e : rexp) d r1 r2 :
   R|-e -> 0 <= d -> inp_until d r1 r2 -> R[|e|] r1 = R[|e|]r2.
 Proof. apply rpc_inp_until'. Qed.
 
-Lemma bpc_env_until e d r1 r2 : B|-e -> 0 <= d -> env_until d r1 r2 -> B[|e|]r1 = B[|e|]r2.
+Lemma bpc_ext_until e d r1 r2 : B|-e -> 0 <= d -> ext_until d r1 r2 -> B[|e|]r1 = B[|e|]r2.
 Proof.
   intros R D O. destruct O. induction R; simpl; try (f_equal; assumption).
 
@@ -82,7 +82,7 @@ Proof.
   unfold delay_trace.
   remember (leb d d0) as C. destruct C.
     symmetry in HeqC. apply leb_complete in HeqC.
-    apply IHpc. rewrite env_until_adv. assert (Z.of_nat d + Z.of_nat(d0 - d) = Z.of_nat d0) as D.
+    apply IHpc. rewrite ext_until_adv. assert (Z.of_nat d + Z.of_nat(d0 - d) = Z.of_nat d0) as D.
     rewrite <- Nat2Z.inj_add. f_equal. omega.
     rewrite D. assumption.
     
@@ -101,15 +101,15 @@ Proof.
   generalize dependent d. generalize dependent r1. generalize dependent r2. 
   induction l; intros; simpl.
   
-  rewrite bpc_env_until with (r2:=r2) (d:=Z.of_nat d) by (eauto;omega). 
+  rewrite bpc_ext_until with (r2:=r2) (d:=Z.of_nat d) by (eauto;omega). 
   remember (B[|b|]r2) as bl. destruct bl. destruct b0. eapply IHpc1; eassumption. 
   eapply IHpc2; eassumption. reflexivity. 
 
-  rewrite bpc_env_until with (r2:=r2) (d:=Z.of_nat d) by (eauto;omega). 
+  rewrite bpc_ext_until with (r2:=r2) (d:=Z.of_nat d) by (eauto;omega). 
   remember (B[|b|]r2) as bl. destruct bl. destruct b0.  eapply IHpc1; eassumption. 
   unfold delay_trace. remember (leb 1 d) as L. destruct L.  apply IHl. 
   rewrite Nat2Z.inj_sub.
-  apply env_until_adv_1. symmetry in HeqL. apply leb_complete in HeqL. apply inj_le in HeqL. auto.
+  apply ext_until_adv_1. symmetry in HeqL. apply leb_complete in HeqL. apply inj_le in HeqL. auto.
   auto.
   apply leb_complete. auto. auto. reflexivity. 
 Qed.

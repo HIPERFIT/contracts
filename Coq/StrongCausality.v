@@ -80,12 +80,12 @@ Inductive pc : option nat -> contract -> Prop :=
 
 Ltac inp_until_max := eauto using inp_until_le, Z.le_max_l, Z.le_max_r.
 
-Lemma env_until_le d1 d2 r1 r2 : Z.le d2 d1 -> env_until d1 r1 r2 -> env_until d2 r1 r2.
+Lemma ext_until_le d1 d2 r1 r2 : Z.le d2 d1 -> ext_until d1 r1 r2 -> ext_until d2 r1 r2.
 Proof. 
-  unfold env_until. intros. destruct H0. split; eapply inp_until_le; eassumption.
+  unfold ext_until. intros. destruct H0. split; eapply inp_until_le; eassumption.
 Qed.
 
-Ltac env_until_max := eauto using env_until_le, Z.le_max_l, Z.le_max_r.
+Ltac ext_until_max := eauto using ext_until_le, Z.le_max_l, Z.le_max_r.
 
 Open Scope Z.
 
@@ -116,7 +116,7 @@ Corollary rpc_inp_until (e : rexp) d r1 r2 :
   d R|-e  -> inp_until d r1 r2 -> R[|e|] r1 = R[|e|] r2.
 Proof. apply rpc_inp_until'. Qed.
 
-Lemma bpc_env_until e d r1 r2 : d B|-e -> env_until d r1 r2 -> B[|e|]r1 = B[|e|]r2.
+Lemma bpc_ext_until e d r1 r2 : d B|-e -> ext_until d r1 r2 -> B[|e|]r1 = B[|e|]r2.
 Proof.
   intros R O. induction R; simpl; try solve [f_equal; auto].
 
@@ -143,7 +143,7 @@ Qed.
 Open Scope nat.                  
 
 Definition wcausal (c : contract) : Prop :=
-  forall d r1 r2,  env_until (Z.of_nat d) r1 r2 -> 
+  forall d r1 r2,  ext_until (Z.of_nat d) r1 r2 -> 
                    (C[|c|]r1) d = None \/ (C[|c|]r2) d = None \/ (C[|c|]r1) d = (C[|c|]r2) d.
 
 Lemma rpc_indep' c r d N : N = None -> 
@@ -155,7 +155,7 @@ Proof.
   destruct b. inversion NN. 
   simpl. unfold delay_trace. remember (leb d d0) as L.
   destruct L. 
-  pose (IHpc NeN (d0 - d) (adv_env (Z.of_nat d) r)) as IH. destruct IH; auto.
+  pose (IHpc NeN (d0 - d) (adv_ext (Z.of_nat d) r)) as IH. destruct IH; auto.
   auto.
 
   inversion NN.
@@ -259,7 +259,7 @@ Proof.
   unfold delay_trace.
   remember (leb d d0) as C. destruct C.
     symmetry in HeqC. apply leb_complete in HeqC.
-    apply IHpc. rewrite env_until_adv. assert (Z.of_nat d + Z.of_nat (d0 - d) = Z.of_nat d0)%Z as D.
+    apply IHpc. rewrite ext_until_adv. assert (Z.of_nat d + Z.of_nat (d0 - d) = Z.of_nat d0)%Z as D.
     rewrite <- Nat2Z.inj_add. f_equal. omega.
     rewrite D. assumption. auto.
     
@@ -293,19 +293,19 @@ Proof.
 
   auto.
 
-  assert (env_until 0 r1 r2). apply env_until_le with (d1:= Z.of_nat d). omega. assumption.
+  assert (ext_until 0 r1 r2). apply ext_until_le with (d1:= Z.of_nat d). omega. assumption.
   generalize dependent d. generalize dependent r1. generalize dependent r2. 
   induction l; intros; simpl.
   
  
-  erewrite bpc_env_until with (r2:=r2) by eassumption. 
+  erewrite bpc_ext_until with (r2:=r2) by eassumption. 
   remember (B[|b|]r2) as bl. destruct bl. destruct b0. eapply IHpc1; eassumption. 
   eapply IHpc2; eassumption. auto.
 
-  rewrite bpc_env_until with (r2:=r2) (d:=0%Z) by assumption.
+  rewrite bpc_ext_until with (r2:=r2) (d:=0%Z) by assumption.
   remember (B[|b|]r2) as bl. destruct bl. destruct b0.  eapply IHpc1; eassumption. 
   unfold delay_trace. remember (leb 1 d) as L. destruct L. 
-  symmetry in HeqL. rewrite leb_iff in HeqL. apply IHl. apply env_until_adv. simpl.  
-  apply inj_le in HeqL. eapply env_until_le; eassumption. rewrite Nat2Z.inj_sub. apply env_until_adv_1.
+  symmetry in HeqL. rewrite leb_iff in HeqL. apply IHl. apply ext_until_adv. simpl.  
+  apply inj_le in HeqL. eapply ext_until_le; eassumption. rewrite Nat2Z.inj_sub. apply ext_until_adv_1.
   apply inj_le in HeqL. assumption. auto. auto. auto. auto.
 Qed.

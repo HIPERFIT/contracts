@@ -97,27 +97,29 @@ Proof.
 Qed.
 
 
-Definition env := (obs * choices)%type.
+(* External environment *)
 
-Definition adv_env (d : Z) (rho : env) : env :=
+Definition ext := (obs * choices)%type.
+
+Definition adv_ext (d : Z) (rho : ext) : ext :=
   let (obs, ch) := rho in (adv_inp d obs, adv_inp d ch).
                                              
 
-Lemma adv_env_0 e : adv_env 0 e = e.
+Lemma adv_ext_0 e : adv_ext 0 e = e.
 Proof.
-  unfold adv_env. destruct e. repeat rewrite adv_inp_0. reflexivity.
+  unfold adv_ext. destruct e. repeat rewrite adv_inp_0. reflexivity.
 Qed.
 
-Lemma adv_env_iter d d' e : adv_env d (adv_env d' e) = adv_env (d' + d) e.
+Lemma adv_ext_iter d d' e : adv_ext d (adv_ext d' e) = adv_ext (d' + d) e.
 Proof.
-  unfold adv_env. destruct e. repeat rewrite adv_inp_iter. reflexivity.  
+  unfold adv_ext. destruct e. repeat rewrite adv_inp_iter. reflexivity.  
 Qed.
 
 
-Lemma adv_env_swap d d' e : 
-  adv_env d (adv_env d' e) = adv_env d' (adv_env d e).
+Lemma adv_ext_swap d d' e : 
+  adv_ext d (adv_ext d' e) = adv_ext d' (adv_ext d e).
 Proof.
-    unfold adv_env. destruct e. f_equal; apply adv_inp_swap. 
+    unfold adv_ext. destruct e. f_equal; apply adv_inp_swap. 
 Qed.
 
 
@@ -193,7 +195,7 @@ Definition RCompare (cmp : Cmp) : Z -> Z -> bool :=
 
 Reserved Notation "'B[|' e '|]' rc " (at level 9).
 
-Fixpoint Bsem (e : bexp) : env -> option bool :=
+Fixpoint Bsem (e : bexp) : ext -> option bool :=
   fun rho => 
     match e with
       | BLit r => Some r
@@ -285,13 +287,13 @@ Qed.
 
 (* The following function is needed to define the semantics of [IfWithin]. *)
 
-Fixpoint within_sem (c1 c2 : env -> trace) 
-         (e : bexp) (rc : env) (i : nat) : trace 
+Fixpoint within_sem (c1 c2 : ext -> trace) 
+         (e : bexp) (rc : ext) (i : nat) : trace 
   := match B[|e|]rc with
        | Some true => c1 rc
        | Some false => match i with
                          | O => c2 rc
-                         | S j => delay_trace 1 (within_sem c1 c2 e (adv_env 1 rc) j)
+                         | S j => delay_trace 1 (within_sem c1 c2 e (adv_ext 1 rc) j)
                        end
        | None => const_trace bot_trans
      end.
@@ -301,13 +303,13 @@ Fixpoint within_sem (c1 c2 : env -> trace)
 
 Reserved Notation "'C[|' e '|]'" (at level 9).
 
-Fixpoint Csem (c : contract) : env -> trace :=
+Fixpoint Csem (c : contract) : ext -> trace :=
   fun rho => 
     match c with
       | Zero => empty_trace
       | TransfOne p1 p2 c => singleton_trace (singleton_trans p1 p2 c  1)
       | Scale e c' => scale_trace R[|e|](fst rho) (C[|c'|]rho) 
-      | Transl d c' => (delay_trace d) (C[|c'|](adv_env (Z.of_nat d) rho))
+      | Transl d c' => (delay_trace d) (C[|c'|](adv_ext (Z.of_nat d) rho))
       | Both c1 c2 => add_trace (C[|c1|]rho) (C[|c2|]rho)
       | IfWithin e d c1 c2 => within_sem C[|c1|] C[|c2|] e rho d
     end

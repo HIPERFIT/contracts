@@ -57,7 +57,7 @@ Fixpoint Rspecialise' {V V'} (e : rexp' V) (rho : obs) : PEnv Z V V' -> rexp' V'
 Definition Rspecialise (e : rexp) (o : obs) : rexp := Rspecialise' e o (PEmpty (zero Z)).
 
 
-Fixpoint Bspecialise (e : bexp) (rho : env) : bexp :=
+Fixpoint Bspecialise (e : bexp) (rho : ext) : bexp :=
   match e with
     | BLit b => BLit b
     | BChoice ch t => match snd rho t ch with
@@ -78,22 +78,22 @@ Fixpoint Bspecialise (e : bexp) (rho : env) : bexp :=
                       end
   end.
 
-Fixpoint traverseIfWithin (rho : env) (e: bexp) (c1 c2 : env -> contract) (l : nat) : contract + (bexp * nat) :=
+Fixpoint traverseIfWithin (rho : ext) (e: bexp) (c1 c2 : ext -> contract) (l : nat) : contract + (bexp * nat) :=
   match Bspecialise e rho with
       | BLit true => inl (c1 rho)
       | BLit false => match l with
                         | O => inl (c2 rho)
-                        | S l' => traverseIfWithin (adv_env 1 rho) e c1 c2 l'
+                        | S l' => traverseIfWithin (adv_ext 1 rho) e c1 c2 l'
                         end
       | e' => inr (e', l)
   end.
 
-Fixpoint specialise (c : contract) (rho : env) : contract :=
+Fixpoint specialise (c : contract) (rho : ext) : contract :=
   match c with
     | Zero => c
     | TransfOne _ _ _ => c
     | Scale e c' => Scale (Rspecialise e (fst rho)) c'
-    | Transl l c' => Transl l (specialise c' (adv_env (Z.of_nat l) rho))
+    | Transl l c' => Transl l (specialise c' (adv_ext (Z.of_nat l) rho))
     | Both c1 c2 => Both (specialise c1 rho) (specialise c2 rho)
     | IfWithin e l c1 c2 => match traverseIfWithin rho e (specialise c1) (specialise c2) l with
                               | inl c' => c
