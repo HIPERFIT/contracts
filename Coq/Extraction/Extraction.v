@@ -26,6 +26,16 @@ Extract Inlined Constant Z.sub => "(-)".
 Extract Inlined Constant Z.mul => "(*)".
 Extract Inlined Constant Z.opp => "negate".
 
+Extract Inlined Constant R => "Double".
+Extract Inlined Constant Rleb => "(<=)".
+Extract Inlined Constant Rplus => "(+)".
+Extract Inlined Constant Rminus => "(-)".
+Extract Inlined Constant Rmult => "(*)".
+Extract Inlined Constant Ropp => "negate".
+Extract Inlined Constant R1 => "1".
+Extract Inlined Constant R0 => "0".
+
+
 Extract Inlined Constant negb => "not".
 Extract Inlined Constant Z.eqb => "(==)".
 Extract Inlined Constant eq_str => "(==)".
