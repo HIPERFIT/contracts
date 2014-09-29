@@ -12,7 +12,7 @@ Definition constFoldBin {n} (op : BinOp) (e1 e2 : rexp' n) : rexp' n :=
   end.
 
 
-Fixpoint constFoldAcc {V} (rho : obs) (f : obs -> Z -> rexp' V)  (l : nat) (z : obs -> rexp' V) :
+Fixpoint constFoldAcc {V} (rho : obs) (f : obs -> R -> rexp' V)  (l : nat) (z : obs -> rexp' V) :
   rexp' V + (nat * rexp' V) :=
   match l with
     | O => inl (z rho)
@@ -25,7 +25,7 @@ end.
 
 Definition obs_empty : obs := fun _ _ => None.
 
-Fixpoint Rspecialise' {V V'} (e : rexp' V) (rho : obs) : PEnv Z V V' -> rexp' V' :=
+Fixpoint Rspecialise' {V V'} (e : rexp' V) (rho : obs) : PEnv R V V' -> rexp' V' :=
     match e with
       | RLit _ r => fun _ => RLit r
       | RBin _ op e1 e2 => fun vars => constFoldBin op (Rspecialise' e1 rho vars) (Rspecialise' e2 rho vars)
@@ -54,7 +54,7 @@ Fixpoint Rspecialise' {V V'} (e : rexp' V) (rho : obs) : PEnv Z V V' -> rexp' V'
     end.
 
 
-Definition Rspecialise (e : rexp) (o : obs) : rexp := Rspecialise' e o (PEmpty (zero Z)).
+Definition Rspecialise (e : rexp) (o : obs) : rexp := Rspecialise' e o (PEmpty (zero R)).
 
 
 Fixpoint Bspecialise (e : bexp) (rho : ext) : bexp :=

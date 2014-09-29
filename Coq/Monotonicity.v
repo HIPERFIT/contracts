@@ -13,7 +13,7 @@ Proof.
 Qed.
 
 
-Lemma Rsem_monotone' V (vars1 vars2 : Env (option Z) V) e rho1 rho2 : 
+Lemma Rsem_monotone' V (vars1 vars2 : Env (option R) V) e rho1 rho2 : 
   rho1 ⊆ rho2 -> vars1 ⊆ vars2 -> R'[| e |] vars1 rho1 ⊆ R'[| e |] vars2 rho2.
 Proof.
   generalize dependent rho1. generalize dependent rho2. 

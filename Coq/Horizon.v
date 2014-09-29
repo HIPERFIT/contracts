@@ -22,7 +22,7 @@ Proof.
   - unfold scale_trace, compose, scale_trans. eapply IHc in H. destruct H. 
     + left. rewrite H. apply option_map2_none.
     + destruct (R[|r|](fst rho)). 
-      * right. rewrite H. reflexivity.
+      * right. rewrite H. apply scale_empty_trans. 
       * left. reflexivity.
   - assert (horizon c < i - n) as H' by omega.
     eapply IHc in H'. 
@@ -35,7 +35,7 @@ Proof.
     + left. rewrite H1. reflexivity.
     + destruct H2 as [H2|H2].
       * left. rewrite H2. apply option_map2_none.
-      * right. rewrite H1, H2. reflexivity.
+      * right. rewrite H1, H2. auto.  
   - rewrite <- Max.plus_max_distr_l in H.
     rewrite NPeano.Nat.max_lub_lt_iff in H. destruct H as [H1 H2].
     generalize dependent rho. generalize dependent i. 

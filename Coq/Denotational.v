@@ -10,7 +10,7 @@ Infix "∘" := compose (at level 40, left associativity).
 (* Observations: mapping observables to values *)
 
 Definition inp (A : Set) := Z -> observable -> option A.
-Definition obs := inp Z.
+Definition obs := inp R.
 
 Definition choices := inp bool.
 
@@ -125,13 +125,24 @@ Qed.
 
 (* Semantics of (real) binary operations. *)
 
-Definition RBinOp (op : BinOp) : Z -> Z -> Z :=
+Definition Rleb (x y : R) : bool :=
+  match Rle_dec x y with
+    | left _ => true
+    | right _ => false
+  end.
+
+
+Open Scope bool.
+Definition Reqb (x y : R) : bool := Rleb x y && Rleb y x.
+
+
+Definition RBinOp (op : BinOp) : R -> R -> R :=
   match op with
-    | Add => Zplus
-    | Subt => Zminus
-    | Mult => Zmult
-    | Min => fun x y => if Z.leb x y then x else y
-    | Max => fun x y => if Z.leb x y then y else x
+    | Add => Rplus
+    | Subt => Rminus
+    | Mult => Rmult
+    | Min => fun x y => if Rleb x y then x else y
+    | Max => fun x y => if Rleb x y then y else x
   end.
 
 (* Lifts binary functions into [option] types. *)
@@ -157,11 +168,11 @@ Fixpoint RAcc_sem {A} (f : nat -> A -> A) (n : nat) (z : A) : A :=
 
 Reserved Notation "'R'[|' e '|]'" (at level 9).
 
-Fixpoint Rsem' {A} (e : rexp' A) : Env (option Z) A -> obs -> option Z :=
+Fixpoint Rsem' {A} (e : rexp' A) : Env (option R) A -> obs -> option R :=
     match e with
       | RLit _ r => fun vars rho => Some r
       | RBin _ op e1 e2 => fun vars rho =>  option_map2 (RBinOp op) (R'[|e1|] vars rho) (R'[|e2|] vars rho)
-      | RNeg _ e => fun vars rho => option_map (Zminus 0) (R'[|e|] vars rho)
+      | RNeg _ e => fun vars rho => option_map (Rminus 0) (R'[|e|] vars rho)
       | Obs _ obs t => fun vars rho => rho t obs
       | RVar _ v => fun vars rho => lookupEnv vars v 
       | RAcc _ f l z => fun vars rho => 
@@ -184,11 +195,11 @@ Definition BBinOp (op : BoolOp) : bool -> bool -> bool :=
 
 (* Semantics of binary comparison operators. *)
 
-Definition RCompare (cmp : Cmp) : Z -> Z -> bool :=
+Definition RCompare (cmp : Cmp) : R -> R -> bool :=
   match cmp with
-    | EQ => Z.eqb
-    | LTE => Z.leb
-    | LT => fun x y => negb (Z.leb y x)
+    | EQ => Reqb
+    | LTE => Rleb
+    | LT => fun x y => negb (Rleb y x)
   end.
 
 (* Semantics of Boolean expressions *)
@@ -213,21 +224,45 @@ Fixpoint Bsem (e : bexp) : ext -> option bool :=
  [None], which indicates that the set of transfers is undefined (read:
  "bottom"). *)
 
-Definition trans := party -> party -> currency -> Z.
+Definition trans := party -> party -> currency -> R.
 
 Definition transfers := option trans.
 
 
-Definition empty_trans' : trans := fun p1 p2 c => 0%Z.
+Open Scope R.
+Definition empty_trans' : trans := fun p1 p2 c => 0.
 Definition empty_trans : transfers := Some empty_trans'.
 Definition bot_trans : transfers := None.
 Definition singleton_trans' p1 p2 c r : trans 
-  := fun p1' p2' c' => if andb (eq_str p1 p1') (andb (eq_str p2 p2') (eq_str c c')) then r else 0%Z.
+  := fun p1' p2' c' => if andb (eq_str p1 p1') (andb (eq_str p2 p2') (eq_str c c')) then r else 0.
 Definition singleton_trans p1 p2 c r : transfers  := Some (singleton_trans' p1 p2 c r).
-Definition add_trans' : trans -> trans -> trans := fun t1 t2 p1 p2 c => (t1 p1 p2 c + t2 p1 p2 c)%Z.
+Definition add_trans' : trans -> trans -> trans := fun t1 t2 p1 p2 c => (t1 p1 p2 c + t2 p1 p2 c).
 Definition add_trans : transfers -> transfers -> transfers := option_map2 add_trans'.
-Definition scale_trans' : Z -> trans -> trans := fun s t p1 p2 c => (t p1 p2 c * s)%Z.
-Definition scale_trans : option Z -> transfers -> transfers := option_map2 scale_trans'.
+Definition scale_trans' : R -> trans -> trans := fun s t p1 p2 c => (t p1 p2 c * s).
+Definition scale_trans : option R -> transfers -> transfers := option_map2 scale_trans'.
+
+
+Lemma scale_empty_trans' r : scale_trans' r empty_trans' = empty_trans'.
+Proof.
+  unfold scale_trans', empty_trans'. rewrite Rmult_0_l. reflexivity.
+Qed.
+
+Lemma scale_empty_trans r : scale_trans (Some r) empty_trans = empty_trans.
+Proof.
+  simpl. rewrite scale_empty_trans'. reflexivity.
+Qed.
+
+Lemma add_empty_trans' : add_trans' empty_trans' empty_trans' = empty_trans'.
+Proof.
+  unfold add_trans', empty_trans'. rewrite Rplus_0_l. reflexivity.
+Qed.
+
+Lemma add_empty_trans : add_trans empty_trans empty_trans = empty_trans.
+Proof.
+  simpl. rewrite add_empty_trans'. reflexivity.
+Qed.
+
+Hint Resolve scale_empty_trans' scale_empty_trans add_empty_trans' add_empty_trans.
 
 (* Traces represent the sequence of obligations that a contract
 specifies. *)
@@ -243,8 +278,10 @@ Definition singleton_trace (t : transfers) : trace
                 | O => t
                 | _ => empty_trans
               end.
-Definition scale_trace (s : option Z) (t : trace) : trace
+Definition scale_trace (s : option R) (t : trace) : trace
   := scale_trans s ∘ t.
+
+Open Scope nat.
 
 Definition delay_trace (d : nat) (t : trace) : trace :=
   fun x => if leb d x

@@ -92,7 +92,7 @@ Ltac ext_until_max := eauto using ext_until_le, Z.le_max_l, Z.le_max_r.
 
 Open Scope Z.
 
-Lemma rpc_inp_until' V (vars : Env (option Z) V) (e : rexp' V) d r1 r2 : 
+Lemma rpc_inp_until' V (vars : Env (option R) V) (e : rexp' V) d r1 r2 : 
   d R|-e  -> inp_until d r1 r2 -> R'[|e|] vars r1 = R'[|e|] vars r2.
 Proof.
   intros R. generalize dependent r1. generalize dependent r2. 
@@ -138,11 +138,6 @@ Proof.
   remember (leb d x) as L. destruct L; reflexivity.
 Qed.
 
-Lemma scale_trans_empty s : scale_trans (Some s) empty_trans = empty_trans.
-Proof.
-  reflexivity. 
-Qed.
-
 Open Scope nat.                  
 
 Definition wcausal (c : contract) : Prop :=
@@ -165,14 +160,14 @@ Proof.
 
   simpl. pose (IHpc NN d0 r) as IH. destruct IH. left.
   destruct (R[|e|](fst r)); simpl. rewrite H2. reflexivity. reflexivity.
-  destruct (R[|e|](fst r)); simpl. rewrite H2. simpl. auto. auto.
+  destruct (R[|e|](fst r)); simpl. rewrite H2. simpl. right. apply scale_empty_trans. auto.
 
   simpl. destruct d1; destruct d2; try inversion NN.
   
   pose (IHpc1 NeN d r) as IH1. pose (IHpc2 NeN d r) as IH2. unfold add_trace.
   destruct IH1. left. rewrite H1. reflexivity.
   destruct IH2. left. rewrite H2. destruct (C[|c1|] r d); reflexivity.
-  right.  rewrite H1. rewrite H2. reflexivity.
+  right.  rewrite H1. rewrite H2. auto.
 
   right. reflexivity.
 
@@ -216,14 +211,14 @@ Proof.
   unfold scale_trace, scale_trans, compose. 
   pose (IHpc d0 r H2) as IH.
   destruct IH as [IH|IH]. left. rewrite IH. apply option_map2_none.
-  rewrite IH. remember (R[|e|](fst r)) as R. destruct R. simpl. auto.
+  rewrite IH. remember (R[|e|](fst r)) as R. destruct R. simpl. right. apply scale_empty_trans.
   left. reflexivity.
 
   apply olt_omin in H1. destruct H1. eapply IHpc1 in H1.
   eapply IHpc2 in H2. unfold add_trace. destruct H1.
   left. erewrite H1. reflexivity. destruct H2.
   left. erewrite H2. apply option_map2_none.
-  right. rewrite H1. rewrite H2. reflexivity.
+  right. rewrite H1. rewrite H2. auto.
 
   auto.
 
@@ -285,7 +280,7 @@ Proof.
   eapply ole_lt in H; try apply HeqD. pose (rpc_indep c r2 d0 _ H1 H) as P. destruct P.
   right. left. rewrite H3. apply option_map2_none. pose (rpc_indep c r1 d0 _ H1 H) as P.
   destruct P. left. rewrite H4. apply option_map2_none. right. right.
-  rewrite H3. rewrite H4. reflexivity.
+  rewrite H3. rewrite H4. do 2 rewrite scale_empty_trans. reflexivity.
 
   unfold add_trace, add_trans. 
   pose (IHpc1 d r1 r2 H1) as IH1. pose (IHpc2 d r1 r2 H1) as IH2.

@@ -24,7 +24,7 @@ Fixpoint adv_bexp (d : Z) (e : bexp) : bexp :=
 
 
 
-Lemma adv_rexp_obs A (vars : Env (option Z) A) d (e : rexp' A) rho : 
+Lemma adv_rexp_obs A (vars : Env (option R) A) d (e : rexp' A) rho : 
   R'[|adv_rexp d e|] vars rho = R'[|e|] vars (adv_inp d rho).
 Proof.
   generalize dependent rho. induction e;intros; simpl; first [reflexivity | f_equal; assumption | auto].

@@ -1,3 +1,4 @@
+Require Export Reals.
 Require Export String.
 Require Export ZArith.
 Require Export Scope.
@@ -37,7 +38,7 @@ Inductive iexp : Set :=
 (* Real expressions (for simplicity, we use integers, though). *)
 
 Inductive rexp' : Type -> Type :=
-| RLit V : Z -> rexp' V
+| RLit V : R -> rexp' V
 | RBin V : BinOp -> rexp' V -> rexp' V -> rexp' V
 | RNeg  V : rexp' V -> rexp' V
 | Obs V : observable -> Z -> rexp' V
@@ -71,6 +72,6 @@ Inductive contract : Type :=
 
 Definition transl (l : nat) : contract -> contract := 
   match l with
-    | O => id
+    | O => (fun x => x)
     | _ => Transl l
   end.
