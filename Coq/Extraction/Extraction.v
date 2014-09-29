@@ -1,7 +1,10 @@
+Add LoadPath "..".
+
 Require Import Denotational.
 Require Import Reduction.
 Require Import Horizon.
 Require Import SyntacticCausality.
+Require Import Specialise.
 
 
 Extraction Language Haskell.
@@ -32,6 +35,7 @@ Extract Inlined Constant fst => "fst".
 Extract Inlined Constant snd => "snd".
 
 Extract Inlined Constant plus => "(+)".
+Extract Inlined Constant minus => "(-)".
 Extract Inlined Constant max => "max".
 Extract Inlined Constant Z.of_nat => "id".
 Extract Inlined Constant Z.to_nat => "id".
@@ -40,14 +44,18 @@ Extract Inductive option => "Maybe" [ "Just" "Nothing" ].
 Extract Constant option_rect => "flip maybe".
 Extraction Inline option_rect option_rec.
 
+Extract Inductive sum => "Either" ["Left" "Right"].
+
 Extract Inductive string => "String" ["[]" "(:)"].
 
 Extract Inductive Ascii.ascii => "Char" ["'a'"]. (* TODO: real translation *)
 
+Extract Inductive PEnv => "PEnv" [ "PEmpty" "PExtend" "PSkip" ].
 Extract Inductive Env => "Env" [ "Empty" "Extend" ].
 
 Extraction "ContractExtracted.hs" 
   contract
   horizon
   RedFun
-  pc_dec.
+  pc_dec
+  specialise.

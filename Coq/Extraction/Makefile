@@ -11,7 +11,7 @@ Contract.hs: $(EXTRACTED) $(HEADER)
 	sed -n $(SED_SCRIPT) $(EXTRACTED) >> $(TARGET)
 
 $(EXTRACTED): $(COQ_FILE)
-	coqc -I .. $(COQ_FILE)
+	coqc $(COQ_FILE)
 
 clean:
 	rm -f $(TARGET) $(EXTRACTED)
