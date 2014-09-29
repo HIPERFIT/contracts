@@ -81,14 +81,6 @@ Inductive pc : option nat -> contract -> Prop :=
                                             where "d '|-' c" := (pc d c). 
 
 
-Ltac inp_until_max := eauto using inp_until_le, Z.le_max_l, Z.le_max_r.
-
-Lemma ext_until_le d1 d2 r1 r2 : Z.le d2 d1 -> ext_until d1 r1 r2 -> ext_until d2 r1 r2.
-Proof. 
-  unfold ext_until. intros. destruct H0. split; eapply inp_until_le; eassumption.
-Qed.
-
-Ltac ext_until_max := eauto using ext_until_le, Z.le_max_l, Z.le_max_r.
 
 Open Scope Z.
 
@@ -291,7 +283,7 @@ Proof.
 
   auto.
 
-  assert (ext_until 0 r1 r2). apply ext_until_le with (d1:= Z.of_nat d). omega. assumption.
+  assert (ext_until 0 r1 r2). eapply ext_until_le. eassumption. omega. 
   generalize dependent d. generalize dependent r1. generalize dependent r2. 
   induction l; intros; simpl.
   

@@ -50,3 +50,8 @@ Lemma inp_until_le {A} d1 d2 (r1 r2 : inp A) : inp_until d1 r1 r2 ->  d2 <= d1 -
 Proof. 
   unfold inp_until. intros. apply H. omega.
 Qed.
+
+Lemma ext_until_le d1 d2 r1 r2 : ext_until d1 r1 r2 -> d2 <= d1 -> ext_until d2 r1 r2.
+Proof. 
+  unfold ext_until. intros. destruct H. split; eapply inp_until_le; eassumption.
+Qed.

@@ -54,12 +54,26 @@ Implicit Arguments RAcc [[V]].
 
 Definition rexp := rexp' ZeroT.
 
-Inductive bexp : Type :=
-| BLit : bool -> bexp
-| BChoice : choice -> Z -> bexp
-| RCmp : Cmp -> rexp -> rexp -> bexp
-| BNot : bexp -> bexp
-| BOp : BoolOp -> bexp -> bexp -> bexp.
+Inductive bexp' : Type -> Type :=
+| BLit V: bool -> bexp' V
+| BChoice V  : choice -> Z -> bexp' V
+| RCmp V : Cmp -> rexp -> rexp -> bexp' V
+| BNot V : bexp' V -> bexp' V
+| BOp V : BoolOp -> bexp' V -> bexp' V -> bexp' V
+| BVar V : V -> bexp' V
+| BAcc V : Scope bexp' V -> nat -> bexp' V -> bexp' V. 
+
+
+Implicit Arguments BLit [[V]].
+Implicit Arguments BChoice [[V]].
+Implicit Arguments RCmp [[V]].
+Implicit Arguments BNot [[V]].
+Implicit Arguments BOp [[V]].
+Implicit Arguments BVar [[V]].
+Implicit Arguments BAcc [[V]].
+
+Definition bexp := bexp' ZeroT.
+
 
 Inductive contract : Type :=
  | Zero : contract

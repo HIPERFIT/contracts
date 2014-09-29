@@ -46,28 +46,50 @@ Qed.
 Corollary Rsem_monotone  e rho1 rho2 : rho1 ⊆ rho2 -> R[| e |]rho1 ⊆ R[| e |]rho2.
 Proof. intros. apply Rsem_monotone'; auto. Qed.
 
-Lemma Bsem_monotone e rho1 rho2 : rho1 ⊆ rho2 -> B[| e |]rho1 ⊆ B[| e |]rho2.
+Lemma adv_ext_monotone rho1 rho2 n : rho1 ⊆ rho2 -> adv_ext n rho1 ⊆ adv_ext n rho2.
+Proof. 
+  intros. destruct rho1. destruct rho2. destruct H. split; apply adv_inp_monotone;
+  auto.
+Qed.
+
+Lemma Bsem_monotone' {V} (vars1 vars2 : Env (option bool) V) e rho1 rho2 : 
+  rho1 ⊆ rho2 -> vars1 ⊆ vars2 -> B'[| e |]vars1 rho1 ⊆ B'[| e |]vars2 rho2.
 Proof.
-  intro S; induction e; simpl; intros; auto.
-  - destruct S. auto.
-  - destruct S as [S1 S2]. 
+  generalize dependent rho1. generalize dependent rho2. 
+  generalize dependent vars1. generalize dependent vars2. 
+  induction e; try solve [simpl; intros; auto].
+  - simpl. intros. destruct H. apply H2. auto.
+  - simpl. intros. destruct H as [S1 S2]. 
     remember (R[|r|](fst rho1)) as X1. remember (R[|r0|](fst rho1)) as X2.
     pose (Rsem_monotone r _ _ S1) as R1. pose (Rsem_monotone r0 _ _ S1) as R2.
     destruct X1; tryfalse. destruct X2; tryfalse. 
     rewrite <- HeqX1 in R1. rewrite <- HeqX2 in R2.
     simpl in *. erewrite R1 by auto. erewrite R2 by auto.
     auto.
-  - destruct (B[|e|]rho1); tryfalse. erewrite IHe by auto. assumption.
-  - destruct (B[|e1|]rho1); tryfalse. destruct (B[|e2|]rho1); tryfalse.
-    erewrite IHe1 by auto. erewrite IHe2 by auto.  assumption.
+  - simpl. intros. remember (B'[|e|]vars1 rho1) as B. destruct B; tryfalse. erewrite IHe. eassumption.
+    apply H. apply H0. auto.
+  - simpl. intros. 
+    remember (B'[|e1|]vars1 rho1) as B1. destruct B1; tryfalse. 
+    remember (B'[|e2|]vars1 rho1) as B2. destruct B2; tryfalse.
+    erewrite IHe1. erewrite IHe2.  eassumption. apply H. apply H0. auto.
+    apply H. apply H0. auto.
+  - simpl. intros. eapply EnvLe_lookup; eassumption.
+  - simpl. intros. 
+    remember (adv_ext (- Z.of_nat n) rho1) as rho1'. 
+    remember (adv_ext (- Z.of_nat n) rho2) as rho2'. 
+    assert (rho1' ⊆ rho2') as Sub.
+    subst. apply adv_ext_monotone. auto.
+    clear Heqrho1' Heqrho2'.
+    generalize dependent z. induction n.
+    + simpl in *. eapply IHe0; eauto. 
+    + intros. simpl. eapply IHe. apply adv_ext_monotone. eauto.
+      constructor. simpl. intros. apply IHn; auto. apply H2.
+      simpl. apply H0. apply H1.
 Qed.
 
+Corollary Bsem_monotone e rho1 rho2 : rho1 ⊆ rho2 -> B[| e |]rho1 ⊆ B[| e |]rho2.
+Proof. intros. apply Bsem_monotone'; auto. Qed.
 
-Lemma adv_ext_monotone rho1 rho2 n : rho1 ⊆ rho2 -> adv_ext n rho1 ⊆ adv_ext n rho2.
-Proof. 
-  intros. destruct rho1. destruct rho2. destruct H. split; apply adv_inp_monotone;
-  auto.
-Qed.
 
 
 Theorem Csem_monotone c rho1 rho2 : rho1 ⊆ rho2 -> C[| c |]rho1 ⊆ C[| c |]rho2.

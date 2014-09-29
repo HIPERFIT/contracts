@@ -22,12 +22,14 @@ Inductive rpc : forall {V}, rexp' V -> Prop:=
 
 Reserved Notation "'B|-' c" (at level 20).
 
-Inductive bpc : bexp -> Prop:=
-| bpc_lit : forall b, B|- (BLit b)
-| rpc_ch : forall ch i, i <= 0 -> B|- BChoice ch i
-| bpc_cmp : forall cmp e1 e2, R|- e1 -> R|- e2 -> B|- RCmp cmp e1 e2
-| bpc_op : forall op e1 e2, B|- e1 -> B|- e2 -> B|- BOp op e1 e2
-| bpc_not : forall e, B|- e -> B|- BNot e
+Inductive bpc : forall {V}, bexp' V -> Prop:=
+| bpc_lit : forall V b, B|- BLit b (V:=V)
+| rpc_ch : forall V ch i, i <= 0 -> B|- BChoice ch i (V:=V)
+| bpc_cmp : forall V cmp e1 e2, R|- e1 -> R|- e2 -> B|- RCmp cmp e1 e2 (V:=V)
+| bpc_op : forall V op e1 e2, B|- e1 -> B|- e2 -> B|- BOp op e1 e2 (V:=V)
+| bpc_not : forall V e, B|- e -> B|- BNot e (V:=V)
+| bpc_var : forall V q, B|- BVar q (V:=V)
+| bpc_acc : forall V f l z, B|- f -> B|- z -> B|- BAcc f l z (V:=V)
                                          where "'B|-' e" := (bpc e). 
 
 Reserved Notation "'|-' c" (at level 20).
@@ -70,14 +72,33 @@ Corollary rpc_inp_until (e : rexp) d r1 r2 :
   R|-e -> 0 <= d -> inp_until d r1 r2 -> R[|e|] r1 = R[|e|]r2.
 Proof. apply rpc_inp_until'. Qed.
 
-Lemma bpc_ext_until e d r1 r2 : B|-e -> 0 <= d -> ext_until d r1 r2 -> B[|e|]r1 = B[|e|]r2.
+Lemma bpc_ext_until' V (e : bexp' V) d vars r1 r2 : 
+  B|- e -> 0 <= d -> ext_until d r1 r2 -> B'[|e|] vars r1 = B'[|e|] vars r2.
 Proof.
-  intros R D O. destruct O. induction R; simpl; try (f_equal; assumption).
+  intros R D O. 
+  generalize dependent vars. generalize dependent r2. generalize dependent r1.
+  induction R; intros; simpl; try (f_equal; assumption).
 
-  unfold inp_until in *. rewrite H0. reflexivity. omega.
-
-  f_equal; eapply rpc_inp_until; eauto. 
+  - destruct O as [O1 O2]. unfold inp_until in *. rewrite O2. reflexivity. omega.
+  - destruct O as [O1 O2]. f_equal; eapply rpc_inp_until; eauto. 
+  - erewrite IHR1, IHR2 by eassumption. reflexivity.
+  - erewrite IHR by eassumption. reflexivity.
+  - remember (adv_ext (- Z.of_nat l) r1) as r1'.
+    remember (adv_ext (- Z.of_nat l) r2) as r2'.
+    assert (ext_until (Z.of_nat l + d) r1' r2') as I.
+    subst. rewrite ext_until_adv. 
+    assert (- Z.of_nat l + (Z.of_nat l + d) = d) as L.
+    omega. rewrite L. assumption.
+    clear Heqr1' Heqr2'.
+    induction l. 
+    + simpl. apply IHR2. simpl in I. assumption. 
+    + simpl. rewrite IHl. apply IHR1. rewrite ext_until_adv.
+      eapply ext_until_le; try eassumption. simpl. omega.
+      eapply ext_until_le. apply I. rewrite Nat2Z.inj_succ. omega.
 Qed.
+
+Corollary bpc_ext_until e d r1 r2 : B|- e -> 0 <= d -> ext_until d r1 r2 -> B[|e|]r1 = B[|e|]r2.
+Proof. apply bpc_ext_until'. Qed.
 
 
 Theorem pc_causal c : |- c -> causal c.
@@ -139,16 +160,18 @@ Proof.
   - intros D. induction D; simpl; try first [rewrite IHD1, IHD2| apply Z.leb_le]; auto.
 Qed.
 
-Fixpoint bpc_dec (e : bexp) : bool :=
+Fixpoint bpc_dec {V} (e : bexp' V) : bool :=
   match e with
-    | BLit b => true
-    | BChoice _ i => Z.leb i 0
-    | RCmp _ e1 e2 => rpc_dec e1 && rpc_dec e2
-    | BNot e' => bpc_dec e'
-    | BOp _ e1 e2 => bpc_dec e1 && bpc_dec e2
+    | BLit _ b => true
+    | BChoice _ _ i => Z.leb i 0
+    | RCmp _ _ e1 e2 => rpc_dec e1 && rpc_dec e2
+    | BNot _ e' => bpc_dec e'
+    | BOp _ _ e1 e2 => bpc_dec e1 && bpc_dec e2
+    | BVar _ _ => true
+    | BAcc _ f _ z => bpc_dec f && bpc_dec z
   end.
 
-Lemma bpc_dec_correct (e : bexp) : bpc_dec e = true <-> B|- e. 
+Lemma bpc_dec_correct V (e : bexp' V) : bpc_dec e = true <-> B|- e. 
 Proof.
   split.
   - intro D. induction e; simpl in *; 

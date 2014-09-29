@@ -160,10 +160,10 @@ Qed.
 
 (* Semantics of real expressions. *)
 
-Fixpoint RAcc_sem {A} (f : nat -> A -> A) (n : nat) (z : A) : A :=
+Fixpoint Acc_sem {A} (f : nat -> A -> A) (n : nat) (z : A) : A :=
   match n with
     | 0 => z
-    | S n' => f n (RAcc_sem f n' z)
+    | S n' => f n (Acc_sem f n' z)
   end.
 
 Reserved Notation "'R'[|' e '|]'" (at level 9).
@@ -177,7 +177,7 @@ Fixpoint Rsem' {A} (e : rexp' A) : Env (option R) A -> obs -> option R :=
       | RVar _ v => fun vars rho => lookupEnv vars v 
       | RAcc _ f l z => fun vars rho => 
                           let rho' := adv_inp (- Z.of_nat l) rho
-                          in RAcc_sem (fun m x => R'[| f |] (Extend x vars) 
+                          in Acc_sem (fun m x => R'[| f |] (Extend x vars) 
                                             (adv_inp (Z.of_nat m) rho')) l (R'[|z|] vars rho')
     end
       where "'R'[|' e '|]'" := (Rsem' e ). 
@@ -204,18 +204,24 @@ Definition RCompare (cmp : Cmp) : R -> R -> bool :=
 
 (* Semantics of Boolean expressions *)
 
-Reserved Notation "'B[|' e '|]' rc " (at level 9).
+Reserved Notation "'B'[|' e '|]' rc " (at level 9).
 
-Fixpoint Bsem (e : bexp) : ext -> option bool :=
-  fun rho => 
+Fixpoint Bsem' {V} (e : bexp' V) : Env (option bool) V -> ext -> option bool :=
     match e with
-      | BLit r => Some r
-      | BChoice choice z => snd rho z choice
-      | BOp op e1 e2 => option_map2 (BBinOp op) B[|e1|]rho B[|e2|]rho
-      | BNot e => option_map negb B[|e|]rho
-      | RCmp cmp e1 e2 => option_map2 (RCompare cmp) R[|e1|](fst rho) R[|e2|](fst rho)
+      | BLit _ r => fun vars rho => Some r
+      | BChoice _ choice z => fun vars rho => snd rho z choice
+      | BOp _ op e1 e2 => fun vars rho => option_map2 (BBinOp op) (B'[|e1|] vars rho) (B'[|e2|] vars rho)
+      | BNot _ e => fun vars rho => option_map negb (B'[|e|]vars rho)
+      | RCmp _ cmp e1 e2 => fun vars rho => option_map2 (RCompare cmp) R[|e1|](fst rho) R[|e2|](fst rho)
+      | BVar _ v => fun vars rho => lookupEnv vars v
+      | BAcc _ f l z => fun vars rho => 
+                          let rho' := adv_ext (- Z.of_nat l) rho
+                          in Acc_sem (fun m x => B'[| f |] (Extend x vars) 
+                                            (adv_ext (Z.of_nat m) rho')) l (B'[|z|] vars rho')
     end
-      where "'B[|' e '|]' rho" := (Bsem e rho). 
+      where "'B'[|' e '|]' rho" := (Bsem' e rho). 
+
+Notation "'B[|' e '|]' rho" := (B'[|e|] (Empty (zero _)) rho) (at level 9).
 
 (* Semantic structures for contracts. *)
 
