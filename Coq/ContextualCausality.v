@@ -13,7 +13,7 @@ Open Scope Z.
 Reserved Notation "d 'R|-' c" (at level 20).
 
 Inductive rpc : forall {V}, Z -> rexp' V -> Prop:=
-| rpc_obs : forall d V o i,  (i <= d)%Z ->  d R|- Obs o i (V:=V)
+| rpc_obs : forall d V o i,  i <= d ->  d R|- Obs o i (V:=V)
 | rpc_lit : forall d V q, d R|- RLit q (V:=V)
 | rpc_bin : forall V op e1 e2 d, d R|- e1 -> d R|- e2 -> d R|- RBin op e1 e2  (V:=V)
 | rpc_neg : forall V e d, d R|- e -> d R|- RNeg e  (V:=V)
@@ -31,12 +31,14 @@ Qed.
 
 Reserved Notation "d 'B|-' c" (at level 20).
 
-Inductive bpc : Z -> bexp -> Prop:=
-| bpc_lit : forall d b, d B|- (BLit b)
-| rpc_ch : forall d ch i, (i <= d)%Z -> d B|- BChoice ch i
-| bpc_cmp : forall cmp (e1 e2 : rexp) d, d R|- e1 -> d R|- e2 -> d B|- RCmp cmp e1 e2
-| bpc_op : forall op e1 e2 d, d B|- e1 -> d B|- e2 -> d B|- BOp op e1 e2
-| bpc_not : forall e d, d B|- e -> d B|- BNot e
+Inductive bpc : forall {V}, Z -> bexp' V -> Prop:=
+| bpc_lit : forall V d b, d B|- BLit b (V:=V)
+| rpc_ch : forall V d ch i, i <= d -> d B|- BChoice ch i (V:=V)
+| bpc_cmp : forall V cmp (e1 e2 : rexp) d, d R|- e1 -> d R|- e2 -> d B|- RCmp cmp e1 e2 (V:=V)
+| bpc_op : forall V op e1 e2 d, d B|- e1 -> d B|- e2 -> d B|- BOp op e1 e2 (V:=V)
+| bpc_not : forall V e d, d B|- e -> d B|- BNot e (V:=V)
+| bpc_var : forall d V q, d B|- BVar q (V:=V)
+| bpc_acc : forall d V f m z, d  B|- f -> d B|- z -> d B|- BAcc f m z (V:=V)
                                          where "d 'B|-' e" := (bpc d e). 
 
 
@@ -111,17 +113,30 @@ Corollary rpc_inp_until (e : rexp) d r1 r2 :
   d R|-e  -> inp_until d r1 r2 -> R[|e|] r1 = R[|e|] r2.
 Proof. apply rpc_inp_until'. Qed.
 
-Lemma bpc_ext_until e d r1 r2 : d B|-e -> ext_until d r1 r2 -> B[|e|]r1 = B[|e|]r2.
+Lemma bpc_ext_until {V} (e : bexp' V) d vars r1 r2 :
+  d B|-e -> ext_until d r1 r2 -> B'[|e|] vars r1 = B'[|e|] vars r2.
 Proof.
-  intros R O. induction R; simpl; try solve [f_equal; auto].
-
-  destruct O. unfold inp_until in *. rewrite H1. reflexivity.
-  remember (0 <=? i)%Z as L. omega. 
-  
-  destruct O. 
-  eapply rpc_inp_until in H.
-  eapply rpc_inp_until in H0. rewrite H. rewrite H0.
-  reflexivity. auto. auto.
+  intros R O. generalize dependent r1. generalize dependent r2. 
+  induction R; intros; simpl; try solve [f_equal; auto].
+  - destruct O. unfold inp_until in *. rewrite H1. reflexivity.
+    remember (0 <=? i)%Z as L. omega. 
+  - destruct O. 
+    eapply rpc_inp_until in H.
+    eapply rpc_inp_until in H0. rewrite H. rewrite H0.
+    reflexivity. auto. auto.
+  - remember (adv_ext (- Z.of_nat m) r1) as r1'.
+    remember (adv_ext (- Z.of_nat m) r2) as r2'.
+    assert (ext_until (Z.of_nat m + d) r1' r2') as I.
+    subst. rewrite ext_until_adv. 
+    assert (- Z.of_nat m + (Z.of_nat m + d) = d) as L.
+    omega. rewrite L. assumption.
+    clear Heqr1' Heqr2'. 
+    induction m.
+    + simpl. auto.
+    + simpl. rewrite IHm. apply  IHR1. rewrite ext_until_adv.
+      eapply ext_until_le. eassumption.
+      rewrite Nat2Z.inj_succ. rewrite Zpos_P_of_succ_nat. omega.
+      eapply ext_until_le. apply I. rewrite Nat2Z.inj_succ.  omega.  
 Qed.
 
 Lemma delay_trace_empty d : delay_trace d (const_trace empty_trans) = const_trace empty_trans.
@@ -288,11 +303,11 @@ Proof.
   induction l; intros; simpl.
   
  
-  erewrite bpc_ext_until with (r2:=r2) by eassumption. 
+  erewrite bpc_ext_until by eassumption. 
   remember (B[|b|]r2) as bl. destruct bl. destruct b0. eapply IHpc1; eassumption. 
   eapply IHpc2; eassumption. auto.
 
-  rewrite bpc_ext_until with (r2:=r2) (d:=0%Z) by assumption.
+  erewrite bpc_ext_until by eassumption.
   remember (B[|b|]r2) as bl. destruct bl. destruct b0.  eapply IHpc1; eassumption. 
   unfold delay_trace. remember (leb 1 d) as L. destruct L. 
   symmetry in HeqL. rewrite leb_iff in HeqL. apply IHl. apply ext_until_adv. simpl.  
