@@ -53,16 +53,16 @@ Proof.
 Qed.
 
 Theorem transl_ifwithin e d t c1 c2 : 
-  IfWithin (adv_bexp (Z.of_nat d) e) t (Transl d c1) (Transl d c2) ⊑
+  IfWithin (adv_exp (Z.of_nat d) e) t (Transl d c1) (Transl d c2) ⊑
   Transl d (IfWithin e t c1 c2).
 Proof.
   unfold lequiv, lep. simpl. induction t; intros.
-  simpl in *. rewrite adv_bexp_ext in *. remember (B[|e|](adv_ext (Z.of_nat d) rho)) as b.
-  destruct b. destruct b;  assumption. 
+  simpl in *. rewrite adv_exp_ext in *. remember (E[|e|](adv_ext (Z.of_nat d) rho)) as b.
+  destruct b. destruct t;  assumption. 
   unfold const_trace, bot_trans in H. inversion H.
 
-  simpl in *.  rewrite adv_bexp_ext in *. 
-  remember (B[|e|](adv_ext (Z.of_nat d) rho)) as b. repeat destruct b. assumption. 
+  simpl in *.  rewrite adv_exp_ext in *. 
+  remember (E[|e|](adv_ext (Z.of_nat d) rho)) as b. destruct b. destruct t0. assumption. 
   rewrite adv_ext_swap. rewrite delay_trace_swap. 
   unfold delay_trace at 1.
   unfold delay_trace at 1 in H. 
@@ -98,20 +98,20 @@ Qed.
 
 
 Theorem transl_ifwithin_wequiv e d t c1 c2 : 
-  IfWithin (adv_bexp (Z.of_nat d) e) t (Transl d c1) (Transl d c2) ≃
+  IfWithin (adv_exp (Z.of_nat d) e) t (Transl d c1) (Transl d c2) ≃
   Transl d (IfWithin e t c1 c2). 
 Proof.
   unfold wequiv. intros. destruct H. apply lequiv_total. apply transl_ifwithin. assumption.
   
   
   unfold lequiv, lep. simpl. generalize dependent rho. induction t; intros.
-  simpl in *. rewrite adv_bexp_ext in *. remember (B[|e|](adv_ext (Z.of_nat d) rho)) as b.
-  destruct b. destruct b; reflexivity.
+  simpl in *. rewrite adv_exp_ext in *. remember (E[|e|](adv_ext (Z.of_nat d) rho)) as b.
+  destruct b. destruct t; reflexivity.
   unfold total in H. 
   contradiction (H d (bot_trans_delay_at d)). 
 
-  simpl in *.  rewrite adv_bexp_ext in *. 
-  remember (B[|e|](adv_ext (Z.of_nat d) rho)) as b. repeat destruct b. reflexivity.
+  simpl in *.  rewrite adv_exp_ext in *. 
+  remember (E[|e|](adv_ext (Z.of_nat d) rho)) as b. destruct b. destruct t0. reflexivity.
   rewrite adv_ext_swap. rewrite delay_trace_swap. 
   rewrite IHt. reflexivity. rewrite delay_trace_swap in H. rewrite adv_ext_swap.
   apply total_delay in H. assumption. apply bot_trans_delay_total in H. contradiction.

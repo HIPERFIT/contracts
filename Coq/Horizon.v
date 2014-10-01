@@ -21,7 +21,7 @@ Proof.
   - destruct i. inversion H. auto.
   - unfold scale_trace, compose, scale_trans. eapply IHc in H. destruct H. 
     + left. rewrite H. apply option_map2_none.
-    + destruct (R[|r|](fst rho)). 
+    + destruct (E[|e|] rho). 
       * right. rewrite H. apply scale_empty_trans. 
       * left. reflexivity.
   - assert (horizon c < i - n) as H' by omega.
@@ -41,10 +41,10 @@ Proof.
     generalize dependent rho. generalize dependent i. 
     induction n; intros.
     + eapply IHc1 in H1. eapply IHc2 in H2.
-      simpl. destruct (B[|b|]rho).
-      * destruct b0; eassumption.
+      simpl. destruct (E[|e|]rho).
+      * destruct t; eassumption.
       * left. reflexivity.
-    + simpl. destruct (B[|b|]rho); auto. destruct b0.
+    + simpl. destruct (E[|e|]rho); auto. destruct t.
       * apply IHc1. omega.
       * unfold delay_trace. 
         assert (leb 1 i = true) as L. apply leb_correct. omega.

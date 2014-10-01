@@ -1,6 +1,7 @@
 Require Export Syntax.
 Require Export ZArith.
 Require Export Basics.
+Require Import Equality.
 Require Import FunctionalExtensionality.
 
 Infix "∘" := compose (at level 40, left associativity).
@@ -9,10 +10,7 @@ Infix "∘" := compose (at level 40, left associativity).
 
 (* Observations: mapping observables to values *)
 
-Definition inp (A : Set) := Z -> observable -> option A.
-Definition obs := inp R.
-
-Definition choices := inp bool.
+Definition ext := Z -> forall (A : Ty), observable -> option [|A|].
 
 
 Class Partial t := {
@@ -25,101 +23,70 @@ Instance none_Partial A : Partial (option A) := {
   lep t1 t2  := forall z , t1 = Some z -> t2 = Some z
   }.
 
+
+Instance option_Partial I (f : I -> Type) t : Partial ((option ∘ f) t) := {
+  lep t1 t2  := forall z , t1 = Some z -> t2 = Some z
+  }.
+
 Lemma lep_some A (o : option A) x : Some x ⊆ o -> Some x = o.
 Proof.
   simpl. intros. symmetry. auto.
 Qed. 
 
-Inductive EnvLe {A} : forall {V}, Env (option A) V -> Env (option A) V -> Prop :=
-| EnvLeEmpty V (f : V -> option A) : EnvLe (Empty f) (Empty f)
-| EnvLeExtend V (e1 e2 : Env (option A) V) x1 x2 : x1 ⊆ x2 -> EnvLe e1 e2 -> EnvLe (Extend x1 e1) (Extend x2 e2)
-.
+Inductive EnvLe {I} {f : I -> Type} : forall {V}, Env (option ∘ f) V -> Env (option ∘ f) V -> Prop :=
+| EnvLeNil : EnvLe (EnvNil _) (EnvNil _)
+| EnvLeExtend i V (e1 e2 : Env (option ∘ f) V) (x1 x2 : option (f i)) : 
+    x1 ⊆ x2 -> EnvLe e1 e2 (V:=V) -> EnvLe (EnvCons x1 e1) (EnvCons x2 e2).
 
 Hint Constructors EnvLe.
 
-Instance env_Partial A V : Partial (Env (option A) V) := {
+Instance env_Partial I (f : I -> Type) V : Partial (Env (option ∘ f) V) := {
   lep := EnvLe
   }.
 
-Lemma EnvLeEmpty' A V (f : V -> option A) : Empty f ⊆ Empty f.
+Lemma EnvLeEmpty' I (f : I -> Type) : EnvNil (option ∘ f) ⊆ EnvNil (option ∘ f).
 constructor. Qed.
 
-Lemma EnvLeExtend' A V (e1 e2 : Env (option A) V) x1 x2 : 
-  x1 ⊆ x2 -> e1 ⊆ e2 -> Extend x1 e1 ⊆ Extend x2 e2.
+Lemma EnvLeExtend' I (f: I -> Type) V (e1 e2 : Env (option ∘ f) V) i (x1 x2 : option (f i)) :
+  x1 ⊆ x2 -> e1 ⊆ e2 -> EnvCons x1 e1 ⊆ EnvCons x2 e2.
 constructor; assumption. Qed.
 
-Lemma EnvLe_lookup {V A} (e1 e2 : Env (option A) V) (v : V) : e1 ⊆ e2 -> lookupEnv e1 v ⊆ lookupEnv e2 v.
-Proof. 
-  intros L. induction L. simpl. auto. destruct v. simpl. intros. apply IHL. auto.
-  simpl. intros. destruct u. auto.
+Lemma EnvLe_lookup {I t} {V : list I} {f : I -> Type} (e1 e2 : Env (option ∘ f) V) (v : Var V t) : 
+  e1 ⊆ e2 -> lookupEnv v e1 ⊆ lookupEnv v e2.
+Proof.
+  intros L. induction L. simpl. auto. dependent destruction v. apply H. apply IHL. 
 Qed.
 
 Hint Resolve EnvLe_lookup EnvLeEmpty' EnvLeExtend'.
 
-Instance single_Partial A B : Partial (A -> option B) := {
-  lep t1 t2  := forall i z , t1 i = Some z -> t2 i = Some z
+Instance ext_Partial : Partial ext := {
+  lep t1 t2  := forall i t o (z : [|t|]) , t1 i t o = Some z -> t2 i t o = Some z
   }.
-
-
-Instance double_Partial A B C : Partial (A -> B -> option C) := {
-  lep t1 t2  := forall i j z , t1 i j = Some z -> t2 i j = Some z
-  }.
-
-Instance nested_Partial T1 T2 (p1:Partial T1) (p2 : Partial T2) : Partial (T1 * T2) := {
-  lep t1 t2  := lep (fst t1) (fst t2) /\ lep (snd t1) (snd t2)
-  }.
-
 
 (* Move observations into the future. *)
 
-Definition adv_inp {A} (d : Z) (e : inp A) : inp A
+Definition adv_ext (d : Z) (e : ext) : ext
   := fun x => e (d + x)%Z.
 
-Lemma adv_inp_0 A (e : inp A) : adv_inp 0 e = e.
+Lemma adv_ext_0 (e : ext) : adv_ext 0 e = e.
 Proof.
   apply functional_extensionality.
-  unfold adv_inp. reflexivity.
+  unfold adv_ext. reflexivity.
 Qed.
 
-Lemma adv_inp_iter {A} d d' (e : inp A) : adv_inp d (adv_inp d' e) = adv_inp (d' + d) e.
+Lemma adv_ext_iter d d' (e : ext) : adv_ext d (adv_ext d' e) = adv_ext (d' + d) e.
 Proof.
   apply functional_extensionality. induction d'; intros.
-  - simpl. rewrite adv_inp_0. reflexivity.
-  - simpl. unfold adv_inp in *.  rewrite Z.add_assoc. reflexivity.
-  - unfold adv_inp. rewrite Z.add_assoc.  reflexivity.
+  - simpl. rewrite adv_ext_0. reflexivity.
+  - simpl. unfold adv_ext in *.  rewrite Z.add_assoc. reflexivity.
+  - unfold adv_ext. rewrite Z.add_assoc.  reflexivity.
 Qed.
 
 
-Lemma adv_inp_swap {A} d d' (e : inp A) : 
-  adv_inp d (adv_inp d' e) = adv_inp d' (adv_inp d e).
-Proof.
-  repeat rewrite adv_inp_iter. rewrite Z.add_comm. reflexivity.
-Qed.
-
-
-(* External environment *)
-
-Definition ext := (obs * choices)%type.
-
-Definition adv_ext (d : Z) (rho : ext) : ext :=
-  let (obs, ch) := rho in (adv_inp d obs, adv_inp d ch).
-                                             
-
-Lemma adv_ext_0 e : adv_ext 0 e = e.
-Proof.
-  unfold adv_ext. destruct e. repeat rewrite adv_inp_0. reflexivity.
-Qed.
-
-Lemma adv_ext_iter d d' e : adv_ext d (adv_ext d' e) = adv_ext (d' + d) e.
-Proof.
-  unfold adv_ext. destruct e. repeat rewrite adv_inp_iter. reflexivity.  
-Qed.
-
-
-Lemma adv_ext_swap d d' e : 
+Lemma adv_ext_swap d d' (e : ext) : 
   adv_ext d (adv_ext d' e) = adv_ext d' (adv_ext d e).
 Proof.
-    unfold adv_ext. destruct e. f_equal; apply adv_inp_swap. 
+  repeat rewrite adv_ext_iter. rewrite Z.add_comm. reflexivity.
 Qed.
 
 
@@ -134,16 +101,6 @@ Definition Rleb (x y : R) : bool :=
 
 Open Scope bool.
 Definition Reqb (x y : R) : bool := Rleb x y && Rleb y x.
-
-
-Definition RBinOp (op : BinOp) : R -> R -> R :=
-  match op with
-    | Add => Rplus
-    | Subt => Rminus
-    | Mult => Rmult
-    | Min => fun x y => if Rleb x y then x else y
-    | Max => fun x y => if Rleb x y then y else x
-  end.
 
 (* Lifts binary functions into [option] types. *)
 
@@ -166,62 +123,32 @@ Fixpoint Acc_sem {A} (f : nat -> A -> A) (n : nat) (z : A) : A :=
     | S n' => f n (Acc_sem f n' z)
   end.
 
-Reserved Notation "'R'[|' e '|]'" (at level 9).
+Reserved Notation "'E'[|' e '|]'" (at level 9).
 
-Fixpoint Rsem' {A} (e : rexp' A) : Env (option R) A -> obs -> option R :=
+Fixpoint Esem' {t l} (e : exp' l t) : Env (option ∘ TySem) l -> ext -> option [|t|] :=
     match e with
-      | RLit _ r => fun vars rho => Some r
-      | RBin _ op e1 e2 => fun vars rho =>  option_map2 (RBinOp op) (R'[|e1|] vars rho) (R'[|e2|] vars rho)
-      | RNeg _ e => fun vars rho => option_map (Rminus 0) (R'[|e|] vars rho)
-      | Obs _ obs t => fun vars rho => rho t obs
-      | RVar _ v => fun vars rho => lookupEnv vars v 
-      | RAcc _ f l z => fun vars rho => 
-                          let rho' := adv_inp (- Z.of_nat l) rho
-                          in Acc_sem (fun m x => R'[| f |] (Extend x vars) 
-                                            (adv_inp (Z.of_nat m) rho')) l (R'[|z|] vars rho')
-    end
-      where "'R'[|' e '|]'" := (Rsem' e ). 
-
-
-Notation "'R[|' e '|]' r" := (R'[|e|] (Empty (zero _)) r) (at level 9).
-
-(* Semantics of binary Boolean operations. *)
-
-Definition BBinOp (op : BoolOp) : bool -> bool -> bool :=
-  match op with
-    | And => andb
-    | Or => orb
-  end.
-
-(* Semantics of binary comparison operators. *)
-
-Definition RCompare (cmp : Cmp) : R -> R -> bool :=
-  match cmp with
-    | EQ => Reqb
-    | LTE => Rleb
-    | LT => fun x y => negb (Rleb y x)
-  end.
-
-(* Semantics of Boolean expressions *)
-
-Reserved Notation "'B'[|' e '|]' rc " (at level 9).
-
-Fixpoint Bsem' {V} (e : bexp' V) : Env (option bool) V -> ext -> option bool :=
-    match e with
-      | BLit _ r => fun vars rho => Some r
-      | BChoice _ choice z => fun vars rho => snd rho z choice
-      | BOp _ op e1 e2 => fun vars rho => option_map2 (BBinOp op) (B'[|e1|] vars rho) (B'[|e2|] vars rho)
-      | BNot _ e => fun vars rho => option_map negb (B'[|e|]vars rho)
-      | RCmp _ cmp e1 e2 => fun vars rho => option_map2 (RCompare cmp) R[|e1|](fst rho) R[|e2|](fst rho)
-      | BVar _ v => fun vars rho => lookupEnv vars v
-      | BAcc _ f l z => fun vars rho => 
+      | Lit _ _ r => fun vars rho => Some r
+      | BinOpE _ _ _ op e1 e2 => fun vars rho =>  option_map2 op (E'[|e1|] vars rho) (E'[|e2|] vars rho)
+      | UnOpE _ _ _ op e => fun vars rho => option_map op (E'[|e|] vars rho)
+      | IfE _ _ b e1 e2 => fun vars rho => match E'[|b|] vars rho with
+                                             | Some true => E'[|e1|] vars rho
+                                             | Some false => E'[|e2|] vars rho
+                                             | None => None
+                                           end
+      | Obs ty _ obs t => fun vars rho => rho t ty obs
+      | VarE _ _ v => fun vars rho => lookupEnv v vars
+      | Acc _ _ f l z => fun vars rho => 
                           let rho' := adv_ext (- Z.of_nat l) rho
-                          in Acc_sem (fun m x => B'[| f |] (Extend x vars) 
-                                            (adv_ext (Z.of_nat m) rho')) l (B'[|z|] vars rho')
+                          in Acc_sem (fun m x => E'[| f |] (EnvCons x vars) 
+                                            (adv_ext (Z.of_nat m) rho')) l (E'[|z|] vars rho')
     end
-      where "'B'[|' e '|]' rho" := (Bsem' e rho). 
+      where "'E'[|' e '|]'" := (Esem' e ). 
 
-Notation "'B[|' e '|]' rho" := (B'[|e|] (Empty (zero _)) rho) (at level 9).
+Definition empty_env := (EnvNil (option ∘ TySem)).
+
+Notation "'E[|' e '|]' r" := (E'[|e|] empty_env r) (at level 9).
+
+
 
 (* Semantic structures for contracts. *)
 
@@ -274,6 +201,12 @@ Hint Resolve scale_empty_trans' scale_empty_trans add_empty_trans' add_empty_tra
 specifies. *)
 
 Definition trace := nat -> transfers.
+
+
+Instance trace_Partial : Partial trace := {
+  lep t1 t2  := forall i z , t1 i = Some z -> t2 i = Some z
+  }.
+
 
 (* The following are combinators to contruct traces. *)
 
@@ -331,8 +264,8 @@ Qed.
 (* The following function is needed to define the semantics of [IfWithin]. *)
 
 Fixpoint within_sem (c1 c2 : ext -> trace) 
-         (e : bexp) (rc : ext) (i : nat) : trace 
-  := match B[|e|]rc with
+         (e : exp BTy) (rc : ext) (i : nat) : trace 
+  := match E[|e|]rc with
        | Some true => c1 rc
        | Some false => match i with
                          | O => c2 rc
@@ -351,7 +284,7 @@ Fixpoint Csem (c : contract) : ext -> trace :=
     match c with
       | Zero => empty_trace
       | TransfOne p1 p2 c => singleton_trace (singleton_trans p1 p2 c  1)
-      | Scale e c' => scale_trace R[|e|](fst rho) (C[|c'|]rho) 
+      | Scale e c' => scale_trace E[|e|]rho (C[|c'|]rho) 
       | Transl d c' => (delay_trace d) (C[|c'|](adv_ext (Z.of_nat d) rho))
       | Both c1 c2 => add_trace (C[|c1|]rho) (C[|c2|]rho)
       | IfWithin e d c1 c2 => within_sem C[|c1|] C[|c2|] e rho d

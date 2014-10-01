@@ -34,3 +34,8 @@ Tactic Notation "tryfalse" :=
 
 Tactic Notation "tryfalse" "by" tactic(tac) "/" :=
   try solve [ false; instantiate; tac ].
+
+
+Ltac rewr_assumption := idtac; match goal with
+                          | [R: _ |- _ ] => rewrite R
+                        end.

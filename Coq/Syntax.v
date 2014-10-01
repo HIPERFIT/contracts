@@ -1,7 +1,7 @@
 Require Export Reals.
 Require Export String.
 Require Export ZArith.
-Require Export Scope.
+Require Export List.
 
 Definition observable := string.
 Definition currency := string.
@@ -14,67 +14,64 @@ Definition eq_str (s1 s2 : string) : bool :=
       | right _ => false
   end.
 
-Inductive BinOp : Set :=
-| Add : BinOp
-| Mult : BinOp
-| Subt : BinOp
-| Min : BinOp
-| Max : BinOp.
-
-Inductive Cmp : Set :=
-| EQ : Cmp
-| LT : Cmp
-| LTE : Cmp.
-
-Inductive BoolOp : Set :=
-| And : BoolOp
-| Or : BoolOp.
-
-Inductive rexp' : Type -> Type :=
-| RLit V : R -> rexp' V
-| RBin V : BinOp -> rexp' V -> rexp' V -> rexp' V
-| RNeg  V : rexp' V -> rexp' V
-| Obs V : observable -> Z -> rexp' V
-| RVar V : V -> rexp' V
-| RAcc V : Scope rexp' V -> nat -> rexp' V -> rexp' V. 
-
-Implicit Arguments RLit [[V]].
-Implicit Arguments RBin [[V]].
-Implicit Arguments RNeg [[V]].
-Implicit Arguments Obs [[V]].
-Implicit Arguments RVar [[V]].
-Implicit Arguments RAcc [[V]].
-
-Definition rexp := rexp' ZeroT.
-
-Inductive bexp' : Type -> Type :=
-| BLit V: bool -> bexp' V
-| BChoice V  : choice -> Z -> bexp' V
-| RCmp V : Cmp -> rexp -> rexp -> bexp' V
-| BNot V : bexp' V -> bexp' V
-| BOp V : BoolOp -> bexp' V -> bexp' V -> bexp' V
-| BVar V : V -> bexp' V
-| BAcc V : Scope bexp' V -> nat -> bexp' V -> bexp' V. 
+Inductive Var {I} : list I -> I -> Type := 
+| V1 {l} i : Var (i :: l) i
+| VS {l i j} : Var l i -> Var (j :: l) i
+.
 
 
-Implicit Arguments BLit [[V]].
-Implicit Arguments BChoice [[V]].
-Implicit Arguments RCmp [[V]].
-Implicit Arguments BNot [[V]].
-Implicit Arguments BOp [[V]].
-Implicit Arguments BVar [[V]].
-Implicit Arguments BAcc [[V]].
+Inductive Env {I} (ty : I -> Type) : list I -> Type := 
+  | EnvNil : Env ty nil
+  | EnvCons {i l} : ty i -> Env ty l -> Env ty (i :: l).
 
-Definition bexp := bexp' ZeroT.
 
+Implicit Arguments EnvCons [[I][ty][i][l]].
+
+
+Require Import JMeq.
+
+Program Fixpoint lookupEnv  {I ty l} {t : I} (v : Var l t) : Env ty l -> ty t :=
+  match v in Var l t return Env ty l -> ty t with
+    | V1 _ _ => fun e => match e with
+                       | EnvCons _ _ r _ => r
+                       | EnvNil => _
+                     end
+    | VS l' i j v' => fun e => match e with
+                                 | EnvCons _ l' _ e' =>  @lookupEnv I ty l' i v' e'
+                                 | EnvNil => _
+                        end
+  end.
+
+
+
+Inductive Ty := RTy | BTy.
+
+Definition TySem (t : Ty) : Type :=
+  match t with
+    | RTy => R
+    | BTy => bool
+  end.
+
+Notation "'[|' t '|]'" := (TySem t) (at level 9).
+
+Inductive exp' : list Ty -> Ty -> Type :=
+| Lit {t V} : [|t|] -> exp' V t
+| BinOpE {t s V} : ([|s|] -> [|s|] -> [|t|]) -> exp' V s -> exp' V s -> exp' V t
+| UnOpE {t s V} : ([|s|] -> [|t|]) -> exp' V s -> exp' V t
+| IfE {t V} : exp' V BTy -> exp' V t -> exp' V t -> exp' V t
+| Obs t {V} :  observable -> Z -> exp' V t
+| VarE {V t} : Var V t -> exp' V t
+| Acc {V t} : exp' (t :: V) t -> nat -> exp' V t -> exp' V t. 
+
+Definition exp t := exp' nil t .
 
 Inductive contract : Type :=
  | Zero : contract
  | TransfOne : currency -> party -> party -> contract
- | Scale : rexp -> contract -> contract
+ | Scale : exp RTy -> contract -> contract
  | Transl : nat -> contract -> contract
  | Both : contract -> contract -> contract
- | IfWithin : bexp -> nat -> contract -> contract -> contract.
+ | IfWithin : exp BTy -> nat -> contract -> contract -> contract.
 
 
 Definition transl (l : nat) : contract -> contract := 
