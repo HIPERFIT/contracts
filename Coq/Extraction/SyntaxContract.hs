@@ -51,8 +51,10 @@ obsEnvEmpty,
 choiceEnvEmpty,
 envEmpty,
 specialise,
-horizon
+horizon,
 
+Trans,
+advance
 ) where
 
 import qualified Contract as C
@@ -164,6 +166,10 @@ bOr(a,b) = C.BOp C.Or a b
 
 horizon :: Contract -> Int
 horizon = C.horizon
+
+type Trans = Party -> Party -> Currency -> Double
+advance :: Contract -> Env -> Maybe(Contract,Trans)
+advance = C.redFun
 
 type Inp a = Int -> Observable -> Maybe a
 type ObsEnv = Inp Double
