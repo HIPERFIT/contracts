@@ -181,8 +181,13 @@ type Env = (ObsEnv, ChoiceEnv)
 specialise :: Contract -> Env -> Contract
 specialise = C.specialise
 
+obsEnvEmpty :: ObsEnv
 obsEnvEmpty = C.obs_empty
+
+envEmpty :: Env
 envEmpty = C.ext_empty
+
+choiceEnvEmpty :: ChoiceEnv
 choiceEnvEmpty = C.choices_empty
 
 deriving instance Show BinOp
