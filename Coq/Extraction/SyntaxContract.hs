@@ -6,6 +6,9 @@
 
 module SyntaxContract (
 -- Real expression combinators
+Currency,
+Observable,
+Party,
 Elem,
 Vars,
 
