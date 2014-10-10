@@ -44,12 +44,12 @@ ifWithin,
 
 -- Operations on contracts
 Inp,
-Obs0,
-Choices,
-Ext,
-obs_empty,
-choices_empty,
-ext_empty,
+ObsEnv,
+ChoiceEnv,
+Env,
+obsEnvEmpty,
+choiceEnvEmpty,
+envEmpty,
 specialise,
 horizon
 
@@ -166,15 +166,15 @@ horizon :: Contract -> Int
 horizon = C.horizon
 
 type Inp a = Int -> Observable -> Maybe a
-type Obs0 = Inp Double
-type Choices = Inp Bool
-type Ext = (Obs0, Choices)
-specialise :: Contract -> Ext -> Contract
+type ObsEnv = Inp Double
+type ChoiceEnv = Inp Bool
+type Env = (ObsEnv, ChoiceEnv)
+specialise :: Contract -> Env -> Contract
 specialise = C.specialise
 
-obs_empty = C.obs_empty
-ext_empty = C.ext_empty
-choices_empty = C.choices_empty
+obsEnvEmpty = C.obs_empty
+envEmpty = C.ext_empty
+choiceEnvEmpty = C.choices_empty
 
 deriving instance Show BinOp
 deriving instance Show C.Cmp
