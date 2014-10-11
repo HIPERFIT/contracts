@@ -25,13 +25,13 @@ wait t = CM (\k i -> translate t (k () i))
 skip :: CM ()
 skip = return ()
 
-terminate :: () -> CM ()
-terminate () = CM (\k i -> zero)
+terminate :: CM ()
+terminate = CM (\k i -> zero)
 
-toContr :: CM Contract -> Contract
-toContr (CM m) = m (\ _ _ -> zero) 0  
-   
 ifm :: Bexp -> CM a -> CM a -> CM a
 ifm b (CM m1) (CM m2) = 
   CM (\k i -> ifWithin b 0 (m1 k i) (m2 k i))
+
+toContract :: CM () -> Contract
+toContract (CM m) = m (\k i -> zero) 0  
 
