@@ -141,6 +141,7 @@ Definition RBinOp (op : BinOp) : R -> R -> R :=
     | Add => Rplus
     | Subt => Rminus
     | Mult => Rmult
+    | Div => Rdiv
     | Min => fun x y => if Rleb x y then x else y
     | Max => fun x y => if Rleb x y then y else x
   end.

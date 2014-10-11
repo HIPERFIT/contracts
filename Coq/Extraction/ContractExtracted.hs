@@ -2005,6 +2005,7 @@ data BinOp =
    Add
  | Mult
  | Subt
+ | Div
  | Min
  | Max
 
@@ -2082,6 +2083,7 @@ rBinOp op =
    Add -> (+);
    Mult -> (*);
    Subt -> (-);
+   Div -> (/);
    Min -> (\x y ->
     case (<=) x y of {
      True -> x;

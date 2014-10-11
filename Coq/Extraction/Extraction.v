@@ -31,6 +31,7 @@ Extract Inlined Constant Rleb => "(<=)".
 Extract Inlined Constant Rplus => "(+)".
 Extract Inlined Constant Rminus => "(-)".
 Extract Inlined Constant Rmult => "(*)".
+Extract Inlined Constant Rdiv => "(/)".
 Extract Inlined Constant Ropp => "negate".
 Extract Inlined Constant R1 => "1".
 Extract Inlined Constant R0 => "0".

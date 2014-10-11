@@ -18,6 +18,7 @@ Inductive BinOp : Set :=
 | Add : BinOp
 | Mult : BinOp
 | Subt : BinOp
+| Div : BinOp
 | Min : BinOp
 | Max : BinOp.
 
