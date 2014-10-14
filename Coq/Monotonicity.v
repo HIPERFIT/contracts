@@ -42,7 +42,7 @@ Proof.
       symmetry in HeqR1. eapply IHe1 in HeqR1.
       symmetry in HeqR3. eapply IHe3 in HeqR3.
       rewrite HeqR1. rewrite HeqR3. auto. auto. auto. auto. auto. 
-  - intros. pose (EnvLe_lookup (I := Ty) (t :=t) (V:=V) (f:=TySem)) as E. simpl in *.
+  - intros. pose (EnvLe_lookup (t :=t) (V:=V) (f:=TySem)) as E. simpl in *.
     intros. eapply E; eauto.
   - simpl. intros. auto.
     remember (adv_ext (- Z.of_nat n) rho1) as rho1'. 

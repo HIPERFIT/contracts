@@ -24,7 +24,7 @@ Instance none_Partial A : Partial (option A) := {
   }.
 
 
-Instance option_Partial I (f : I -> Type) t : Partial ((option ∘ f) t) := {
+Instance option_Partial (f : Ty -> Type) t : Partial ((option ∘ f) t) := {
   lep t1 t2  := forall z , t1 = Some z -> t2 = Some z
   }.
 
@@ -33,25 +33,25 @@ Proof.
   simpl. intros. symmetry. auto.
 Qed. 
 
-Inductive EnvLe {I} {f : I -> Type} : forall {V}, Env (option ∘ f) V -> Env (option ∘ f) V -> Prop :=
+Inductive EnvLe {f : Ty -> Type} : forall {V}, Env (option ∘ f) V -> Env (option ∘ f) V -> Prop :=
 | EnvLeNil : EnvLe (EnvNil _) (EnvNil _)
 | EnvLeExtend i V (e1 e2 : Env (option ∘ f) V) (x1 x2 : option (f i)) : 
     x1 ⊆ x2 -> EnvLe e1 e2 (V:=V) -> EnvLe (EnvCons x1 e1) (EnvCons x2 e2).
 
 Hint Constructors EnvLe.
 
-Instance env_Partial I (f : I -> Type) V : Partial (Env (option ∘ f) V) := {
+Instance env_Partial (f : Ty -> Type) V : Partial (Env (option ∘ f) V) := {
   lep := EnvLe
   }.
 
-Lemma EnvLeEmpty' I (f : I -> Type) : EnvNil (option ∘ f) ⊆ EnvNil (option ∘ f).
+Lemma EnvLeEmpty' (f : Ty -> Type) : EnvNil (option ∘ f) ⊆ EnvNil (option ∘ f).
 constructor. Qed.
 
-Lemma EnvLeExtend' I (f: I -> Type) V (e1 e2 : Env (option ∘ f) V) i (x1 x2 : option (f i)) :
+Lemma EnvLeExtend' (f: Ty -> Type) V (e1 e2 : Env (option ∘ f) V) i (x1 x2 : option (f i)) :
   x1 ⊆ x2 -> e1 ⊆ e2 -> EnvCons x1 e1 ⊆ EnvCons x2 e2.
 constructor; assumption. Qed.
 
-Lemma EnvLe_lookup {I t} {V : list I} {f : I -> Type} (e1 e2 : Env (option ∘ f) V) (v : Var V t) : 
+Lemma EnvLe_lookup {t} {V : list Ty} {f : Ty -> Type} (e1 e2 : Env (option ∘ f) V) (v : Var V t) : 
   e1 ⊆ e2 -> lookupEnv v e1 ⊆ lookupEnv v e2.
 Proof.
   intros L. induction L. simpl. auto. dependent destruction v. apply H. apply IHL. 
