@@ -3,16 +3,8 @@ Require Export String.
 Require Export ZArith.
 Require Export List.
 
-Definition observable := string.
 Definition currency := string.
 Definition party := string.
-Definition choice := string.
-
-Definition eq_str (s1 s2 : string) : bool :=
-  match string_dec s1 s2 with
-      | left  _ => true
-      | right _ => false
-  end.
 
 Inductive Ty := RTy | BTy.
 
@@ -53,14 +45,40 @@ Definition TySem (t : Ty) : Set :=
 
 Notation "'[|' t '|]'" := (TySem t) (at level 9).
 
-Inductive exp' : list Ty -> Ty -> Set :=
-| Lit {t V} : [|t|] -> exp' V t
-| BinOpE {t s V} : ([|s|] -> [|s|] -> [|t|]) -> exp' V s -> exp' V s -> exp' V t
-| UnOpE {t s V} : ([|s|] -> [|t|]) -> exp' V s -> exp' V t
-| IfE {t V} : exp' V BTy -> exp' V t -> exp' V t -> exp' V t
-| Obs t {V} :  observable -> Z -> exp' V t
-| VarE {V t} : Var V t -> exp' V t
-| Acc {V t} : exp' (t :: V) t -> nat -> exp' V t -> exp' V t. 
+Inductive ObsLabel : Ty -> Set :=
+  | obsLabel ty : string -> ObsLabel ty.
+
+Inductive BinOp : Ty -> Ty -> Type :=
+| Add : BinOp RTy RTy
+| Sub : BinOp RTy RTy
+| Mult : BinOp RTy RTy
+| And : BinOp BTy BTy
+| Or : BinOp BTy BTy
+| Less : BinOp RTy BTy
+| Equal : BinOp RTy BTy.
+
+Inductive UnOp : Ty -> Ty -> Type :=
+| Not : UnOp BTy BTy
+| Neg : UnOp RTy RTy.
+
+Inductive exp' V t : Set :=
+| Lit : [|t|] -> exp' V t
+| BinOpE {s} : BinOp s t -> exp' V s -> exp' V s -> exp' V t
+| UnOpE {s} : UnOp s t -> exp' V s -> exp' V t
+| IfE : exp' V BTy -> exp' V t -> exp' V t -> exp' V t
+| Obs :  ObsLabel t -> Z -> exp' V t
+| VarE : Var V t -> exp' V t
+| Acc : exp' (t :: V) t -> nat -> exp' V t -> exp' V t. 
+
+
+Implicit Arguments Lit [[V][t]].
+Implicit Arguments BinOpE [[V][t][s]].
+Implicit Arguments UnOpE [[V][t][s]].
+Implicit Arguments IfE [[V][t]].
+Implicit Arguments Obs [[V][t]].
+Implicit Arguments VarE [[V][t]].
+Implicit Arguments Acc [[V][t]].
+
 
 Definition exp t := exp' nil t .
 

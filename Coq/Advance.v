@@ -5,13 +5,13 @@ Require Import Tactics.
 
 Fixpoint adv_exp {V t} (d : Z) (e : exp' V t) : exp' V t :=
   match e with
-    | Lit _ _ r => Lit r
-    | BinOpE _ _ _ op e1 e2 => BinOpE op (adv_exp d e1) (adv_exp d e2)
-    | UnOpE _ _ _ op e' => UnOpE op (adv_exp d e')
-    | Obs ty _ o i => Obs ty o (d + i)%Z
-    | IfE _ _ b e1 e2 => IfE (adv_exp d b) (adv_exp d e1) (adv_exp d e2)
-    | VarE _ _ a => VarE a
-    | Acc _ _ f n z => Acc (adv_exp d f) n (adv_exp d z)
+    | Lit r => Lit r
+    | BinOpE _ op e1 e2 => BinOpE op (adv_exp d e1) (adv_exp d e2)
+    | UnOpE _ op e' => UnOpE op (adv_exp d e')
+    | Obs o i => Obs o (d + i)%Z
+    | IfE b e1 e2 => IfE (adv_exp d b) (adv_exp d e1) (adv_exp d e2)
+    | VarE a => VarE a
+    | Acc f n z => Acc (adv_exp d f) n (adv_exp d z)
   end.
 
 

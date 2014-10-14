@@ -10,7 +10,13 @@ Infix "∘" := compose (at level 40, left associativity).
 
 (* Observations: mapping observables to values *)
 
-Definition ext := Z -> forall (A : Ty), observable -> option [|A|].
+Definition ext := Z -> forall (A : Ty), ObsLabel A -> option [|A|].
+
+Definition eq_str (s1 s2 : string) : bool :=
+  match string_dec s1 s2 with
+      | left  _ => true
+      | right _ => false
+  end.
 
 
 Class Partial t := {
@@ -60,7 +66,7 @@ Qed.
 Hint Resolve EnvLe_lookup EnvLeEmpty' EnvLeExtend'.
 
 Instance ext_Partial : Partial ext := {
-  lep t1 t2  := forall i t o (z : [|t|]) , t1 i t o = Some z -> t2 i t o = Some z
+  lep t1 t2  := forall i t (o : ObsLabel t) (z : [|t|]) , t1 i t o = Some z -> t2 i t o = Some z
   }.
 
 (* Move observations into the future. *)
@@ -98,6 +104,11 @@ Definition Rleb (x y : R) : bool :=
     | right _ => false
   end.
 
+Definition Rltb (s1 s2 : R) : bool :=
+  match Rlt_dec s1 s2 with
+      | left  _ => true
+      | right _ => false
+  end.
 
 Open Scope bool.
 Definition Reqb (x y : R) : bool := Rleb x y && Rleb y x.
@@ -125,19 +136,38 @@ Fixpoint Acc_sem {A} (f : nat -> A -> A) (n : nat) (z : A) : A :=
 
 Reserved Notation "'E'[|' e '|]'" (at level 9).
 
+
+
+Definition BinOpSem {s t} (op : BinOp s t) : TySem s -> TySem s -> TySem t :=
+  match op in BinOp s t return TySem s -> TySem s -> TySem t with
+    | Add => Rplus
+    | Sub => Rminus
+    | Mult => Rmult
+    | And => andb
+    | Or => orb
+    | Less => Rltb
+    | Equal => Rleb
+  end.
+
+Definition UnOpSem {s t} (op : UnOp s t) : TySem s -> TySem t :=
+  match op in UnOp s t return TySem s -> TySem t with
+    | Not => negb
+    | Neg => fun x => (0 - x) %R
+  end.
+
 Fixpoint Esem' {t l} (e : exp' l t) : Env (option ∘ TySem) l -> ext -> option [|t|] :=
     match e with
-      | Lit _ _ r => fun vars rho => Some r
-      | BinOpE _ _ _ op e1 e2 => fun vars rho =>  option_map2 op (E'[|e1|] vars rho) (E'[|e2|] vars rho)
-      | UnOpE _ _ _ op e => fun vars rho => option_map op (E'[|e|] vars rho)
-      | IfE _ _ b e1 e2 => fun vars rho => match E'[|b|] vars rho with
+      | Lit r => fun vars rho => Some r
+      | BinOpE _ op e1 e2 => fun vars rho =>  option_map2 (BinOpSem op) (E'[|e1|] vars rho) (E'[|e2|] vars rho)
+      | UnOpE _ op e => fun vars rho => option_map (UnOpSem op) (E'[|e|] vars rho)
+      | IfE b e1 e2 => fun vars rho => match E'[|b|] vars rho with
                                              | Some true => E'[|e1|] vars rho
                                              | Some false => E'[|e2|] vars rho
                                              | None => None
                                            end
-      | Obs ty _ obs t => fun vars rho => rho t ty obs
-      | VarE _ _ v => fun vars rho => lookupEnv v vars
-      | Acc _ _ f l z => fun vars rho => 
+      | Obs obs t => fun vars rho => rho t _ obs
+      | VarE v => fun vars rho => lookupEnv v vars
+      | Acc f l z => fun vars rho => 
                           let rho' := adv_ext (- Z.of_nat l) rho
                           in Acc_sem (fun m x => E'[| f |] (EnvCons x vars) 
                                             (adv_ext (Z.of_nat m) rho')) l (E'[|z|] vars rho')

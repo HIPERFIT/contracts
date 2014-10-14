@@ -12,7 +12,7 @@ Reserved Notation "'E|-' c" (at level 20).
 Open Scope Z.
 
 Inductive epc : forall {V t}, exp' V t -> Prop:=
-| epc_obs : forall t V o i, i <= 0 -> E|- Obs t o i (V:=V)
+| epc_obs : forall t V o i, i <= 0 -> E|- Obs o i (V:=V) (t:=t)
 | epc_lit : forall t V q, E|- Lit q (V:=V) (t:=t)
 | epc_bin : forall t s V op e1 e2, E|- e1 -> E|- e2 -> E|- @BinOpE t s V op e1 e2
 | epc_if : forall t V b e1 e2, E|- b -> E|- e1 -> E|- e2 -> E|- @IfE t V b e1 e2
@@ -108,13 +108,13 @@ Open Scope bool.
 
 Fixpoint epc_dec {V t} (e : exp' V t) : bool :=
   match e with
-    | Obs _ _ _ i => Z.leb i 0
-    | Lit _ _ _ => true
-    | BinOpE _ _ _ _ e1 e2 => epc_dec e1 && epc_dec e2
-    | UnOpE _ _ _ _ e' => epc_dec e'
-    | IfE _ _ b e1 e2 => epc_dec b && epc_dec e1 && epc_dec e2
-    | VarE _ _ _ => true
-    | Acc _  _ f _ z => epc_dec f && epc_dec z
+    | Obs _ i => Z.leb i 0
+    | Lit _ => true
+    | BinOpE _ _ e1 e2 => epc_dec e1 && epc_dec e2
+    | UnOpE _ _ e' => epc_dec e'
+    | IfE b e1 e2 => epc_dec b && epc_dec e1 && epc_dec e2
+    | VarE _ => true
+    | Acc f _ z => epc_dec f && epc_dec z
   end.
 
 Lemma epc_dec_correct {V t} (e : exp' V t) : epc_dec e = true <-> E|- e. 
