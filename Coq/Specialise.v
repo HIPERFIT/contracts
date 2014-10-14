@@ -1,55 +1,105 @@
 Require Import Denotational.
+Require Import Equality.
 
 (* Specialisation (a.k.a. partial evaluation) of contracts. *)
 
-Definition constFoldBin {n} (op : BinOp) (e1 e2 : rexp' n) : rexp' n :=
+Definition fromLit {V t} (e : exp' V t) : option [|t|] :=
+  match e with
+    | Lit r => Some r
+    | _ => None
+  end.
+
+Definition constFoldBin {V t s} (e1 e2 : exp' V t) : (BinOp t s) -> exp' V s :=
   match e1 with
-    | RLit _ r1 => match e2 with
-                     | RLit _ r2 => RLit (RBinOp op r1 r2)
-                     | _ => RBin op e1 e2
+    | Lit r1 => match e2 with
+                     | Lit r2 => fun op => Lit (BinOpSem op r1 r2)
+                     | _ => fun op => BinOpE op e1 e2
                    end
-    | e1 => RBin op e1 e2
+    | e1 => fun op => BinOpE op e1 e2
   end.
 
 
-Fixpoint constFoldAcc {V} (rho : obs) (f : obs -> R -> rexp' V)  (l : nat) (z : obs -> rexp' V) :
-  rexp' V + (nat * rexp' V) :=
-  match l with
-    | O => inl (z rho)
-    | S l' => match constFoldAcc (adv_inp (-1) rho) f l'  z with
-                | inl (RLit _ r) => inl (f rho r)
-                | inl e => inr (O, e)
-                | inr (n, e) => inr (S n, e)
-              end
-end.
+Definition constFoldAcc {V t} (rho : ext) (f : ext -> [|t|] -> exp' V t)  (l : nat) (z : ext -> exp' V t) :
+  exp' V t + (nat * exp' V t).
+admit. Defined.
+(*  := *)
+(*   match l with *)
+(*     | O => inl (z rho) *)
+(*     | S l' => match constFoldAcc (adv_ext (-1) rho) f l'  z with *)
+(*                 | inl (Lit _ _ r) => inl (f rho r) *)
+(*                 | inl e => inr (O, e) *)
+(*                 | inr (n, e) => inr (S n, e) *)
+(*               end *)
+(* end. *)
 
-Definition obs_empty : obs := fun _ _ => None.
+Definition ext_empty : ext := fun _ _ _ => None.
 
-Fixpoint Rspecialise' {V V'} (e : rexp' V) (rho : obs) : PEnv R V V' -> rexp' V' :=
+
+Inductive PEnv {I} (ty : I -> Type) : list I -> list I -> Type := 
+  | PEnvNil : PEnv ty nil nil
+  | PEnvCons : forall {i l l'}, ty i -> PEnv ty l l' -> PEnv ty (i :: l) l'
+  | PEnvSkip : forall {i l l'}, PEnv ty l l' -> PEnv ty (i :: l) (i :: l').
+
+
+Require Import JMeq.
+
+Definition shiftIndex {i j : Ty} {ty V } (x : ty i + Var V i) : ty i + Var (j :: V) i :=
+  match x with
+    | inl a => inl a
+    | inr v => inr (VS v)
+  end.
+
+
+Program Fixpoint lookupPEnv {ty V V'} {i : Ty} (v : Var V i) : PEnv ty V V' -> ty i + Var V' i :=
+  match v in Var V t return PEnv ty V V' -> ty i + Var V' i with
+    | V1 _ _ => fun e => match e with
+                       | PEnvCons _ _ _ x _ => inl x
+                       | PEnvSkip i _ l' _ => inr (V1 _)
+                       | PEnvNil => _
+                     end
+    | VS  l' i j v' => fun e => match e with
+                       | PEnvCons _ _ _ _ e' => lookupPEnv v' e'
+                       | PEnvSkip i _ l' e' => shiftIndex (lookupPEnv v' e')
+                       | PEnvNil => _
+                     end
+  end.
+
+
+
+Next Obligation. admit. Qed.
+Next Obligation. admit. Qed.
+Next Obligation. admit. Qed.
+Next Obligation. admit. Qed.
+
+
+
+Fixpoint Rspecialise' {V V' t} (e : exp' V t) (rho : ext) : PEnv TySem V V' -> exp' V' t :=
     match e with
-      | RLit _ r => fun _ => RLit r
-      | RBin _ op e1 e2 => fun vars => constFoldBin op (Rspecialise' e1 rho vars) (Rspecialise' e2 rho vars)
-      | RNeg _ e => fun vars =>
+      | Lit _ _ r => fun _ => Lit r
+      | BinOpE _ _ _ op e1 e2 => fun vars => match option_map2 op (fromLit (Rspecialise' e1 rho vars))
+                                                               (fromLit (Rspecialise' e2 rho vars)) with
+                                                                            
+      | UnOpE _ _ _ op e => fun vars =>
                       match Rspecialise' e rho vars with
-                        | RLit _ r => RLit (- r)
-                        | e => RNeg e
+                        | Lit _ _ r => Lit (op r)
+                        | e => UnOpE op e
                       end
-      | Obs _ obs t => fun vars =>
-                         match rho t obs with
-                           | Some r => RLit r
+      | Obs _ ty obs t => fun vars =>
+                         match rho t ty obs with
+                           | Some r => Lit r
                            | None => Obs obs t
                          end
-      | RVar _ v => fun vars =>
-                      match lookupPEnv vars v with
-                        | inl r =>  RLit r
-                        | inr v' => RVar v'
+      | VarE _ _ v => fun vars =>
+                      match lookupPEnv v vars with
+                        | inl r =>  Lit r
+                        | inr v' => Var v'
                       end
-      | RAcc _ f l z => fun vars =>
+      | Acc _ _ f l z => fun vars =>
                         let z' rho := Rspecialise' z rho vars in
-                        let f' rho r := Rspecialise' f rho (PExtend r vars)
+                        let f' rho r := Rspecialise' f rho (PEnvCons r vars)
                         in match constFoldAcc rho f' l z' with
                              | inl e => e
-                             | inr (l', e') => RAcc (Rspecialise' f obs_empty (PSkip vars)) l' e'
+                             | inr (l', e') => Acc (Rspecialise' f ext_empty (PEnvSkip vars)) l' e'
                            end
     end.
 

@@ -4,7 +4,7 @@ Require Import Denotational.
 Require Import Reduction.
 Require Import Horizon.
 Require Import SyntacticCausality.
-Require Import Specialise.
+
 
 
 Extraction Language Haskell.
@@ -60,13 +60,11 @@ Extract Inductive string => "String" ["[]" "(:)"].
 
 Extract Inductive Ascii.ascii => "Char" ["'a'"]. (* TODO: real translation *)
 
-Extract Inductive PEnv => "PEnv" [ "PEmpty" "PExtend" "PSkip" ].
 Extract Inductive Env => "Env" [ "Empty" "Extend" ].
-Extract Inductive ZeroT => "ZeroT" [].
+
 
 Extraction "ContractExtracted.hs" 
   contract
   horizon
   RedFun
-  pc_dec
-  specialise.
+  pc_dec.
