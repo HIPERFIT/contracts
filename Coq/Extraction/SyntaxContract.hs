@@ -18,6 +18,7 @@ Rexp,
 Rexp',
 rLit,
 rBin,
+rNeg,
 rObs,
 rAcc,
 
