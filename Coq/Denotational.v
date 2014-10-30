@@ -196,8 +196,14 @@ Open Scope R.
 Definition empty_trans' : trans := fun p1 p2 c => 0.
 Definition empty_trans : transfers := Some empty_trans'.
 Definition bot_trans : transfers := None.
-Definition singleton_trans' p1 p2 c r : trans 
-  := fun p1' p2' c' => if andb (eq_str p1 p1') (andb (eq_str p2 p2') (eq_str c c')) then r else 0.
+Definition singleton_trans' p1 p2 c r : trans
+  := fun p1' p2' c' => if eq_str p1 p2
+                       then 0
+                       else if andb (eq_str p1 p1') (andb (eq_str p2 p2') (eq_str c c'))
+                            then r
+                            else if andb (eq_str p1 p2') (andb (eq_str p2 p1') (eq_str c c'))
+                                 then -r
+                                 else 0.
 Definition singleton_trans p1 p2 c r : transfers  := Some (singleton_trans' p1 p2 c r).
 Definition add_trans' : trans -> trans -> trans := fun t1 t2 p1 p2 c => (t1 p1 p2 c + t2 p1 p2 c).
 Definition add_trans : transfers -> transfers -> transfers := option_map2 add_trans'.
