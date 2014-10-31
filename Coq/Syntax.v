@@ -84,7 +84,7 @@ Definition exp t := exp' nil t .
 
 Inductive contract : Set :=
  | Zero : contract
- | TransfOne : currency -> party -> party -> contract
+ | TransfOne : party -> party -> currency -> contract
  | Scale : exp RTy -> contract -> contract
  | Transl : nat -> contract -> contract
  | Both : contract -> contract -> contract

@@ -3,6 +3,7 @@ Require Export ZArith.
 Require Export Basics.
 Require Import Equality.
 Require Import FunctionalExtensionality.
+Require Import Tactics.
 
 Infix "∘" := compose (at level 40, left associativity).
 
@@ -18,6 +19,14 @@ Definition eq_str (s1 s2 : string) : bool :=
       | right _ => false
   end.
 
+Lemma eq_str_iff s1 s2 : eq_str s1 s2 = true <-> s1 = s2.
+Proof.
+  split.
+  + unfold eq_str. destruct (string_dec s1 s2). auto. intro H. inversion H.
+  + intro H. rewrite H. unfold eq_str. destruct (string_dec s2 s2). reflexivity. 
+    tryfalse.
+Qed.
+  
 
 Class Partial t := {
   lep : t -> t -> Prop
@@ -196,15 +205,15 @@ Open Scope R.
 Definition empty_trans' : trans := fun p1 p2 c => 0.
 Definition empty_trans : transfers := Some empty_trans'.
 Definition bot_trans : transfers := None.
-Definition singleton_trans' p1 p2 c r : trans
+Definition singleton_trans' (p1 p2 : party) (c : currency) r : trans
   := fun p1' p2' c' => if eq_str p1 p2
                        then 0
-                       else if andb (eq_str p1 p1') (andb (eq_str p2 p2') (eq_str c c'))
+                       else if eq_str p1 p1' && eq_str p2 p2' && eq_str c c'
                             then r
-                            else if andb (eq_str p1 p2') (andb (eq_str p2 p1') (eq_str c c'))
+                            else if eq_str p1 p2' && eq_str p2 p1' && eq_str c c'
                                  then -r
                                  else 0.
-Definition singleton_trans p1 p2 c r : transfers  := Some (singleton_trans' p1 p2 c r).
+Definition singleton_trans (p1 p2 : party) (c : currency) r : transfers  := Some (singleton_trans' p1 p2 c r).
 Definition add_trans' : trans -> trans -> trans := fun t1 t2 p1 p2 c => (t1 p1 p2 c + t2 p1 p2 c).
 Definition add_trans : transfers -> transfers -> transfers := option_map2 add_trans'.
 Definition scale_trans' : R -> trans -> trans := fun s t p1 p2 c => (t p1 p2 c * s).
