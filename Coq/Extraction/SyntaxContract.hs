@@ -30,6 +30,7 @@ bNot,
 rCmp,
 bObs,
 bBin,
+-- (||), (&&), true, false,
 
 -- Contract combinators
 Contract,
@@ -54,6 +55,9 @@ horiz,
 Trans,
 advance
 ) where
+
+-- import Prelude hiding ((||),(&&), True, False)
+-- import qualified Prelude as P
 
 import Contract as C hiding (Env,Inp,Trans)
 
@@ -157,3 +161,59 @@ deriving instance (Show a, Show v) => Show (Vars a v)
 deriving instance Show a => Show (C.Rexp' a) 
 deriving instance Show a => Show (C.Bexp' a) 
 deriving instance Show Contract
+
+-- pretty number literals
+
+-- | Num instance, enabling us to write 'e1 + e2' for RExp
+instance Num (Rexp' a) where
+    (+) = arith Add
+    (*) = arith Mult
+    (-) = arith Subt
+    negate = arith Subt (fromInteger 0)
+    abs a = undefined -- needs expression-if: if (a !<! 0) then (0 - a) else a
+    signum a = undefined -- needs expression-if: if (a !=! 0) then 0 else if (a !<! 0) then -1 else 1
+    fromInteger n = RLit (fromInteger n)
+
+-- | Fractional instance enables fractional literals
+instance Fractional Rexp where
+    (/) = arith Div
+    -- recip x = 1 / x -- default
+    fromRational = RLit . fromRational
+
+-- pre-evaluation of expressions if possible
+arith :: BinOp -> Rexp' a -> Rexp' a -> Rexp' a
+arith op (RLit x) (RLit y) = RLit (opsem op x y)
+arith op e_x e_y = RBin op e_x e_y
+
+-- | semantics of the arithmetic operators, for 'arith' smart constructor
+opsem :: (Num a, Fractional a, Ord a) => BinOp -> a -> a -> a
+opsem Add = (+)
+opsem Subt = (-)
+opsem Mult = (*)
+opsem Div  = (/)
+opsem Max = max
+opsem Min = min
+
+-- Bool literals and "pretty" operations are not as easy as numbers.
+-- The following code works, but will generate name conflicts in the
+-- importing modules (which import Prelude automatically)
+-- We could define our own (|) and (&), though.
+
+-- (||), (&&) :: Bexp' a -> Bexp' a -> Bexp' a
+-- a || (BLit P.True) = BLit P.True
+-- (BLit P.True) || b = BLit P.True
+-- a || (BLit P.False) = a
+-- (BLit P.False) || b = b
+-- -- (BLit a) || (BLit b) = BLit (a P.|| b)
+-- a || b = BOp Or a b
+
+-- a && (BLit P.False) = BLit P.False
+-- (BLit P.False) && b = BLit P.False
+-- a && (BLit P.True) = a
+-- (BLit P.True) && b = b
+-- -- (BLit a) && (BLit b) = BLit (a P.&& b)
+-- a && b = BOp And a b
+
+-- false, true :: Bexp' ZeroT
+-- false = BLit P.False
+-- true  = BLit P.Tru
