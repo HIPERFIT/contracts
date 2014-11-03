@@ -5,34 +5,23 @@
 {-# LANGUAGE StandaloneDeriving #-}
 
 module SyntaxContract (
--- Real expression combinators
+-- * Data types used in contracts
 Currency,
 Observable,
 Party,
-Elem,
-Vars,
-BinOp(Add,Mult,Subt,Div,Min,Max),
-Cmp(EQ,LT,LTE),
-BoolOp(And,Or),
-Rexp,
-Rexp',
-rLit,
-rBin,
-rObs,
-rAcc,
 
--- Boolean expression combinators
-Bexp,
-Bexp',
-bAcc,
-bLit,
+-- * Real expression combinators
+Rexp, Rexp',
+racc,
+
+-- * Boolean expression combinators
+Bexp, Bexp',
+false, true,
+(!<!), (!<=!), (!=!), (!>!), (!>=!), (!&!), (!|!),
 bNot,
-rCmp,
-bObs,
-bBin,
--- (||), (&&), true, false,
+bAcc,
 
--- Contract combinators
+-- * Contract combinators
 Contract,
 zero,
 transfer,
@@ -41,7 +30,7 @@ both,
 translate,
 ifWithin,
 
--- Operations on contracts
+-- * Operations on contracts
 Inp,
 ObsEnv,
 ChoiceEnv,
@@ -53,7 +42,22 @@ specialize,
 horiz,
 
 Trans,
-advance
+advance,
+
+-- -- * STUFF TO BE REMOVED FROM API
+-- Elem,
+-- Vars,
+-- BinOp(Add,Mult,Subt,Div,Min,Max),
+-- rLit,
+-- rBin,
+-- rObs,
+-- Cmp(EQ,LT,LTE),
+-- BoolOp(And,Or),
+-- bLit,
+-- rCmp,
+-- bObs,
+-- bBin,
+
 ) where
 
 import Contract as C hiding (Env,Inp,Trans)
@@ -112,21 +116,24 @@ scale e c = maybe (C.Scale e c) (\x -> if x == 0 then C.Zero else C.Scale (RLit 
 -- nothing :: C.Inp a
 nothing _ _ = Nothing
 -- internal: empty var. environment
--- noVars :: Env a v
+-- noVars :: C.Env a v
 noVars = C.Empty undefined
 
 -- Real (double) expressions
+
+-- | accumulator expression builder. 
 racc :: (forall v. v -> Rexp' (Vars a v)) -> Int -> (Rexp' a) -> Rexp' a
 racc f l z = C.RAcc (f ()) l z
 
 rvar :: (Elem v a) => v -> Rexp' a
 rvar v = C.RVar (inj v)
 
--- | HOAS combinator for building an accumulator
 rAcc :: (forall v. (forall a'. Elem v a' => Rexp' a') 
         -> Rexp' (Vars a v)) -> Int -> (Rexp' a) -> Rexp' a
 rAcc f l z = racc (\ x -> f  (rvar x)) l z
 
+
+-- the following ones are probably not necessary, we have a Num instance
 rLit :: Double -> Rexp' a
 rLit = C.RLit
 
@@ -150,6 +157,22 @@ bAcc :: (forall v. (forall a'. Elem v a' => Bexp' a')
         -> Bexp' (Vars a v)) -> Int -> (Bexp' a) -> Bexp' a
 bAcc f l z = bacc (\ x -> f  (bvar x)) l z
 
+-- literals and operations
+false, true :: Bexp' a
+false = C.BLit False
+true  = C.BLit True
+
+(!<!), (!<=!), (!=!), (!>!), (!>=!) :: Rexp -> Rexp -> Bexp' a
+(!<!)  = C.RCmp C.LT
+(!<=!) = C.RCmp C.LTE
+(!=!)  = C.RCmp C.EQ
+c1 !>!  c2 = C.RCmp C.LT c2 c1
+c1 !>=! c2 = C.RCmp C.LTE c2 c1
+
+(!&!), (!|!) :: Bexp' a -> Bexp' a -> Bexp' a
+(!&!)  = C.BOp C.And
+(!|!)  = C.BOp C.Or
+ 
 bLit :: Bool -> Bexp' a
 bLit = C.BLit
 
