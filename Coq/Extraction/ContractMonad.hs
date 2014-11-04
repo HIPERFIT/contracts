@@ -59,10 +59,10 @@ skip = return ()
 terminate :: CM ()
 terminate = CM (\k i -> zero)
 
-toContract :: CM () -> Contract
-toContract (CM m) = m (\ _ _ -> zero) 0  
-   
 ifm :: Be -> CM a -> CM a -> CM a
 ifm b (CM m1) (CM m2) = 
   CM (\k i -> ifWithin (b i) 0 (m1 k i) (m2 k i))
 
+toContract :: CM () -> Contract
+toContract (CM m) = m (\ _ _ -> zero) 0  
+   

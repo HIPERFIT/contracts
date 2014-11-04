@@ -2165,9 +2165,15 @@ empty_trans' p1 p2 c =
 
 singleton_trans' :: String -> String -> String -> Double -> Trans
 singleton_trans' p1 p2 c r p1' p2' c' =
-  case (&&) ((==) p1 p1') ((&&) ((==) p2 p2') ((==) c c')) of {
-   True -> r;
-   False -> 0}
+  case (==) p1 p2 of {
+   True -> 0;
+   False ->
+    case (&&) ((==) p1 p1') ((&&) ((==) p2 p2') ((==) c c')) of {
+     True -> r;
+     False ->
+      case (&&) ((==) p1 p2') ((&&) ((==) p2 p1') ((==) c c')) of {
+       True -> negate r;
+       False -> 0}}}
 
 add_trans' :: Trans -> Trans -> Trans
 add_trans' t1 t2 p1 p2 c =
@@ -2236,11 +2242,12 @@ redFun c rho =
 horizon :: Contract -> Int
 horizon c =
   case c of {
+   Zero -> 0;
+   TransfOne c0 p p0 -> succ 0;
    Scale r c' -> horizon c';
    Transl l c' -> (+) l (horizon c');
    Both c1 c2 -> max (horizon c1) (horizon c2);
-   IfWithin b l c1 c2 -> (+) l (max (horizon c1) (horizon c2));
-   _ -> 0}
+   IfWithin b l c1 c2 -> (+) l (max (horizon c1) (horizon c2))}
 
 rpc_dec :: (Rexp' a1) -> Bool
 rpc_dec e =
