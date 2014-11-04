@@ -12,7 +12,9 @@ Party,
 
 -- * Real expression combinators
 Rexp, Rexp',
-racc,
+rAcc,
+rObs,
+rLit, -- exported for expression type in ContractMonad only
 
 -- * Boolean expression combinators
 Bexp, Bexp',
@@ -20,6 +22,7 @@ false, true,
 (!<!), (!<=!), (!=!), (!>!), (!>=!), (!&!), (!|!),
 bNot,
 bAcc,
+bObs,
 
 -- * Contract combinators
 Contract,
@@ -50,12 +53,10 @@ advance,
 -- BinOp(Add,Mult,Subt,Div,Min,Max),
 -- rLit,
 -- rBin,
--- rObs,
 -- Cmp(EQ,LT,LTE),
 -- BoolOp(And,Or),
 -- bLit,
 -- rCmp,
--- bObs,
 -- bBin,
 
 ) where
