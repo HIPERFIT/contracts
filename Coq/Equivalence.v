@@ -7,15 +7,15 @@ Require Import Tactics.
 
 (* Full equivalence. *)
 
-Definition equiv (c1 c2 : contract) : Prop := 
-  forall rho : ext, C[|c1|]rho = C[|c2|]rho.
+Definition equiv (c1 c2 : Contr) : Prop := 
+  forall rho : ExtEnv, C[|c1|]rho = C[|c2|]rho.
 Infix "≡" := equiv (at level 40).
 
 (* [c1 ⊑ c2] iff the semantics of [c1] and [c2] coincidese "in all
 places" that [c1]'s semantics is defined. *)
 
-Definition lequiv (c1 c2 : contract) : Prop := 
-  forall rho : ext, C[|c1|]rho ⊆ C[|c2|]rho.
+Definition lequiv (c1 c2 : Contr) : Prop := 
+  forall rho : ExtEnv, C[|c1|]rho ⊆ C[|c2|]rho.
 
 Infix "⊑" := lequiv (at level 40).
 
@@ -25,8 +25,8 @@ Definition total (t : trace) : Prop :=
 (* Partial equivalence: equivalence on the total fragment of the
 semantics. *)
 
-Definition wequiv (c1 c2 : contract) : Prop := 
-  forall rho : ext, total (C[|c1|]rho) \/ total (C[|c2|]rho) -> 
+Definition wequiv (c1 c2 : Contr) : Prop := 
+  forall rho : ExtEnv, total (C[|c1|]rho) \/ total (C[|c2|]rho) -> 
                     C[|c1|]rho = C[|c2|]rho.
 
 
@@ -53,23 +53,24 @@ Proof.
 Qed.
 
 Theorem transl_ifwithin e d t c1 c2 : 
-  IfWithin (adv_exp (Z.of_nat d) e) t (Transl d c1) (Transl d c2) ⊑
-  Transl d (IfWithin e t c1 c2).
+  If (adv_exp (Z.of_nat d) e) t (Translate d c1) (Translate d c2) ⊑
+  Translate d (If e t c1 c2).
 Proof.
   unfold lequiv, lep. simpl. induction t; intros.
   simpl in *. rewrite adv_exp_ext in *. remember (E[|e|](adv_ext (Z.of_nat d) rho)) as b.
-  destruct b. destruct t;  assumption. 
-  unfold const_trace, bot_trans in H. inversion H.
+  destruct b; try destruct v; try destruct b; try first [assumption|
+  unfold const_trace, bot_trans in H; inversion H].
 
   simpl in *.  rewrite adv_exp_ext in *. 
-  remember (E[|e|](adv_ext (Z.of_nat d) rho)) as b. destruct b. destruct t0. assumption. 
+  remember (E[|e|](adv_ext (Z.of_nat d) rho)) as b. destruct b. destruct v. destruct b. assumption. 
   rewrite adv_ext_swap. rewrite delay_trace_swap. 
   unfold delay_trace at 1.
   unfold delay_trace at 1 in H. 
   remember (leb 1 i) as L. destruct L.
   apply IHt. apply H. assumption.
 
-  unfold const_trace, bot_trans in H. inversion H.
+  unfold const_trace, bot_trans in H. inversion H. 
+  unfold const_trace, bot_trans in H. inversion H. 
 Qed.
 
 Lemma total_delay t d : total t <-> total (delay_trace d t).
@@ -98,21 +99,23 @@ Qed.
 
 
 Theorem transl_ifwithin_wequiv e d t c1 c2 : 
-  IfWithin (adv_exp (Z.of_nat d) e) t (Transl d c1) (Transl d c2) ≃
-  Transl d (IfWithin e t c1 c2). 
+  If (adv_exp (Z.of_nat d) e) t (Translate d c1) (Translate d c2) ≃
+  Translate d (If e t c1 c2). 
 Proof.
   unfold wequiv. intros. destruct H. apply lequiv_total. apply transl_ifwithin. assumption.
   
   
   unfold lequiv, lep. simpl. generalize dependent rho. induction t; intros.
   simpl in *. rewrite adv_exp_ext in *. remember (E[|e|](adv_ext (Z.of_nat d) rho)) as b.
-  destruct b. destruct t; reflexivity.
+  destruct b.  destruct v. destruct b; reflexivity.
   unfold total in H. 
+  contradiction (H d (bot_trans_delay_at d)). 
   contradiction (H d (bot_trans_delay_at d)). 
 
   simpl in *.  rewrite adv_exp_ext in *. 
-  remember (E[|e|](adv_ext (Z.of_nat d) rho)) as b. destruct b. destruct t0. reflexivity.
+  remember (E[|e|](adv_ext (Z.of_nat d) rho)) as b. destruct b. destruct v. destruct b. reflexivity.
   rewrite adv_ext_swap. rewrite delay_trace_swap. 
   rewrite IHt. reflexivity. rewrite delay_trace_swap in H. rewrite adv_ext_swap.
   apply total_delay in H. assumption. apply bot_trans_delay_total in H. contradiction.
+  apply bot_trans_delay_total in H. contradiction.
 Qed.

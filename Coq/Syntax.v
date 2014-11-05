@@ -26,6 +26,38 @@ Inductive Exp : Set := OpE (op : Op) (args : list Exp)
                      | VarE (v:Var)
                      | Acc (f : Exp) (d : nat) (e : Exp).
 
+Inductive forall_list {A} (P : A -> Prop) : list A -> Prop :=
+| forall_nil : forall_list P nil
+| forall_cons {x xs} : P x -> forall_list P xs -> forall_list P (x :: xs).
+
+Hint Constructors forall_list.
+
+Definition Exp_ind'   : forall P : Exp -> Prop,
+       (forall (op : Op) (args : list Exp), forall_list P args -> P (OpE op args)) ->
+       (forall (l : ObsLabel) (i : Z), P (Obs l i)) ->
+       (forall v : Var, P (VarE v)) ->
+       (forall f2 : Exp,
+        P f2 -> forall (d : nat) (e : Exp), P e -> P (Acc f2 d e)) ->
+       forall e : Exp, P e := 
+fun (P : Exp -> Prop)
+  (f : forall (op : Op) (args : list Exp), forall_list P args -> P (OpE op args))
+  (f0 : forall (l : ObsLabel) (i : Z), P (Obs l i))
+  (f1 : forall v : Var, P (VarE v))
+  (f2 : forall f2 : Exp,
+        P f2 -> forall (d : nat) (e : Exp), P e -> P (Acc f2 d e)) =>
+fix F (e : Exp) : P e :=
+  match e as e0 return (P e0) with
+  | OpE op args => let fix step es : forall_list P es := 
+                       match es with
+                           | nil => forall_nil P
+                           | e' :: es' => forall_cons P (F e') (step es')
+                       end
+                   in  f op args (step args)
+  | Obs l i => f0 l i
+  | VarE v => f1 v
+  | Acc f3 d e0 => f2 f3 (F f3) d e0 (F e0)
+  end.
+
 
 Inductive Contr : Set :=
  | Zero : Contr
@@ -87,7 +119,7 @@ Inductive TypeVar : TyEnv -> Var -> Ty -> Prop :=
 
 Inductive forall_zip {A B} (R : A -> B -> Prop) : list A -> list B -> Prop :=
 | forall_zip_nil : forall_zip R [] []
-| forall_zip_cons x y xs ys : R x y -> forall_zip R xs ys -> forall_zip R (x::xs) (y::ys).
+| forall_zip_cons {x y xs ys} : R x y -> forall_zip R xs ys -> forall_zip R (x::xs) (y::ys).
 
 Hint Constructors forall_zip.
 
@@ -158,7 +190,7 @@ fix F (t : TyEnv) (e : Exp) (t0 : Ty) (t1 : t |-E e ∶ t0) {struct t1} :
     let fix step es ts (args: forall_zip (TypeExp g) es ts) :=
         match args with
           | forall_zip_nil => forall_zip_nil (P g)
-          | forall_zip_cons e t0 es ts ty tys => forall_zip_cons (P g) e t0 es ts (F g e t0 ty) (step es ts tys)
+          | forall_zip_cons e t0 es ts ty tys => forall_zip_cons (P g) (F g e t0 ty) (step es ts tys)
         end
           in f g op es ts t2 t3 f3 (step es ts f3)
   | type_obs t2 g o z t3 => f0 t2 g o z t3

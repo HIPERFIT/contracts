@@ -54,6 +54,8 @@ Instance ext_Partial : Partial ExtEnv := {
   lep t1 t2  := forall i (o : ObsLabel) (v : Val) , t1 o i = Some v -> t2 o i = Some v
   }.
 
+
+
 (* Move observations into the future. *)
 
 Definition adv_ext (d : Z) (e : ExtEnv) : ExtEnv
@@ -169,6 +171,11 @@ Fixpoint OpSem (op : Op) (vs : list Val) : option Val :=
 
 
 Definition Env := list (option Val).
+
+Instance Env_Partial : Partial Env := {
+  lep t1 t2  := forall_zip lep t1 t2
+  }.
+
 
 Fixpoint lookupEnv (v : Var) (rho : Env) : option Val :=
   match v, rho with
@@ -288,10 +295,6 @@ Proof.
 Qed.
 
 Hint Resolve total_ext_adv.
-
-Inductive forall_list {A} (P : A -> Prop) : list A -> Prop :=
-| forall_nil : forall_list P []
-| forall_cons x xs : P x -> forall_list P xs -> forall_list P (x :: xs).
 
 Definition total_env (rho : Env) : Prop := forall_list (fun x => exists v , x = Some v) rho.
 
