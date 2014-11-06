@@ -12,14 +12,14 @@ Definition plus0 (n m : nat) : nat :=
     | _ => n + m
   end.
 
-Fixpoint horizon (c : contract) : nat :=
+Fixpoint horizon (c : Contr) : nat :=
   match c with
       | Zero => 0
-      | TransfOne _ _ _ => 1
+      | Transfer _ _ _ => 1
       | Scale _ c' => horizon c'
-      | Transl l c' => plus0 l (horizon c')
+      | Translate l c' => plus0 l (horizon c')
       | Both c1 c2 => max (horizon c1) (horizon c2)
-      | IfWithin _ l c1 c2 => plus0 l (max (horizon c1) (horizon c2))
+      | If _ l c1 c2 => plus0 l (max (horizon c1) (horizon c2))
   end.
 
 Lemma max0 n m : max n m = 0 -> n = 0 /\ m = 0.
@@ -35,10 +35,10 @@ Proof.
   induction c; simpl in *; intros.
   - auto.
   - destruct i. inversion H. auto.
-  - unfold scale_trace, compose, scale_trans. eapply IHc in H. destruct H. 
-    + left. rewrite H. apply option_map2_none.
+  - unfold scale_trace, compose. eapply IHc in H. destruct H. 
+    + left. rewrite H. apply liftM2_none.
     + destruct (E[|e|] rho). 
-      * right. rewrite H. apply scale_empty_trans. 
+      * rewrite H. destruct v. left.  reflexivity. right. apply scale_empty_trans. 
       * left. reflexivity.
   - remember (horizon c) as h. destruct h.  
     unfold delay_trace. destruct (leb n i). apply IHc. omega. auto.
@@ -52,32 +52,34 @@ Proof.
     destruct H1 as [H1|H1]. 
     + left. rewrite H1. reflexivity.
     + destruct H2 as [H2|H2].
-      * left. rewrite H2. apply option_map2_none.
+      * left. rewrite H2. apply liftM2_none.
       * right. rewrite H1, H2. auto.  
   - remember (max (horizon c1) (horizon c2)) as h. destruct h. 
     + symmetry in Heqh. apply max0 in Heqh. destruct Heqh.
       generalize dependent rho. generalize dependent i. 
       induction n; intros.
       *  simpl. destruct (E[|e|]rho).
-         destruct t. apply IHc1. rewrite H0. auto.
+         destruct v. destruct b. apply IHc1. rewrite H0. auto.
            apply IHc2. rewrite H1. auto.
-         left. reflexivity.
-      * simpl.  destruct (E[|e|]rho); auto; destruct t.
-        apply IHc1. rewrite H0. auto.
+         left. reflexivity. left. reflexivity.
+      * simpl.  destruct (E[|e|]rho); auto. destruct v.
+        destruct b. apply IHc1. rewrite H0. auto.
         unfold delay_trace. remember (leb 1 i) as L.
          destruct L. apply IHn. simpl. symmetry in HeqL. apply leb_complete in HeqL. omega. auto.
+         left. reflexivity.
     + simpl in H. rewrite Heqh in H. clear Heqh.
       rewrite <- Max.plus_max_distr_l in H.
       rewrite NPeano.Nat.max_lub_iff in H. destruct H as [H1 H2].
       generalize dependent rho. generalize dependent i. 
       induction n; intros. 
       * eapply IHc1 in H1. eapply IHc2 in H2. simpl. destruct (E[|e|]rho).
-          destruct t; eassumption.
-          left. reflexivity.
-      * simpl. destruct (E[|e|]rho); auto. destruct t.
+          destruct v. destruct b; eassumption.
+          left. reflexivity. left. reflexivity.
+      * simpl. destruct (E[|e|]rho); auto. destruct v. destruct b.
           apply IHc1. omega.
           unfold delay_trace. assert (leb 1 i = true) as L. apply leb_correct. omega.
            rewrite L. apply IHn; omega.      
+           left. reflexivity.
 Qed.
 
 Theorem horizon_sound c rho i : horizon c  <= i -> C[|c|]rho i ⊆ empty_trans.
