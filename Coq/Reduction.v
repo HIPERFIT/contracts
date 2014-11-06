@@ -6,18 +6,18 @@ Require Import Tactics.
 
 
 
-Inductive Red : contract -> ext -> contract -> trans -> Prop :=
+Inductive Red : Contr -> ExtEnv -> Contr -> trans -> Prop :=
 | red_zero rho : Red Zero rho Zero empty_trans'
-| red_transf c p1 p2 rho : Red (TransfOne c p1 p2) rho Zero (singleton_trans' c p1 p2 1)
-| red_scale e rho c c' t v :  E[| e |] rho = Some v -> Red c rho c' t ->
+| red_transf c p1 p2 rho : Red (Transfer c p1 p2) rho Zero (singleton_trans' c p1 p2 1)
+| red_scale e rho c c' t v :  E[| e |] rho = Some (RVal v) -> Red c rho c' t ->
                Red (Scale e c) rho (Scale (adv_exp (-1) e) c') (scale_trans' v t)
-| red_trans0 c rho c' t : Red c rho c' t -> Red (Transl 0 c) rho c' t
-| red_transS c rho n : Red (Transl (S n) c) rho (Transl n c) empty_trans'
+| red_trans0 c rho c' t : Red c rho c' t -> Red (Translate 0 c) rho c' t
+| red_transS c rho n : Red (Translate (S n) c) rho (Translate n c) empty_trans'
 | red_both c1 c1' c2 c2' rho t1 t2 : Red c1 rho c1' t1 -> Red c2 rho c2' t2 -> 
                          Red (Both c1 c2) rho (Both c1' c2') (add_trans' t1 t2)
-| red_if0_false rho c1 c2 c' (b : exp BTy) t : E[|b|] rho = Some false -> Red c2 rho c' t -> Red (IfWithin b 0 c1 c2) rho c' t
-| red_ifS_false rho c1 c2 n (b : exp BTy) : E[|b|] rho = Some false -> Red (IfWithin b (S n) c1 c2) rho (IfWithin b n c1 c2) empty_trans'
-| red_if_true rho c1 c2 c' n (b : exp BTy) t : E[|b|] rho = Some true -> Red c1 rho c' t -> Red (IfWithin b n c1 c2) rho c' t
+| red_if0_false rho c1 c2 c' b t : E[|b|] rho = Some (BVal false) -> Red c2 rho c' t -> Red (If b 0 c1 c2) rho c' t
+| red_ifS_false rho c1 c2 n b : E[|b|] rho = Some (BVal false) -> Red (If b (S n) c1 c2) rho (If b n c1 c2) empty_trans'
+| red_if_true rho c1 c2 c' n b t : E[|b|] rho = Some (BVal true) -> Red c1 rho c' t -> Red (If b n c1 c2) rho c' t
 .
 
 Hint Constructors Red.
@@ -63,8 +63,9 @@ Proof.
   - inversion H. eauto.
   - unfold scale_trace, compose in *.
     remember (E[|e|]rho) as R. destruct R; tryfalse.
+    destruct v; tryfalse. simpl in H.
     remember (C[|c|] rho 0) as C. destruct C;tryfalse. inversion H. 
-    assert (exists c', Red c rho c' t1) as R by auto.
+    assert (exists c', Red c rho c' t0) as R by auto.
     destruct R as [c'].
     eexists. apply red_scale; auto. apply H0.
   - unfold delay_trace in *. destruct n; simpl in *. 
@@ -77,39 +78,40 @@ Proof.
      destruct IH1. destruct IH2. inversion H. 
      eexists. constructor; eassumption.
   - remember (E[|e|]rho) as B. destruct B as [b'| ]. 
-    + destruct b'.
-      * destruct n; simpl in *; rewrite <- HeqB in *;apply IHc1 in H;
+    + destruct b'. destruct b.
+      * destruct n; simpl in *; rewrite <- HeqB in *; apply IHc1 in H;
         destruct H; eexists; apply red_if_true; eauto. 
       * destruct n; simpl in *;rewrite <- HeqB in *.
         apply IHc2 in H. destruct H. eexists. apply red_if0_false; eauto.
         unfold delay_trace in H. simpl in *. inversion H. eexists. constructor; auto.
+      * destruct n; simpl in H; rewrite <- HeqB in *; tryfalse.
     + destruct n; simpl in *; rewrite <- HeqB in *; inversion H.
 Qed.
 
 
-Fixpoint RedFun (c : contract) (rho : ext) : option (contract * trans) :=
+Fixpoint RedFun (c : Contr) (rho : ExtEnv) : option (Contr * trans) :=
   match c with
     | Zero => Some (Zero, empty_trans')
-    | TransfOne c p1 p2 => Some (Zero, singleton_trans' c p1 p2 1)
+    | Transfer c p1 p2 => Some (Zero, singleton_trans' c p1 p2 1)
     | Scale e c => match RedFun c rho, E[|e|]rho with
-                       | Some (c', t), Some v => Some (Scale (adv_exp (-1) e) c', scale_trans' v t)
+                       | Some (c', t), Some (RVal v) => Some (Scale (adv_exp (-1) e) c', scale_trans' v t)
                        | _, _ => None
                    end
-    | Transl l c => match l with
+    | Translate l c => match l with
                       | O => RedFun c rho
-                      | S l' => Some (Transl l' c, empty_trans')
+                      | S l' => Some (Translate l' c, empty_trans')
                     end
     | Both c1 c2 => match RedFun c1 rho, RedFun c2 rho with
                       | Some (c1', t1), Some (c2', t2) => Some (Both c1' c2', add_trans' t1 t2)
                       | _, _ => None
                     end
-    | IfWithin b l c1 c2 => match E[|b|] rho with
-                              | Some false => match l with
+    | If b l c1 c2 => match E[|b|] rho with
+                              | Some (BVal false) => match l with
                                                 | O => RedFun c2 rho
-                                                | S l' => Some (IfWithin b l' c1 c2, empty_trans')
+                                                | S l' => Some (If b l' c1 c2, empty_trans')
                                               end
-                              | Some true => RedFun c1 rho
-                              | None => None
+                              | Some (BVal true) => RedFun c1 rho
+                              | _ => None
                             end
   end.
 
@@ -118,13 +120,14 @@ Proof.
   generalize dependent c'. generalize dependent t.
   induction c; intros t c' R; simpl in R; try solve [inversion R;auto].
   - remember (RedFun c rho) as RF. destruct RF. destruct p.
-    remember (E[|e|]rho) as RS. destruct RS. inversion R. auto.
-    inversion R. inversion R.
+    remember (E[|e|]rho) as RS. destruct RS. destruct v. inversion R.
+    inversion R. auto. inversion R. inversion R.
   - destruct n. auto. inversion R. auto.
   - destruct (RedFun c1 rho) as [p1| ]. destruct (RedFun c2 rho) as [p2| ].
     destruct p1, p2. inversion R. auto. destruct p1. inversion R. inversion R.
-  - remember (E[|e|]rho) as BS. destruct BS. destruct t0. constructor; auto.
+  - remember (E[|e|]rho) as BS. destruct BS. destruct v. destruct b. constructor; auto.
     destruct n. constructor; auto. inversion R. constructor; auto. inversion R.
+    inversion R.
 Qed.
 
 
