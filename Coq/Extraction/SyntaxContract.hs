@@ -33,6 +33,8 @@ translate,
 ifWithin,
 
 -- * Operations on contracts
+ObsLabel (..),
+ExtEnv,
 Trans,
 horizon,
 advance,

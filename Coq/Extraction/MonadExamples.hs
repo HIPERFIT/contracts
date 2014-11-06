@@ -1,6 +1,8 @@
 import ContractMonad
 import SyntaxContract as SC
 
+import Contract(adv_ext) -- hack
+
 m = "ME"
 y = "YOU"
 eur = "EUR"
@@ -16,7 +18,8 @@ c2 = toContract
    transf m y a eur >>
    transf y m b eur)
 
-e = (\ i obs -> if i == 0 && obs == "Carlsberg" then Just 23.0
+
+e = (\ obs i -> if obs == LabR "Carlsberg" then Just 23.0
                 else Nothing)
 
 -- c2' = SC.specialize c2 e
@@ -26,13 +29,16 @@ pp Nothing = "Nothing"
 pp (Just (c,t)) = "New Contract: " ++ show c ++ "\nTrans: " ++ show (t "ME" "YOU" "EUR")
 
 
-advanceN :: Int -> Contr -> Contr
-advanceN 0 c = c
-advanceN n c =
-  case SC.advance c const of
-      Just (c,t) -> advanceN (n-1) c;
-      Nothing -> c
+advanceN :: Int -> ExtEnv -> Contr -> Maybe Contr
+advanceN 0 e c = Just c
+advanceN n e c =
+  case SC.advance c e of
+      Just (c,t) -> advanceN (n-1) (adv_ext 1 e) c;
+      Nothing -> Nothing
 
-r = advanceN 6 c2
+r  = advanceN 5 e c2
+r' = advanceN 6 e c2 -- Nothing?
+
+
 -- r2 = SC.specialize r SC.envEmpty
 
