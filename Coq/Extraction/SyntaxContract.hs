@@ -9,6 +9,7 @@ Party,
 
 Exp,
 acc,
+ife,
 -- * Real expression combinators
 RExp,
 rLit,
@@ -20,7 +21,6 @@ BExp,
 false, true,
 (!<!), (!<=!), (!=!), (!>!), (!>=!), (!&!), (!|!),
 bNot,
-
 bObs,
 
 -- * Contract combinators
@@ -31,6 +31,7 @@ scale,
 both,
 translate,
 ifWithin,
+iff,
 
 -- * Operations on contracts
 ObsLabel (..),
@@ -63,7 +64,7 @@ data R
 data B
 
 class ExpHoas' exp where
-    iff :: exp B -> exp t -> exp t -> exp t
+    ife :: exp B -> exp t -> exp t -> exp t
     opE :: Op -> [exp t'] -> exp t
     obs :: ObsLabel -> Int -> exp t
     acc :: (exp t -> exp t) -> Int -> exp t -> exp t
@@ -71,7 +72,7 @@ class ExpHoas' exp where
 newtype DB t = DB {unDB :: Int -> C.Exp}
 
 instance ExpHoas' DB where
-    iff b e1 e2 = DB (\ i -> OpE Cond [unDB b i, unDB e1 i, unDB e2 i])
+    ife b e1 e2 = DB (\ i -> OpE Cond [unDB b i, unDB e1 i, unDB e2 i])
     opE op args = DB (\ i -> OpE op (map (($ i) . unDB) args))
     obs l t = DB (\i -> Obs l t)
     acc f t e = DB (\i -> let v = \ j -> VarE (toVar (j-(i+1))) 
@@ -85,8 +86,8 @@ instance Num (DB R) where
     x + y = opE Add [x,y]
     x * y = opE Mult [x,y]
     x - y = opE Sub [x,y]
-    abs x = iff (x !<! 0) (- x) x
-    signum x = iff (x !<! 0) (- 1) (iff (x !>! 0) 1 0)
+    abs x = ife (x !<! 0) (- x) x
+    signum x = ife (x !<! 0) (- 1) (ife (x !>! 0) 1 0)
     fromInteger i = rLit (fromInteger i)
 
 instance Fractional (DB R) where
@@ -95,7 +96,7 @@ instance Fractional (DB R) where
     
 
 
-class (Num (exp R), ExpHoas' exp) => ExpHoas exp
+class (Num (exp R), Fractional (exp R), ExpHoas' exp) => ExpHoas exp
 
 instance ExpHoas DB
 
@@ -166,10 +167,13 @@ translate = Translate
 ifWithin :: BExp -> Int -> Contr -> Contr -> Contr
 ifWithin e = If (toExp e)
 
+iff :: BExp -> Contr -> Contr -> Contr
+iff e  = ifWithin e 0
+
 
 
 example :: RExp
-example = acc (\ x -> (acc (\y -> iff (x !=! 1) (x + y) 2) 1 1) + 1) 1 1
+example = acc (\ x -> (acc (\y -> ife (x !=! 1) (x + y) 2) 1 1) + 1) 1 1
 
 
 advance :: Contr -> ExtEnv -> Maybe (Contr, Trans)
