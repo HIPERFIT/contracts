@@ -3,7 +3,7 @@ Add LoadPath "..".
 Require Import Denotational.
 Require Import Reduction.
 Require Import Horizon.
-Require Import SyntacticCausality.
+(* Require Import SyntacticCausality. *)
 
 
 
@@ -14,7 +14,9 @@ Extract Inductive bool => "Bool" [ "True" "False" ].
 Extract Inlined Constant orb => "(||)".
 Extract Inlined Constant andb => "(&&)".
 
-Extract Inlined Constant option_map => "fmap".
+Extract Inlined Constant compose => "(.)".
+Extract Inductive list => "List" [ "[]" "(:)" ].
+Extract Inlined Constant map => "map".
 
 Extract Inductive nat => "Int" ["0" "succ"] "(\fO fS n -> if n==0 then fO () else fS (n-1))".
 Extract Inductive Z => "Int" ["0" "id" "negate"].
@@ -60,11 +62,9 @@ Extract Inductive string => "String" ["[]" "(:)"].
 
 Extract Inductive Ascii.ascii => "Char" ["'a'"]. (* TODO: real translation *)
 
-Extract Inductive Env => "Env" [ "Empty" "Extend" ].
 
 
 Extraction "ContractExtracted.hs" 
-  contract
+  Contr
   horizon
-  RedFun
-  pc_dec.
+  RedFun.
