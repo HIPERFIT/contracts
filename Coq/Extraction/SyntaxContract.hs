@@ -88,6 +88,7 @@ instance Num (DB R) where
 
 instance Fractional (DB R) where
     fromRational r = rLit (fromRational r)
+    x / y =  opE Div [x,y]
     
 
 
