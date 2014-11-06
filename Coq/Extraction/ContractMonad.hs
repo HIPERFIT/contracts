@@ -1,11 +1,13 @@
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
+
 
 module ContractMonad where
 
 import SyntaxContract
 import Control.Monad.Reader(liftM2)
 
-data CM a = CM ((a->Int->Contract)->Int->Contract)
+data CM a = CM ((a->Int->Contr)->Int->Contr)
 
 --instance Applicative CM where
 --  pure a = CM (\k i -> k a i)
@@ -21,10 +23,10 @@ instance Monad CM where
 
 -- time-dependent expressions:
 
-type Re = Int -> Rexp
-type Be = Int -> Bexp
+type Re = ExpHoas exp => Int -> exp R
+type Be = ExpHoas exp => Int -> exp B
 
-rObserve :: Observable -> CM Re
+rObserve :: ExpHoas exp => String -> CM (Int -> exp R)
 rObserve s = CM (\k i -> k (\d -> rObs s (i-d)) i)
 
 litRe :: Double -> Re
@@ -70,7 +72,7 @@ negRe re = \ i -> negate (re i)
 
 -- monad operations:
 
-bObserve :: Observable -> CM Be
+bObserve :: ExpHoas exp => String -> CM (Int -> exp B)
 bObserve s = CM (\k i -> k (\d -> bObs s (i-d)) i)
 
 transf :: Party -> Party -> Re -> Currency -> CM ()
@@ -90,6 +92,6 @@ ifm :: Be -> CM a -> CM a -> CM a
 ifm b (CM m1) (CM m2) = 
   CM (\k i -> ifWithin (b i) 0 (m1 k i) (m2 k i))
 
-toContract :: CM () -> Contract
+toContract :: CM () -> Contr
 toContract (CM m) = m (\ _ _ -> zero) 0  
    

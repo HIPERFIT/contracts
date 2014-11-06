@@ -23,6 +23,7 @@ Extract Inductive Z => "Int" ["0" "id" "negate"].
 Extract Inductive positive => "Int" ["unused" "unused" "1"].
 
 Extract Inlined Constant Z.leb => "(<=)".
+Extract Inlined Constant Z.ltb => "(<)".
 Extract Inlined Constant Z.add => "(+)".
 Extract Inlined Constant Z.sub => "(-)".
 Extract Inlined Constant Z.mul => "(*)".
@@ -30,6 +31,7 @@ Extract Inlined Constant Z.opp => "negate".
 
 Extract Inlined Constant R => "Double".
 Extract Inlined Constant Rleb => "(<=)".
+Extract Inlined Constant Rltb => "(<)".
 Extract Inlined Constant Rplus => "(+)".
 Extract Inlined Constant Rminus => "(-)".
 Extract Inlined Constant Rmult => "(*)".

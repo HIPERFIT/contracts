@@ -155,9 +155,11 @@ Fixpoint OpSem (op : Op) (vs : list Val) : option Val :=
     | Add => match vs with ([RVal x; RVal y ]) => Some (RVal (x + y)) | _ => None end
     | Sub => match vs with ([RVal x; RVal y ]) => Some (RVal (x - y)) | _ => None end
     | Mult => match vs with ([RVal x; RVal y ]) => Some (RVal (x * y)) | _ => None end
+    | Div => match vs with ([RVal x; RVal y ]) => Some (RVal (x / y)) | _ => None end
     | And => match vs with ([BVal x; BVal y ]) => Some (BVal (x && y)) | _ => None end
     | Or => match vs with ([BVal x; BVal y ]) => Some (BVal (x || y)) | _ => None end
-    | Less => match vs with ([RVal x; RVal y ]) => Some (BVal (Rleb x y)) | _ => None end
+    | Less => match vs with ([RVal x; RVal y ]) => Some (BVal (Rltb x y)) | _ => None end
+    | Leq => match vs with ([RVal x; RVal y ]) => Some (BVal (Rleb x y)) | _ => None end
     | Equal => match vs with ([RVal x; RVal y ]) => Some (BVal (Reqb x y)) | _ => None end
     | BLit b => match vs with ([]) => Some (BVal b) | _ => None end
     | RLit r => match vs with ([]) => Some (RVal r) | _ => None end

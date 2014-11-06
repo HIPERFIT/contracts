@@ -14,7 +14,7 @@ Inductive ObsLabel : Set := LabR (l:string) | LabB (l:string).
 
 Inductive Val : Set := BVal : bool -> Val | RVal : R -> Val.
 
-Inductive Op : Set := Add | Sub | Mult | And | Or | Less | Equal |
+Inductive Op : Set := Add | Sub | Mult | Div | And | Or | Less | Leq | Equal |
                       Not | Neg |
                       BLit (b : bool) | RLit (r:R) |
                       Cond.
@@ -94,9 +94,11 @@ Inductive TypeOp : Op -> list Ty -> Ty -> Prop :=
 | type_add : |-Op Add ∶ [REAL;REAL] => REAL
 | type_sub : |-Op Sub ∶ [REAL;REAL] => REAL
 | type_mult : |-Op Mult ∶ [REAL;REAL] => REAL
+| type_div : |-Op Div ∶ [REAL;REAL] => REAL
 | type_and : |-Op And ∶ [BOOL;BOOL] => BOOL
 | type_or : |-Op Or ∶ [BOOL;BOOL] => BOOL
 | type_less : |-Op Less ∶ [REAL;REAL] => BOOL
+| type_leq : |-Op Leq ∶ [REAL;REAL] => BOOL
 | type_equal : |-Op Equal ∶ [REAL;REAL] => BOOL
         where "'|-Op' v '∶' t '=>' r" := (TypeOp v t r).
 

@@ -1,31 +1,30 @@
-{-# LANGUAGE IncoherentInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
 
 module SyntaxContract (
 -- * Data types used in contracts
 Currency,
-Observable,
 Party,
 
+Exp,
+acc,
 -- * Real expression combinators
-Rexp, Rexp',
-rAcc,
+RExp,
+rLit,
 rObs,
-rLit, -- exported for expression type in ContractMonad only
+
 
 -- * Boolean expression combinators
-Bexp, Bexp',
+BExp,
 false, true,
 (!<!), (!<=!), (!=!), (!>!), (!>=!), (!&!), (!|!),
 bNot,
-bAcc,
+
 bObs,
 
 -- * Contract combinators
-Contract,
+Contr,
 zero,
 transfer,
 scale,
@@ -34,245 +33,140 @@ translate,
 ifWithin,
 
 -- * Operations on contracts
-Inp,
-ObsEnv,
-ChoiceEnv,
-Env,
-obsEnvEmpty,
-choiceEnvEmpty,
-envEmpty,
-specialize,
-horiz,
-
 Trans,
+horizon,
 advance,
 
--- -- * STUFF TO BE REMOVED FROM API
--- Elem,
--- Vars,
--- BinOp(Add,Mult,Subt,Div,Min,Max),
--- rLit,
--- rBin,
--- Cmp(EQ,LT,LTE),
--- BoolOp(And,Or),
--- bLit,
--- rCmp,
--- bBin,
+
+ExpHoas,
+R, B
 
 ) where
 
-import Contract as C hiding (Env,Inp,Trans)
 
--- internal helpers for variables in expressions
-class Elem v a where inj :: v -> a
-instance Elem v (Vars a v) where inj = C.New 
-instance Elem v a => Elem v (Vars a v') where inj = C.Old . inj
+import Contract hiding (Exp)
+import qualified Contract as C
 
+deriving instance Show Var
+deriving instance Show ObsLabel
+deriving instance Show Op
+deriving instance Show C.Exp
 
--- Contract combinators
-zero :: Contract
-zero = C.Zero
+toVar :: Int -> Var
+toVar 0 = V1
+toVar n = VS (toVar (n-1))
 
--- | Contract atom: transfer an asset from one party to another
-transfer :: Currency -> Party -> Party -> Contract
-transfer = C.TransfOne
--- combine with Scale in this API?
+data R
+data B
 
--- | move a contract into the future by a given amount of days. The
--- smart constructor merges successive translations into one.
-translate :: Int -> Contract -> Contract
-translate n c | n < 0 = error "translate: negative duration"
-translate n1 (C.Transl n2 c) = C.transl (n1+n2) c -- generate?
-translate n  (C.Zero) = zero
-translate n     c     = C.transl n c
+class ExpHoas' exp where
+    iff :: exp B -> exp t -> exp t -> exp t
+    opE :: Op -> [exp t'] -> exp t
+    obs :: ObsLabel -> Int -> exp t
+    acc :: (exp t -> exp t) -> Int -> exp t -> exp t
 
--- | combine two contracts
-both :: Contract -> Contract -> Contract
-both c1 C.Zero = c1
-both C.Zero c2 = c2
--- if we had an Eq Contract instance:
--- both c1 c2 | c1 == c2  = C.Scale 2 c1
-both c1 c2 = C.Both c1 c2
+newtype DB t = DB {unDB :: Int -> C.Exp}
 
--- | iterated conditional contract: for the given amount of days,
--- check repeatedly whether the given boolean-valued expression is
--- true, and branch into the first contract argument in this case.
--- After the given amount of days, branch into the second one.
-ifWithin :: Bexp -> Int -> Contract -> Contract -> Contract
-ifWithin b n | n < 0 = error "ifWithin: negative duration"
-             | n == 0 = maybe (C.IfWithin b 0) 
-                              ifThenElse (bsem' b noVars (nothing,nothing))
-    where ifThenElse True  c1 c2 = c1
-          ifThenElse False c1 c2 = c2
-
--- | scale a contract by a real-valued expression. This smart
--- constructor aggregates multiple scalings and evaluates the given
--- expression before the scaled contract is constructed.
-scale :: Rexp -> Contract -> Contract
-scale e1 (C.Scale e2 c) = C.Scale (e1*e2) c -- generate?
-scale e c = maybe (C.Scale e c) (\x -> if x == 0 then C.Zero else C.Scale (RLit x) c)
-                  (rsem' e noVars nothing)
-
--- internal: empty environment
--- nothing :: C.Inp a
-nothing _ _ = Nothing
--- internal: empty var. environment
--- noVars :: C.Env a v
-noVars = C.Empty undefined
-
--- Real (double) expressions
-
--- | accumulator expression builder. 
-racc :: (forall v. v -> Rexp' (Vars a v)) -> Int -> (Rexp' a) -> Rexp' a
-racc f l z = C.RAcc (f ()) l z
-
-rvar :: (Elem v a) => v -> Rexp' a
-rvar v = C.RVar (inj v)
-
-rAcc :: (forall v. (forall a'. Elem v a' => Rexp' a') 
-        -> Rexp' (Vars a v)) -> Int -> (Rexp' a) -> Rexp' a
-rAcc f l z = racc (\ x -> f  (rvar x)) l z
+instance ExpHoas' DB where
+    iff b e1 e2 = DB (\ i -> OpE Cond [unDB b i, unDB e1 i, unDB e2 i])
+    opE op args = DB (\ i -> OpE op (map (($ i) . unDB) args))
+    obs l t = DB (\i -> Obs l t)
+    acc f t e = DB (\i -> let v = \ j -> VarE (toVar (j-(i+1))) 
+                          in Acc (unDB (f (DB v)) (i+1)) t (unDB e i))
 
 
--- the following ones are probably not necessary, we have a Num instance
-rLit :: Double -> Rexp' a
-rLit = C.RLit
+rLit :: Double -> RExp
+rLit r = opE (RLit r) []
 
-rBin :: BinOp -> Rexp' a -> Rexp' a -> Rexp' a
-rBin = C.RBin
+instance Num (DB R) where
+    x + y = opE Add [x,y]
+    x * y = opE Mult [x,y]
+    x - y = opE Sub [x,y]
+    abs x = iff (x !<! 0) (- x) x
+    signum x = iff (x !<! 0) (- 1) (iff (x !>! 0) 1 0)
+    fromInteger i = rLit (fromInteger i)
 
-rNeg :: Rexp' a -> Rexp' a
-rNeg = C.RNeg
+instance Fractional (DB R) where
+    fromRational r = rLit (fromRational r)
+    
 
-rObs :: Observable -> Int -> Rexp' a
-rObs = C.Obs
 
--- Boolean expressions
-bacc :: (forall v. v -> Bexp' (Vars a v)) -> Int -> (Bexp' a) -> Bexp' a
-bacc f l z = C.BAcc (f ()) l z
+class (Num (exp R), ExpHoas' exp) => ExpHoas exp
 
-bvar :: (Elem v a) => v -> Bexp' a
-bvar v = C.BVar (inj v)
+instance ExpHoas DB
 
-bAcc :: (forall v. (forall a'. Elem v a' => Bexp' a') 
-        -> Bexp' (Vars a v)) -> Int -> (Bexp' a) -> Bexp' a
-bAcc f l z = bacc (\ x -> f  (bvar x)) l z
+type Exp t = forall exp . ExpHoas exp => exp t
 
--- literals and operations
-false, true :: Bexp' a
-false = C.BLit False
-true  = C.BLit True
+toExp :: Exp t -> C.Exp
+toExp t = unDB t 0
 
-(!<!), (!<=!), (!=!), (!>!), (!>=!) :: Rexp -> Rexp -> Bexp' a
-(!<!)  = C.RCmp C.LT
-(!<=!) = C.RCmp C.LTE
-(!=!)  = C.RCmp C.EQ
-c1 !>!  c2 = C.RCmp C.LT c2 c1
-c1 !>=! c2 = C.RCmp C.LTE c2 c1
 
-(!&!), (!|!) :: Bexp' a -> Bexp' a -> Bexp' a
-(!&!)  = C.BOp C.And
-(!|!)  = C.BOp C.Or
- 
-bLit :: Bool -> Bexp' a
-bLit = C.BLit
 
-bNot :: Bexp' a -> Bexp' a
-bNot = C.BNot
+rObs :: ExpHoas exp => String -> Int -> exp R
+rObs l i = obs (LabR l) i
 
-rCmp :: Cmp -> Rexp -> Rexp -> Bexp' a
-rCmp = C.RCmp
+type RExp = Exp R
+type BExp = Exp B
 
-bObs :: Choice -> Int -> Bexp' a
-bObs = C.BChoice
+(!=!) :: ExpHoas exp => exp R -> exp R -> exp B
+x !=! y = opE Equal [x, y]
 
-bBin :: BoolOp -> Bexp' a -> Bexp' a -> Bexp' a
-bBin = C.BOp
+(!<!) :: ExpHoas exp => exp R -> exp R -> exp B
+x !<! y = opE Less [x, y]
 
-horiz :: Contract -> Int
-horiz = C.horizon
+(!<=!) :: ExpHoas exp => exp R -> exp R -> exp B
+x !<=! y = opE Leq [x, y]
 
-type Trans = Party -> Party -> Currency -> Double
-advance :: Contract -> Env -> Maybe(Contract,Trans)
-advance = C.redFun
 
-type Inp a = Int -> Observable -> Maybe a
-type ObsEnv = Inp Double
-type ChoiceEnv = Inp Bool
-type Env = (ObsEnv, ChoiceEnv)
-specialize :: Contract -> Env -> Contract
-specialize = C.specialise
+(!>!) :: ExpHoas exp => exp R -> exp R -> exp B
+(!>!) = (!<!)
 
-obsEnvEmpty :: ObsEnv
-obsEnvEmpty = C.obs_empty
+(!>=!) :: ExpHoas exp => exp R -> exp R -> exp B
+(!>=!) = (!<=!)
 
-envEmpty :: Env
-envEmpty = C.ext_empty
 
-choiceEnvEmpty :: ChoiceEnv
-choiceEnvEmpty = C.choices_empty
+(!&!) :: ExpHoas exp => exp B -> exp B -> exp B
+x !&! y = opE And [x, y]
 
-deriving instance Show BinOp
-deriving instance Show C.Cmp
-deriving instance Show C.BoolOp
-deriving instance Show C.ZeroT
-deriving instance (Show a, Show v) => Show (Vars a v)
-deriving instance Show a => Show (C.Rexp' a) 
-deriving instance Show a => Show (C.Bexp' a) 
-deriving instance Show Contract
+(!|!) :: ExpHoas exp => exp B -> exp B -> exp B
+x !|! y = opE Or [x, y]
 
--- pretty number literals
+bNot :: ExpHoas exp => exp B -> exp B
+bNot x =  opE Not [x]
 
--- | Num instance, enabling us to write 'e1 + e2' for RExp
-instance Num (Rexp' a) where
-    (+) = arith Add
-    (*) = arith Mult
-    (-) = arith Subt
-    negate = arith Subt (fromInteger 0)
-    abs a = undefined -- needs expression-if: if (a !<! 0) then (0 - a) else a
-    signum a = undefined -- needs expression-if: if (a !=! 0) then 0 else if (a !<! 0) then -1 else 1
-    fromInteger n = RLit (fromInteger n)
+bObs :: ExpHoas exp => String -> Int -> exp B
+bObs l i = obs (LabB l) i
 
--- | Fractional instance enables fractional literals
-instance Fractional Rexp where
-    (/) = arith Div
-    -- recip x = 1 / x -- default
-    fromRational = RLit . fromRational
 
--- pre-evaluation of expressions if possible
-arith :: BinOp -> Rexp' a -> Rexp' a -> Rexp' a
-arith op (RLit x) (RLit y) = RLit (opsem op x y)
-arith op e_x e_y = RBin op e_x e_y
+false :: BExp
+false = opE (BLit False) []
 
--- | semantics of the arithmetic operators, for 'arith' smart constructor
-opsem :: (Num a, Fractional a, Ord a) => BinOp -> a -> a -> a
-opsem Add = (+)
-opsem Subt = (-)
-opsem Mult = (*)
-opsem Div  = (/)
-opsem Max = max
-opsem Min = min
+true :: BExp
+true = opE (BLit True) []
 
--- Bool literals and "pretty" operations are not as easy as numbers.
--- The following code works, but will generate name conflicts in the
--- importing modules (which import Prelude automatically)
--- We could define our own (|) and (&), though.
+zero :: Contr
+zero = Zero
 
--- (||), (&&) :: Bexp' a -> Bexp' a -> Bexp' a
--- a || (BLit P.True) = BLit P.True
--- (BLit P.True) || b = BLit P.True
--- a || (BLit P.False) = a
--- (BLit P.False) || b = b
--- -- (BLit a) || (BLit b) = BLit (a P.|| b)
--- a || b = BOp Or a b
+transfer :: Party -> Party -> Currency -> Contr
+transfer = Transfer
 
--- a && (BLit P.False) = BLit P.False
--- (BLit P.False) && b = BLit P.False
--- a && (BLit P.True) = a
--- (BLit P.True) && b = b
--- -- (BLit a) && (BLit b) = BLit (a P.&& b)
--- a && b = BOp And a b
+scale :: RExp -> Contr -> Contr
+scale e = Scale (toExp e)
 
--- false, true :: Bexp' ZeroT
--- false = BLit P.False
--- true  = BLit P.Tru
+both :: Contr -> Contr -> Contr
+both = Both
+
+translate :: Int -> Contr -> Contr
+translate = Translate
+
+ifWithin :: BExp -> Int -> Contr -> Contr -> Contr
+ifWithin e = If (toExp e)
+
+
+
+example :: RExp
+example = acc (\ x -> (acc (\y -> iff (x !=! 1) (x + y) 2) 1 1) + 1) 1 1
+
+
+advance :: Contr -> ExtEnv -> Maybe (Contr, Trans)
+advance = redFun

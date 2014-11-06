@@ -1444,12 +1444,6 @@ sgn z =
    id p -> id 1;
    negate p -> negate 1}
 
-ltb1 :: Int -> Int -> Bool
-ltb1 x y =
-  case compare1 x y of {
-   Lt -> True;
-   _ -> False}
-
 geb :: Int -> Int -> Bool
 geb x y =
   case compare1 x y of {
@@ -1525,14 +1519,14 @@ pos_div_eucl0 a b =
     case pos_div_eucl0 a' b of {
      (,) q r ->
       let {r' = (+) ((*) (id (unused 1)) r) (id 1)} in
-      case ltb1 r' b of {
+      case (<) r' b of {
        True -> (,) ((*) (id (unused 1)) q) r';
        False -> (,) ((+) ((*) (id (unused 1)) q) (id 1)) ((-) r' b)}};
    unused a' ->
     case pos_div_eucl0 a' b of {
      (,) q r ->
       let {r' = (*) (id (unused 1)) r} in
-      case ltb1 r' b of {
+      case (<) r' b of {
        True -> (,) ((*) (id (unused 1)) q) r';
        False -> (,) ((+) ((*) (id (unused 1)) q) (id 1)) ((-) r' b)}};
    1 ->
@@ -1833,7 +1827,7 @@ leb_spec2 x y =
 
 ltb_spec2 :: Int -> Int -> Reflect
 ltb_spec2 x y =
-  iff_reflect (ltb1 x y)
+  iff_reflect ((<) x y)
 
 sqrt_up0 :: Int -> Int
 sqrt_up0 a =
@@ -1961,9 +1955,11 @@ data Op =
    Add
  | Sub
  | Mult
+ | Div
  | And
  | Or
  | Less
+ | Leq
  | Equal
  | Not
  | Neg
@@ -2069,6 +2065,22 @@ opSem op vs =
             case l0 of {
              [] -> Just (RVal ((*) x y));
              (:) v1 l1 -> Nothing}}}}};
+   Div ->
+    case vs of {
+     [] -> Nothing;
+     (:) v l ->
+      case v of {
+       BVal b -> Nothing;
+       RVal x ->
+        case l of {
+         [] -> Nothing;
+         (:) v0 l0 ->
+          case v0 of {
+           BVal b -> Nothing;
+           RVal y ->
+            case l0 of {
+             [] -> Just (RVal ((/) x y));
+             (:) v1 l1 -> Nothing}}}}};
    And ->
     case vs of {
      [] -> Nothing;
@@ -2102,6 +2114,22 @@ opSem op vs =
            RVal r -> Nothing}};
        RVal r -> Nothing}};
    Less ->
+    case vs of {
+     [] -> Nothing;
+     (:) v l ->
+      case v of {
+       BVal b -> Nothing;
+       RVal x ->
+        case l of {
+         [] -> Nothing;
+         (:) v0 l0 ->
+          case v0 of {
+           BVal b -> Nothing;
+           RVal y ->
+            case l0 of {
+             [] -> Just (BVal ((<) x y));
+             (:) v1 l1 -> Nothing}}}}};
+   Leq ->
     case vs of {
      [] -> Nothing;
      (:) v l ->
