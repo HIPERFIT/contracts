@@ -170,14 +170,5 @@ ifWithin e = If (toExp e)
 iff :: BExp -> Contr -> Contr -> Contr
 iff e  = ifWithin e 0
 
-
-
-example :: RExp
-example = acc (\ x -> (acc (\y -> ife (x !=! 1) (x + y) 2) 1 1) + 1) 1 1
-
-
 advance :: Contr -> ExtEnv -> Maybe (Contr, Trans)
 advance = redFun
-
-ex1 :: Contr
-ex1 = both (scale 1 zero) (scale 2 zero)
