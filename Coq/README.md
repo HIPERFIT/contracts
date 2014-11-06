@@ -27,6 +27,7 @@ extraction facility. To extract the Coq definitions to Haskell use the
 Makefile in [Extraction](Extraction):
 
 ```shell
+make
 cd Extraction
 make
 ```

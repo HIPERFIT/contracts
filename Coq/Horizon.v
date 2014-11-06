@@ -22,12 +22,14 @@ Fixpoint horizon (c : Contr) : nat :=
       | If _ l c1 c2 => plus0 l (max (horizon c1) (horizon c2))
   end.
 
+
 Lemma max0 n m : max n m = 0 -> n = 0 /\ m = 0.
 Proof.
   intros. split. 
   - destruct n. reflexivity. destruct m; simpl in H; inversion H.
   - destruct m. reflexivity. destruct n; simpl in H; inversion H.
 Qed.
+
 
 Lemma horizon_empty c rho i : horizon c  <= i -> C[|c|]rho i = None \/ C[|c|]rho i = empty_trans.
 Proof.

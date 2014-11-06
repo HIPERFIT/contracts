@@ -14,5 +14,6 @@ $(EXTRACTED): $(COQ_FILE)
 	coqc $(COQ_FILE)
 
 clean:
+	rm -rf *~
 	rm -f $(TARGET) $(EXTRACTED)
-	rm -r $(COQ_FILE:.v=.vo) $(COQ_FILE:.v=.glob)
+	rm -rf $(COQ_FILE:.v=.vo) $(COQ_FILE:.v=.glob)

@@ -184,7 +184,7 @@ Fixpoint specialise (c : contract) (rho : ext) : contract :=
     | Transl l c' => Transl l (specialise c' (adv_ext (Z.of_nat l) rho))
     | Both c1 c2 => Both (specialise c1 rho) (specialise c2 rho)
     | IfWithin e l c1 c2 => match traverseIfWithin rho e (specialise c1) (specialise c2) l with
-                              | inl c' => c
+                              | inl c' => c'
                               | inr (e', l') => transl (l - l') (IfWithin e' l' c1 c2)
                             end
   end.
