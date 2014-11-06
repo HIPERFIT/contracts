@@ -118,7 +118,7 @@ Definition bind {A B} (x : option A) (f : A -> option B) : option B :=
 
 Definition pure {A} : A -> option A := fun x => Some x.
 
-Infix ">>=" := bind (at level 55, right associativity).
+Infix ">>=" := bind (at level 55, left associativity).
 
 Definition liftM {A B} (f : A -> B) (x : option A) : option B :=
  x >>= (pure ∘ f).
@@ -192,7 +192,7 @@ Fixpoint Esem' (e : Exp) (rho : Env) (erho : ExtEnv) : option Val :=
         let fix run l :=  
             match l with
               | nil => Some nil
-              | x :: xs => liftM2 (fun x' xs' => x' :: xs') (E'[| x |] rho erho) (run xs)
+              | x :: xs => liftM2 (@cons _) (E'[| x |] rho erho) (run xs)
             end
         in run args >>= OpSem op
       | Obs l i => erho l i

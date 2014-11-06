@@ -36,7 +36,7 @@ ifWithin,
 Trans,
 horizon,
 advance,
-
+specialise,
 
 ExpHoas,
 R, B
@@ -44,10 +44,11 @@ R, B
 ) where
 
 
-import Contract hiding (Exp)
+import Contract hiding (Exp,translate)
 import qualified Contract as C
 
 deriving instance Show Var
+deriving instance Show Contr
 deriving instance Show ObsLabel
 deriving instance Show Op
 deriving instance Show C.Exp
@@ -171,3 +172,6 @@ example = acc (\ x -> (acc (\y -> iff (x !=! 1) (x + y) 2) 1 1) + 1) 1 1
 
 advance :: Contr -> ExtEnv -> Maybe (Contr, Trans)
 advance = redFun
+
+ex1 :: Contr
+ex1 = both (scale 1 zero) (scale 2 zero)

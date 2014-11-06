@@ -3,7 +3,7 @@ Add LoadPath "..".
 Require Import Denotational.
 Require Import Reduction.
 Require Import Horizon.
-(* Require Import SyntacticCausality. *)
+Require Import Specialise.
 
 
 
@@ -70,4 +70,5 @@ Extract Inductive Ascii.ascii => "Char" ["'a'"]. (* TODO: real translation *)
 Extraction "ContractExtracted.hs" 
   Contr
   horizon
-  RedFun.
+  RedFun
+  specialise.

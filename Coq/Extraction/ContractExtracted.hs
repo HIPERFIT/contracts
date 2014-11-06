@@ -1981,6 +1981,15 @@ data Contr =
  | Both Contr Contr
  | If Exp Int Contr Contr
 
+translate :: Int -> Contr -> Contr
+translate l x =
+  (\fO fS n -> if n==0 then fO () else fS (n-1))
+    (\_ ->
+    x)
+    (\n -> Translate l
+    x)
+    l
+
 type ExtEnv = ObsLabel -> Int -> Maybe Val
 
 adv_ext :: Int -> ExtEnv -> ExtEnv
@@ -2000,6 +2009,10 @@ bind x f =
 pure :: a1 -> Maybe a1
 pure x =
   Just x
+
+liftM :: (a1 -> a2) -> (Maybe a1) -> Maybe a2
+liftM f x =
+  bind x ((.) pure f)
 
 liftM2 :: (a1 -> a2 -> a3) -> (Maybe a1) -> (Maybe a2) -> Maybe a3
 liftM2 f x y =
@@ -2251,7 +2264,7 @@ esem' e rho erho =
               case l of {
                [] -> Just [];
                (:) x xs ->
-                liftM2 (\x' xs' -> (:) x' xs') (esem' x rho erho) (run xs)}}
+                liftM2 (\x0 x1 -> (:) x0 x1) (esem' x rho erho) (run xs)}}
            in run}
     in
     bind (run args) (opSem op);
@@ -2367,4 +2380,206 @@ horizon c =
    Translate l c' -> plus0 l (horizon c');
    Both c1 c2 -> max (horizon c1) (horizon c2);
    If e l c1 c2 -> plus0 l (max (horizon c1) (horizon c2))}
+
+constFoldAcc :: ExtEnv -> (ExtEnv -> (Maybe Val) -> Exp) -> Int -> (ExtEnv ->
+                Exp) -> Either Exp ((,) Int Exp)
+constFoldAcc rho f l z =
+  (\fO fS n -> if n==0 then fO () else fS (n-1))
+    (\_ -> Left
+    (z rho))
+    (\l' ->
+    case constFoldAcc (adv_ext (negate 1) rho) f l' z of {
+     Left e ->
+      case e of {
+       OpE op args ->
+        case op of {
+         BLit b ->
+          case args of {
+           [] -> Left (f rho (Just (BVal b)));
+           (:) e0 l0 -> Right ((,) 0 e)};
+         RLit r ->
+          case args of {
+           [] -> Left (f rho (Just (RVal r)));
+           (:) e0 l0 -> Right ((,) 0 e)};
+         _ -> Right ((,) 0 e)};
+       _ -> Right ((,) 0 e)};
+     Right p ->
+      case p of {
+       (,) n e -> Right ((,) (succ n) e)}})
+    l
+
+fromLit :: Exp -> Maybe Val
+fromLit e =
+  case e of {
+   OpE op args ->
+    case op of {
+     BLit b ->
+      case args of {
+       [] -> Just (BVal b);
+       (:) e0 l -> Nothing};
+     RLit r ->
+      case args of {
+       [] -> Just (RVal r);
+       (:) e0 l -> Nothing};
+     _ -> Nothing};
+   _ -> Nothing}
+
+toLit :: Val -> Exp
+toLit e =
+  case e of {
+   BVal b -> OpE (BLit b) [];
+   RVal r -> OpE (RLit r) []}
+
+default0 :: a1 -> (Maybe a1) -> a1
+default0 d x =
+  case x of {
+   Just y -> y;
+   Nothing -> d}
+
+specialiseExp :: Exp -> ExtEnv -> Env -> Exp
+specialiseExp e rho vars =
+  case e of {
+   OpE op args ->
+    case args of {
+     [] ->
+      let {
+       run = let {
+              run es =
+                case es of {
+                 [] -> Just [];
+                 (:) e' es' ->
+                  liftM2 (\x x0 -> (:) x x0)
+                    (fromLit (specialiseExp e' rho vars)) (run es')}}
+             in run}
+      in
+      default0 e (liftM toLit (bind (run args) (opSem op)));
+     (:) e1 l ->
+      case l of {
+       [] ->
+        let {
+         run = let {
+                run es =
+                  case es of {
+                   [] -> Just [];
+                   (:) e' es' ->
+                    liftM2 (\x x0 -> (:) x x0)
+                      (fromLit (specialiseExp e' rho vars)) (run es')}}
+               in run}
+        in
+        default0 e (liftM toLit (bind (run args) (opSem op)));
+       (:) e2 l0 ->
+        case l0 of {
+         [] ->
+          let {
+           run = let {
+                  run es =
+                    case es of {
+                     [] -> Just [];
+                     (:) e' es' ->
+                      liftM2 (\x x0 -> (:) x x0)
+                        (fromLit (specialiseExp e' rho vars)) (run es')}}
+                 in run}
+          in
+          default0 e (liftM toLit (bind (run args) (opSem op)));
+         (:) e3 l1 ->
+          case l1 of {
+           [] ->
+            case fromLit (specialiseExp e1 rho vars) of {
+             Just v ->
+              case v of {
+               BVal b ->
+                case b of {
+                 True -> specialiseExp e2 rho vars;
+                 False -> specialiseExp e3 rho vars};
+               RVal r -> e};
+             Nothing -> e};
+           (:) e0 l2 ->
+            let {
+             run = let {
+                    run es =
+                      case es of {
+                       [] -> Just [];
+                       (:) e' es' ->
+                        liftM2 (\x x0 -> (:) x x0)
+                          (fromLit (specialiseExp e' rho vars)) (run es')}}
+                   in run}
+            in
+            default0 e (liftM toLit (bind (run args) (opSem op)))}}}};
+   Obs obs t -> default0 e (liftM toLit (rho obs t));
+   VarE v -> default0 e (liftM toLit (lookupEnv v vars));
+   Acc f l z ->
+    let {z' = \rho0 -> specialiseExp z rho0 vars} in
+    let {f' = \rho0 r -> specialiseExp f rho0 ((:) r vars)} in
+    case constFoldAcc rho f' l z' of {
+     Left e0 -> e0;
+     Right p ->
+      case p of {
+       (,) l' e' -> Acc (specialiseExp f rho ((:) Nothing vars)) l' e'}}}
+
+traverseIfWithin :: ExtEnv -> Exp -> (ExtEnv -> Contr) -> (ExtEnv -> Contr)
+                    -> Int -> Either Contr ((,) Exp Int)
+traverseIfWithin rho e c1 c2 l =
+  case specialiseExp e rho [] of {
+   OpE op args ->
+    case op of {
+     BLit b ->
+      case b of {
+       True ->
+        case args of {
+         [] -> Left (c1 rho);
+         (:) e0 l0 -> Right ((,) (OpE (BLit True) ((:) e0 l0)) l)};
+       False ->
+        case args of {
+         [] ->
+          (\fO fS n -> if n==0 then fO () else fS (n-1))
+            (\_ -> Left
+            (c2 rho))
+            (\l' ->
+            traverseIfWithin (adv_ext (id 1) rho) e c1 c2 l')
+            l;
+         (:) e0 l0 -> Right ((,) (OpE (BLit False) ((:) e0 l0)) l)}};
+     x -> Right ((,) (OpE x args) l)};
+   x -> Right ((,) x l)}
+
+isZeroLit :: Exp -> Bool
+isZeroLit e =
+  case e of {
+   OpE op args ->
+    case op of {
+     RLit r ->
+      case args of {
+       [] -> reqb r 0;
+       (:) e0 l -> False};
+     _ -> False};
+   _ -> False}
+
+specialise :: Contr -> ExtEnv -> Contr
+specialise c rho =
+  case c of {
+   Scale e c' ->
+    let {e' = specialiseExp e rho []} in
+    case isZeroLit e' of {
+     True -> Zero;
+     False ->
+      case specialise c' rho of {
+       Zero -> Zero;
+       x -> Scale e' x}};
+   Translate l c' ->
+    case specialise c' (adv_ext (id l) rho) of {
+     Zero -> Zero;
+     x -> translate l x};
+   Both c1 c2 ->
+    case specialise c1 rho of {
+     Zero -> specialise c2 rho;
+     x ->
+      case specialise c2 rho of {
+       Zero -> x;
+       x0 -> Both x x0}};
+   If e l c1 c2 ->
+    case traverseIfWithin rho e (specialise c1) (specialise c2) l of {
+     Left c' -> c';
+     Right p ->
+      case p of {
+       (,) e' l' -> translate ((-) l l') (If e' l' c1 c2)}};
+   _ -> c}
 
