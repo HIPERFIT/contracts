@@ -6,7 +6,7 @@ Require Import Tactics.
 
 
 
-Inductive Red : Contr -> ExtEnv -> Contr -> trans -> Prop :=
+Inductive Red : Contr -> ExtEnv -> Contr -> trans' -> Prop :=
 | red_zero rho : Red Zero rho Zero empty_trans'
 | red_transf c p1 p2 rho : Red (Transfer c p1 p2) rho Zero (singleton_trans' c p1 p2 1)
 | red_scale e rho c c' t v :  E[| e |] rho = Some (RVal v) -> Red c rho c' t ->
@@ -89,7 +89,7 @@ Proof.
 Qed.
 
 
-Fixpoint RedFun (c : Contr) (rho : ExtEnv) : option (Contr * trans) :=
+Fixpoint RedFun (c : Contr) (rho : ExtEnv) : option (Contr * trans') :=
   match c with
     | Zero => Some (Zero, empty_trans')
     | Transfer c p1 p2 => Some (Zero, singleton_trans' c p1 p2 1)

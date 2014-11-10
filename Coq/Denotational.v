@@ -205,21 +205,21 @@ Qed.
 
 (* Semantic structures for contracts. *)
 
-(* An elemtn of type [transfers] represents a set of transfers that a
+(* An elemtn of type [trans] represents a set of transfers that a
  contract specifies at a particular point in time. It can also be
  [None], which indicates that the set of transfers is undefined (read:
  "bottom"). *)
 
-Definition trans := party -> party -> currency -> R.
+Definition trans' := party -> party -> currency -> R.
 
-Definition transfers := option trans.
+Definition trans := option trans'.
 
 
 Open Scope R.
-Definition empty_trans' : trans := fun p1 p2 c => 0.
-Definition empty_trans : transfers := Some empty_trans'.
-Definition bot_trans : transfers := None.
-Definition singleton_trans' (p1 p2 : party) (c : currency) r : trans
+Definition empty_trans' : trans' := fun p1 p2 c => 0.
+Definition empty_trans : trans := Some empty_trans'.
+Definition bot_trans : trans := None.
+Definition singleton_trans' (p1 p2 : party) (c : currency) r : trans'
   := fun p1' p2' c' => if eq_str p1 p2
                        then 0
                        else if eq_str p1 p1' && eq_str p2 p2' && eq_str c c'
@@ -227,11 +227,11 @@ Definition singleton_trans' (p1 p2 : party) (c : currency) r : trans
                             else if eq_str p1 p2' && eq_str p2 p1' && eq_str c c'
                                  then -r
                                  else 0.
-Definition singleton_trans (p1 p2 : party) (c : currency) r : transfers  := Some (singleton_trans' p1 p2 c r).
-Definition add_trans' : trans -> trans -> trans := fun t1 t2 p1 p2 c => (t1 p1 p2 c + t2 p1 p2 c).
-Definition add_trans : transfers -> transfers -> transfers := liftM2 add_trans'.
-Definition scale_trans' : R -> trans -> trans := fun s t p1 p2 c => (t p1 p2 c * s).
-Definition scale_trans : option R -> transfers -> transfers := liftM2 scale_trans'.
+Definition singleton_trans (p1 p2 : party) (c : currency) r : trans  := Some (singleton_trans' p1 p2 c r).
+Definition add_trans' : trans' -> trans' -> trans' := fun t1 t2 p1 p2 c => (t1 p1 p2 c + t2 p1 p2 c).
+Definition add_trans : trans -> trans -> trans := liftM2 add_trans'.
+Definition scale_trans' : R -> trans' -> trans' := fun s t p1 p2 c => (t p1 p2 c * s).
+Definition scale_trans : option R -> trans -> trans := liftM2 scale_trans'.
 
 
 Lemma scale_empty_trans' r : scale_trans' r empty_trans' = empty_trans'.
@@ -259,7 +259,7 @@ Hint Resolve scale_empty_trans' scale_empty_trans add_empty_trans' add_empty_tra
 (* Traces represent the sequence of obligations that a contract
 specifies. *)
 
-Definition trace := nat -> transfers.
+Definition trace := nat -> trans.
 
 
 Instance trace_Partial : Partial trace := {
@@ -269,9 +269,9 @@ Instance trace_Partial : Partial trace := {
 
 (* The following are combinators to contruct traces. *)
 
-Definition const_trace (t : transfers) : trace := fun x => t.
+Definition const_trace (t : trans) : trace := fun x => t.
 Definition empty_trace : trace := const_trace empty_trans.
-Definition singleton_trace (t : transfers) : trace
+Definition singleton_trace (t : trans) : trace
   := fun x => match x with 
                 | O => t
                 | _ => empty_trans
