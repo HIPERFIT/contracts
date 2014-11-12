@@ -3,7 +3,7 @@
 Require Import Equality.
 Require Import Denotational.
 
-Definition TypeEnv (g : TyEnv) (rho : Env) : Prop := forall_zip TypeVal' rho g.
+Definition TypeEnv (g : TyEnv) (rho : Env) : Prop := forall_zip TypeVal rho g.
 
 Definition TypeArgs (ts : list Ty) (args : list Val) : Prop := forall_zip TypeVal args ts.
 
@@ -47,19 +47,26 @@ Proof.
   + simpl. inversion E. apply IHV. auto.
 Qed.
 
+Lemma bind_typed {A} (x : option A) f t : (forall v, x = Some v ->  |-V' f v ∶ t) -> |-V' x >>= f ∶ t.
+Proof.
+  intros. destruct x. simpl. apply H; auto. auto.
+Qed.
+
 Theorem Esem_typed' g e t (rho : Env) (erho : ExtEnv) : 
   g |-E e ∶ t -> TypeEnv g rho -> TypeExt erho -> |-V' E'[|e|] rho erho ∶ t.
 Proof.
   intros E R V'. generalize dependent rho. generalize dependent erho.
   dependent induction E using TypeExp_ind'; intros.
-  + rewrite EsemOpE. eapply OpSem_typed'. apply H. 
+  + simpl. rewrite sequence_map. eapply OpSem_typed'. apply H. 
     do 4 (eapply forall_zip_apply_dep in H1;eauto).  
   + apply V'. auto.
   + simpl. eapply lookupEnv_typed; eauto.
   + simpl. generalize dependent erho. induction n; intros.
     - simpl. auto.
-    - apply IHE1. auto. constructor. 
-      rewrite adv_ext_step. apply IHn. auto. auto.
+    - simpl. apply bind_typed. intros. apply IHE1. auto. constructor. 
+      rewrite adv_ext_step' in H. eapply adv_ext_type in V'.
+      pose (IHn (adv_ext (-1) erho) V') as IH. rewrite H in IH.
+      inversion IH. auto. auto.
 Qed.
 
 Corollary Esem_typed e t (erho : ExtEnv) : 
@@ -77,30 +84,28 @@ Qed.
 
 Hint Resolve total_ext_adv.
 
-Definition total_env (rho : Env) : Prop := forall_list (fun x => exists v , x = Some v) rho.
-
 
 Theorem Esem_typed_total' g e t (rho : Env) (erho : ExtEnv) : 
-  total_env rho -> total_ext erho -> 
-  g |-E e ∶ t -> TypeEnv g rho -> TypeExt erho -> exists v, E'[|e|] rho erho = Some v.
+  total_ext erho -> g |-E e ∶ t -> TypeEnv g rho -> TypeExt erho -> exists v, E'[|e|] rho erho = Some v.
 Proof.
-  intros T' T E R V'. generalize dependent rho. generalize dependent erho.
+  intros T E R V'. generalize dependent rho. generalize dependent erho.
   dependent induction E using TypeExp_ind'; intros.
-  + rewrite EsemOpE in *. eapply OpSem_typed_total. apply H. 
+  + simpl. rewrite sequence_map. eapply OpSem_typed_total. apply H. 
     apply forall_zip_and. eapply forall_zip_impl in H0; auto.
     apply H0. intros. eapply Esem_typed'; eauto. 
     do 6 (eapply forall_zip_apply_dep in H1;eauto). 
   + apply T.
   + simpl. generalize dependent rho. 
     generalize dependent g. induction v; intros.
-    - inversion H. subst. inversion R. subst. simpl.
-      inversion T'. subst. auto.
+    - inversion H. subst. inversion R. subst. simpl. eauto.
     - simpl. inversion H. subst. inversion R. subst. eapply IHv. 
-      apply H2. inversion T'. subst. auto. auto.
+      apply H2. auto.
   + apply proj1 with (B:= |-V' E'[|Acc e1 n e2|] rho erho ∶ t).
     simpl. generalize dependent erho. induction n; intros.
     - simpl. split. apply IHE2; auto. eapply Esem_typed'; eauto.
-    - rewrite adv_ext_step. split. apply IHE1; auto. constructor;auto. apply IHn; auto.
+    - rewrite adv_ext_step. split. simpl. erewrite bind_equals. 
+
+      apply IHE1; auto. constructor;auto. apply IHn; auto.
       constructor. eapply proj2. apply IHn; auto.
       auto. eapply Esem_typed'; eauto.
       constructor. eapply proj2. apply IHn; eauto. auto.

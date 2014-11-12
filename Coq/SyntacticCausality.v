@@ -65,16 +65,15 @@ Proof.
   intros R D O.   generalize dependent vars. generalize dependent r2. generalize dependent r1.
   induction R using Epc_ind'; intros; try solve [simpl; f_equal; auto].
   - simpl; unfold ext_until in O. rewrite O. reflexivity. omega.
-  - repeat rewrite EsemOpE. 
-    do 4 (eapply forall_list_apply_dep in H0;eauto).
-    apply mapM_rewrite in H0. rewrite H0. reflexivity.
+  - do 4 (eapply forall_list_apply_dep in H0;eauto).
+    apply map_rewrite in H0. simpl. rewrite H0. reflexivity.
   - generalize dependent vars. generalize dependent r2. generalize dependent r1. induction l; intros. 
     + simpl. apply IHR2. assumption.
     + pose (adv_ext_step l) as RE. simpl in *. do 2 rewrite RE.
-      erewrite IHl. apply IHR1. rewrite ext_until_adv.
-      do 2 rewrite adv_ext_iter. apply ext_until_adv. 
+      erewrite IHl. apply bind_equals. apply IHl. apply ext_until_adv. eapply ext_until_le. eauto.
+      omega. intros. apply IHR1.  apply ext_until_adv. do 2 rewrite adv_ext_iter. apply ext_until_adv. 
       eapply ext_until_le.  apply O. rewrite Zpos_P_of_succ_nat.
-      omega. apply ext_until_adv. eapply ext_until_le.  apply O. omega.
+      omega. constructor.
 Qed.
 
 Corollary epc_ext_until (e : Exp) d r1 r2 : 

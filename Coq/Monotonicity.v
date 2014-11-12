@@ -12,6 +12,7 @@ Proof.
   destruct X;tryfalse. apply H. rewrite <- H0. auto. 
 Qed.
 
+Hint Resolve adv_ext_monotone.
 
 Import ListNotations.
 
@@ -24,37 +25,27 @@ Proof.
     inversion H. subst. erewrite H3; eauto. erewrite IHl; eauto.
 Qed. 
 
-Lemma lookupEnv_monotone vars1 vars2 v : vars1 ⊆ vars2 -> lookupEnv v vars1 ⊆ lookupEnv v vars2.
-Proof.
-  intros. generalize dependent vars1. generalize dependent vars2. induction v; intros.
-  + simpl. intros. destruct H; auto. 
-  + simpl in *. intros. destruct H; auto. eapply IHv; eauto.
-Qed.
 
-Lemma Esem_monotone' (vars1 vars2 : Env) (e : Exp) rho1 rho2 : 
-  rho1 ⊆ rho2 -> vars1 ⊆ vars2 -> E'[| e |] vars1 rho1 ⊆ E'[| e |] vars2 rho2.
+Lemma Esem_monotone' (vars : Env) (e : Exp) rho1 rho2 : 
+  rho1 ⊆ rho2-> E'[| e |] vars rho1 ⊆ E'[| e |] vars rho2.
 Proof.
   generalize dependent rho1. generalize dependent rho2. 
-  generalize dependent vars1. generalize dependent vars2. 
+  generalize dependent vars.
   induction e using Exp_ind'; try solve [simpl; intros; auto].
-  - intros. do 2 rewrite EsemOpE. simpl. intros.
-    remember (mapM (fun e : Exp => E'[|e|] vars1 rho1) args) as M.
+  - intros. simpl. intros z.  apply bind_monotone. apply sequence_map_monotone.
     do 6 (eapply forall_list_apply_dep in H; eauto).
-    destruct M; tryfalse. symmetry in HeqM. eapply mapM_monotone in HeqM.
-    rewrite HeqM. auto. simpl. auto.
-  - simpl. intros. generalize dependent H1. apply lookupEnv_monotone. auto.
-  - intros. simpl.
+  - intros.
     generalize dependent rho1. generalize dependent rho2. 
-    generalize dependent vars1. generalize dependent vars2. 
+    generalize dependent vars.
     induction d; intros.
     + simpl in *. eapply IHe2; eauto. 
-    + intros. rewrite adv_ext_step. simpl. simpl in H1. eapply IHe1. do 3 apply adv_ext_monotone. eauto. 
-      constructor. simpl. intros. eapply IHd; auto. eauto. apply adv_ext_monotone. eauto.
-      apply H2. eauto. rewrite <- adv_ext_step. apply H1.
+    + simpl. intro. eapply bind_monotone2. simpl in IHd. simpl. intro.
+      repeat rewrite adv_ext_step'. apply IHd. eauto. 
+      intro. apply IHe1. auto.
  Qed.
 
 Corollary Esem_monotone (e : Exp) rho1 rho2 : rho1 ⊆ rho2 -> E[| e |]rho1 ⊆ E[| e |]rho2.
-Proof. intros. apply Esem_monotone'; auto. simpl. auto. Qed.
+Proof. intros. apply Esem_monotone'; auto. Qed.
 
 Theorem Csem_monotone c rho1 rho2 : rho1 ⊆ rho2 -> C[| c |]rho1 ⊆ C[| c |]rho2.
 Proof.
@@ -90,7 +81,5 @@ Proof.
       pose (Esem_monotone e (rho1) (rho2) S) as HB. 
       destruct B; tryfalse. symmetry in HeqB. apply HB in HeqB.
       rewrite HeqB. destruct v; tryfalse. destruct b. eapply IHc1; eauto.
-      unfold delay_trace in *. destruct (leb 1 i).
-      + eapply IHn. apply adv_ext_monotone. eassumption. assumption.
-      + assumption.
+      unfold delay_trace in *. destruct (leb 1 i); eauto.
 Qed.

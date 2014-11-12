@@ -87,50 +87,20 @@ Definition Rltb (s1 s2 : R) : bool :=
 Open Scope bool.
 Definition Reqb (x y : R) : bool := Rleb x y && Rleb y x.
 
-(* Lifts binary functions into [option] types. *)
-
-
-Definition bind {A B} (x : option A) (f : A -> option B) : option B :=
-  match x with
-    | None => None
-    | Some x' => f x'
-  end.
-
-Definition pure {A} : A -> option A := fun x => Some x.
-
-Infix ">>=" := bind (at level 55, left associativity).
-
-Definition liftM {A B} (f : A -> B) (x : option A) : option B :=
- x >>= (pure ∘ f).
-
-Definition liftM2 {A B C} (f : A -> B -> C) (x : option A) (y : option B) : option C :=
- x >>= (fun x' => y >>= pure ∘ f x').
-
-Fixpoint mapM {A B} (f : A -> option B) (l : list A) : option (list B) :=
-  match l with
-    | nil => Some nil
-    | x :: xs => liftM2 (fun x' xs' => x' :: xs') (f x) (mapM f xs)
-  end.
-
-
-Lemma liftM2_none {A B C :Type} (f:A->B->C) o : liftM2 f o None = None.
-Proof.
-  destruct o; reflexivity.
-Qed.
 
 (* Semantics of real expressions. *)
 
-Fixpoint Acc_sem {A} (f : nat -> A -> A) (n : nat) (z : A) : A :=
+Fixpoint Acc_sem {A} (f : nat -> A -> option A) (n : nat) (z : option A) : option A :=
   match n with
     | 0 => z
-    | S n' => f n (Acc_sem f n' z)
+    | S n' => Acc_sem f n' z >>= f n
   end.
 
 Reserved Notation "'E'[|' e '|]'" (at level 9).
 
 Import ListNotations.
 
-Fixpoint OpSem (op : Op) (vs : list Val) : option Val :=
+Definition OpSem (op : Op) (vs : list Val) : option Val :=
   match op with
     | Add => match vs with ([RVal x; RVal y ]) => Some (RVal (x + y)) | _ => None end
     | Sub => match vs with ([RVal x; RVal y ]) => Some (RVal (x - y)) | _ => None end
@@ -152,29 +122,19 @@ Fixpoint OpSem (op : Op) (vs : list Val) : option Val :=
   end.
 
 
-Definition Env := list (option Val).
-
-Instance Env_Partial : Partial Env := {
-  lep t1 t2  := forall_zip lep t1 t2
-  }.
+Definition Env := list Val.
 
 
 Fixpoint lookupEnv (v : Var) (rho : Env) : option Val :=
   match v, rho with
-    | V1, x::_ => x
+    | V1, x::_ => Some x
     | VS v, _::xs => lookupEnv v xs
     | _,_ => None
   end.
 
 Fixpoint Esem' (e : Exp) (rho : Env) (erho : ExtEnv) : option Val :=
     match e with
-      | OpE op args => (* (mapM (fun e => E'[|e|] rho erho) args) >>= OpSem op *)
-        let fix run l :=  
-            match l with
-              | nil => Some nil
-              | x :: xs => liftM2 (@cons _) (E'[| x |] rho erho) (run xs)
-            end
-        in run args >>= OpSem op
+      | OpE op args => sequence (map (fun e => E'[|e|] rho erho) args) >>= OpSem op
       | Obs l i => erho l i
       | VarE v => lookupEnv v rho
       | Acc f l z => let erho' := adv_ext (- Z.of_nat l) erho
@@ -183,23 +143,20 @@ Fixpoint Esem' (e : Exp) (rho : Env) (erho : ExtEnv) : option Val :=
     end
       where "'E'[|' e '|]'" := (Esem' e ). 
 
-
+(*  *)
 Notation "'E[|' e '|]' r" := (E'[|e|] nil r) (at level 9).
-
-
-Lemma EsemOpE op es rho erho : 
-  E'[|OpE op es|] rho erho = (mapM (fun e => E'[|e|] rho erho) es) >>= OpSem op.
-Proof.
-  simpl. f_equal.
-  induction es.
-  + reflexivity.
-  + simpl. f_equal. apply IHes.
-Qed.
 
 
 Lemma adv_ext_step n erho : ((adv_ext (- Z.of_nat (S n)) erho) = (adv_ext (- Z.of_nat n) (adv_ext (-1) erho))).
 Proof.
   rewrite adv_ext_iter. f_equal. rewrite Nat2Z.inj_succ. omega.
+Qed.
+
+Axiom Zneg_of_succ_nat : forall n, Z.neg (Pos.of_succ_nat n) = (- Z.of_nat (S n))%Z.
+
+Lemma adv_ext_step' n erho : ((adv_ext (Z.neg (Pos.of_succ_nat n)) erho) = (adv_ext (- Z.of_nat n) (adv_ext (-1) erho))).
+Proof.
+  rewrite Zneg_of_succ_nat. apply adv_ext_step.
 Qed.
 
 
