@@ -1,10 +1,13 @@
 Require Export Reals.
 Require Export String.
 Require Export Utils.
+Require Export Equalities.
 
-Definition currency := string.
-Definition party := string.
+Declare Module Asset:UsualDecidableTypeFull.
+Declare Module Party:UsualDecidableTypeFull.
 
+Definition Asset := Asset.t.
+Definition Party := Party.t.
 
 Inductive Var : Set := V1 | VS (v:Var).
 
@@ -50,9 +53,9 @@ fix F (e : Exp) : P e :=
   end.
 
 
-Inductive Contr : Set :=
+Inductive Contr : Type :=
  | Zero : Contr
- | Transfer : party -> party -> currency -> Contr
+ | Transfer : Party -> Party -> Asset -> Contr
  | Scale : Exp -> Contr -> Contr
  | Translate : nat -> Contr -> Contr
  | Both : Contr -> Contr -> Contr

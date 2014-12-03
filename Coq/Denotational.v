@@ -10,11 +10,8 @@ Require Import Tactics.
 
 Inductive Val : Set := BVal : bool -> Val | RVal : R -> Val.
 
-Definition ExtEnv := ObsLabel -> Z -> option Val.
+Definition ExtEnv := ObsLabel -> Z -> Val.
 
-Instance ext_Partial : Partial ExtEnv := {
-  lep t1 t2  := forall i (o : ObsLabel) (v : Val) , t1 o i = Some v -> t2 o i = Some v
-  }.
 
 Reserved Notation "'|-V' e '∶' t" (at level 20).
 
@@ -33,7 +30,7 @@ Inductive TypeVal' : option Val -> Ty -> Prop :=
 
 Hint Constructors TypeVal TypeVal'.
 
-Definition TypeExt (rho : ExtEnv) := forall z l t, |-O l ∶ t -> |-V' (rho l z)  ∶ t.
+Definition TypeExt (rho : ExtEnv) := forall z l t, |-O l ∶ t -> |-V (rho l z)  ∶ t.
 
 
 (* Move observations into the future. *)
@@ -135,7 +132,7 @@ Fixpoint lookupEnv (v : Var) (rho : Env) : option Val :=
 Fixpoint Esem' (e : Exp) (rho : Env) (erho : ExtEnv) : option Val :=
     match e with
       | OpE op args => sequence (map (fun e => E'[|e|] rho erho) args) >>= OpSem op
-      | Obs l i => erho l i
+      | Obs l i => Some (erho l i)
       | VarE v => lookupEnv v rho
       | Acc f l z => let erho' := adv_ext (- Z.of_nat l) erho
                      in Acc_sem (fun m x => E'[| f |] (x :: rho) 
@@ -167,7 +164,7 @@ Qed.
  [None], which indicates that the set of transfers is undefined (read:
  "bottom"). *)
 
-Definition trans' := party -> party -> currency -> R.
+Definition trans' := Party -> Party -> Asset -> R.
 
 Definition trans := option trans'.
 
@@ -176,15 +173,15 @@ Open Scope R.
 Definition empty_trans' : trans' := fun p1 p2 c => 0.
 Definition empty_trans : trans := Some empty_trans'.
 Definition bot_trans : trans := None.
-Definition singleton_trans' (p1 p2 : party) (c : currency) r : trans'
-  := fun p1' p2' c' => if eq_str p1 p2
+Definition singleton_trans' (p1 p2 : Party) (a : Asset) r : trans'
+  := fun p1' p2' a' => if Party.eqb p1 p2
                        then 0
-                       else if eq_str p1 p1' && eq_str p2 p2' && eq_str c c'
+                       else if Party.eqb p1 p1' && Party.eqb p2 p2' && Asset.eqb a a'
                             then r
-                            else if eq_str p1 p2' && eq_str p2 p1' && eq_str c c'
+                            else if Party.eqb p1 p2' && Party.eqb p2 p1' && Asset.eqb a a'
                                  then -r
                                  else 0.
-Definition singleton_trans (p1 p2 : party) (c : currency) r : trans  := Some (singleton_trans' p1 p2 c r).
+Definition singleton_trans (p1 p2 : Party) (a : Asset) r : trans  := Some (singleton_trans' p1 p2 a r).
 Definition add_trans' : trans' -> trans' -> trans' := fun t1 t2 p1 p2 c => (t1 p1 p2 c + t2 p1 p2 c).
 Definition add_trans : trans -> trans -> trans := liftM2 add_trans'.
 Definition scale_trans' : R -> trans' -> trans' := fun s t p1 p2 c => (t p1 p2 c * s).

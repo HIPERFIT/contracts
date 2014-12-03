@@ -1,6 +1,6 @@
 Require Import Denotational.
 Require Import Tactics.
-Require Import Monotonicity.
+
 
 (* Specialisation (a.k.a. partial evaluation) of contracts. *)
 

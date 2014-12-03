@@ -87,7 +87,7 @@ Definition pure {A} : A -> option A := fun x => Some x.
 
 Hint Unfold pure compose.
 
-Infix ">>=" := bind (at level 55, left associativity).
+Infix ">>=" := bind (at level 54, left associativity).
 
 Definition liftM {A B} (f : A -> B) (x : option A) : option B :=
  x >>= (pure ∘ f).
