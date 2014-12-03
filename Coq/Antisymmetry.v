@@ -3,8 +3,8 @@
 Require Import Denotational.
 Require Import Tactics.
 
-Definition antisym' (t : trans') : Prop := forall p1 p2 c, t p1 p2 c = - t p2 p1 c.
-Definition antisym (t : trans) : Prop := forall t', t = Some t' -> antisym' t'.
+Definition antisym' (t : Trans') : Prop := forall p1 p2 c, t p1 p2 c = - t p2 p1 c.
+Definition antisym (t : Trans) : Prop := forall t', t = Some t' -> antisym' t'.
 Definition antisym_trace (t : trace) : Prop := forall i, antisym (t i).
 Definition antisym_trace' (t : ExtEnv -> trace) : Prop := forall rho, antisym_trace (t rho).
 

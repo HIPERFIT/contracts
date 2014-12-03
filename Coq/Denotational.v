@@ -176,16 +176,16 @@ Qed.
  [None], which indicates that the set of transfers is undefined (read:
  "bottom"). *)
 
-Definition trans' := Party -> Party -> Asset -> R.
+Definition Trans' := Party -> Party -> Asset -> R.
 
-Definition trans := option trans'.
+Definition Trans := option Trans'.
 
 
 Open Scope R.
-Definition empty_trans' : trans' := fun p1 p2 c => 0.
-Definition empty_trans : trans := Some empty_trans'.
-Definition bot_trans : trans := None.
-Definition singleton_trans' (p1 p2 : Party) (a : Asset) r : trans'
+Definition empty_trans' : Trans' := fun p1 p2 c => 0.
+Definition empty_trans : Trans := Some empty_trans'.
+Definition bot_trans : Trans := None.
+Definition singleton_trans' (p1 p2 : Party) (a : Asset) r : Trans'
   := fun p1' p2' a' => if Party.eqb p1 p2
                        then 0
                        else if Party.eqb p1 p1' && Party.eqb p2 p2' && Asset.eqb a a'
@@ -193,7 +193,7 @@ Definition singleton_trans' (p1 p2 : Party) (a : Asset) r : trans'
                             else if Party.eqb p1 p2' && Party.eqb p2 p1' && Asset.eqb a a'
                                  then -r
                                  else 0.
-Definition singleton_trans (p1 p2 : Party) (a : Asset) r : trans  := Some (singleton_trans' p1 p2 a r).
+Definition singleton_trans (p1 p2 : Party) (a : Asset) r : Trans  := Some (singleton_trans' p1 p2 a r).
 Definition add_trans' : trans' -> trans' -> trans' := fun t1 t2 p1 p2 c => (t1 p1 p2 c + t2 p1 p2 c).
 Definition add_trans : trans -> trans -> trans := liftM2 add_trans'.
 Definition scale_trans' : R -> trans' -> trans' := fun s t p1 p2 c => (t p1 p2 c * s).
