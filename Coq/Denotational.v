@@ -93,6 +93,18 @@ Fixpoint Acc_sem {A} (f : nat -> A -> option A) (n : nat) (z : option A) : optio
     | S n' => Acc_sem f n' z >>= f n
   end.
 
+(* Induction principle for Acc_sem *)
+Lemma Acc_sem_ind A (P : option A -> Prop) f n z : (forall i (x : A), P (Some x) -> P (f i x)) ->  
+                                            P z -> P (Acc_sem f n z).
+Proof.
+  intros F Z. induction n. 
+  - simpl. auto.
+  - simpl. remember (Acc_sem f n z) as x. destruct x. 
+    + simpl. apply F. assumption.
+    + simpl. assumption.
+Qed.
+
+
 Reserved Notation "'E'[|' e '|]'" (at level 9).
 
 Import ListNotations.

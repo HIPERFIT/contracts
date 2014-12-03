@@ -3,6 +3,7 @@ Require Import Tactics.
 Require Import List.
 Import ListNotations.
 Require Import FunctionalExtensionality.
+Require Import Typing.
 
 (* advancing contracts and expressions *)
 
@@ -39,8 +40,7 @@ Proof.
   simpl. induction d0; intros.
   - simpl. apply IHe2.
   - repeat rewrite adv_ext_step. simpl. rewrite IHd0. 
-    repeat rewrite adv_ext_iter. apply bind_equals.
-      
+    repeat rewrite adv_ext_iter. apply bind_equals.      
     f_equal; try (f_equal; omega). f_equal.
     f_equal; try (f_equal;f_equal; omega). do 2 (apply functional_extensionality; intro).
     do 3 f_equal. omega. do 2 f_equal. omega. intros. rewrite IHe1.
@@ -50,3 +50,11 @@ Qed.
 
 Lemma adv_exp_ext d (e : Exp) rho : E[|adv_exp d e|] rho = E[|e|] (adv_ext d rho).
 Proof. apply adv_exp_ext'. Qed.
+
+
+Lemma adv_exp_type g d e t : g |-E e ∶ t -> g |-E adv_exp d e ∶ t.
+Proof.
+  intro T. generalize dependent g. generalize dependent t. 
+  induction e using Exp_ind'; intros; simpl; inversion T; subst; try auto.
+  - econstructor. eassumption. eapply forall_list_apply_dep' in H. apply forall_list_zip; eauto. 
+Qed.

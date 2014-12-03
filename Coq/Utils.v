@@ -199,6 +199,12 @@ Proof.
   intros. destruct x; subst; simpl; auto.
 Qed.
 
+Lemma bind_some {A B} x (f : A -> option B) : (exists v, x = Some v) ->
+                                                  (forall i, exists v, f i = Some v) -> exists v, x >>= f = Some v.
+Proof.
+  intros. destruct H. pose (H0 x0) as E; subst; simpl; auto.
+Qed.
+
 
 Lemma liftM_some {A B} (f : A -> B) x y : liftM f x = Some y -> exists x', x = Some x' /\ y = f x'.
 Proof.
@@ -220,6 +226,23 @@ Qed.
 
 Lemma forall_list_apply_dep {A} (P : Type) (p : P) (R : A -> P -> Prop) xs : 
   forall_list (fun x => forall (p:P), R x p) xs -> forall_list (fun x => R x p) xs.
+Proof.
+  intros F. induction F; auto.
+Qed.
+
+
+
+
+Lemma forall_list_zip T T' (P : T -> T' -> Prop) l l' f :
+  forall_list (fun x => forall t, P x t -> P (f x) t) l -> forall_zip P l l' -> forall_zip P (map f l) l'.
+Proof.
+  generalize dependent l'. induction l; intros.
+  + simpl. assumption.
+  + simpl. inversion H. inversion H0. subst. constructor. auto. apply IHl; auto.
+Qed.
+
+Lemma forall_list_apply_dep' {A} (P Q : Type) (q : Q) (R : A -> P -> Q -> Prop) xs : 
+  forall_list (fun x => forall (p:P) (q:Q), R x p q) xs -> forall_list (fun x => forall (p:P), R x p q) xs.
 Proof.
   intros F. induction F; auto.
 Qed.
