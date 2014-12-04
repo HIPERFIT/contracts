@@ -27,7 +27,7 @@ Qed.
 values of the correct type. *)
 
 Theorem Esem_typed_total g e t (rho : Env) (erho : ExtEnv) : 
-  g |-E e ∶ t -> TypeEnv g rho -> TypeExt erho -> (exists v, E'[|e|] rho erho = Some v /\ |-V v ∶ t).
+  g |-E e ∶ t -> TypeEnv g rho -> TypeExt erho -> (exists v, E[|e|] rho erho = Some v /\ |-V v ∶ t).
 Proof.
   intros E R V'. generalize dependent rho. generalize dependent erho.
   dependent induction E using TypeExp_ind'; intros.
@@ -53,27 +53,33 @@ Hint Unfold empty_trace empty_trans const_trace empty_trans
 (* The denotational semantics of contracts is total. *)
 
 
-Theorem Csem_typed_total c (erho : ExtEnv) : 
-  |-C c -> TypeExt erho -> total_trace (C[|c|] erho).
+Theorem Csem_typed_total c g (rho: Env) (erho : ExtEnv) : 
+ g |-C c -> TypeEnv g rho -> TypeExt erho -> total_trace (C[|c|] rho erho).
 Proof.
-  intros C R. generalize dependent erho. unfold total_trace. induction C.
+  intros C T R. generalize dependent rho. generalize dependent erho. generalize dependent g.
+  unfold total_trace. induction c.
   + simpl. repeat autounfold. eauto.
+  + simpl. repeat autounfold. intros. inversion C; subst. clear C. 
+    eapply Esem_typed_total in H2; eauto. decompose [ex and] H2. rewrite H0.
+    assert (TypeEnv (t :: g) (x :: rho)) as T'. constructor; auto.
+    destruct (IHc (t :: g) H3 erho R (x :: rho) T' i). rewrite H. eauto.
   + simpl. repeat autounfold. intros. destruct i; eauto.
   + simpl. repeat autounfold. intros. unfold liftM2, bind.
-    destruct (IHC erho R i). 
-    eapply Esem_typed_total in H; eauto. decompose [and ex] H.
-    rewrite H2. inversion H3. simpl. rewrite  H0.
-    unfold pure, compose. eauto. constructor.
-  + intros. simpl. unfold delay_trace. destruct (leb d i).
-    simpl. apply IHC; auto. autounfold; eauto.
-  + intros. simpl. unfold add_trace, add_trans, liftM2, bind. 
-    destruct (IHC1 erho R i). rewrite H.
-    destruct (IHC2 erho R i). rewrite H0.
+    inversion C. subst. destruct (IHc g H3 erho R rho T i). 
+    eapply Esem_typed_total in H2; eauto. decompose [and ex] H2.
+    rewrite H1. inversion H4. simpl. rewrite  H.
+    unfold pure, compose. eauto. 
+  + intros. simpl. unfold delay_trace. inversion C; subst. destruct (leb n i).
+    simpl. eapply IHc; eauto. autounfold; eauto.
+  + intros. simpl. unfold add_trace, add_trans, liftM2, bind. inversion C; subst.
+    destruct (IHc1 g H2 erho R rho T i). rewrite H.
+    destruct (IHc2 g H3 erho R rho T i). rewrite H0.
     unfold pure, compose. eauto.
-  + simpl. induction d; intros.
-    - simpl. eapply  Esem_typed_total in H; eauto. decompose [and ex] H.
-      rewrite H1. inversion H2. destruct b; auto. constructor.
-    - simpl. eapply  Esem_typed_total in H; eauto. decompose [and ex] H.
-      rewrite H1. inversion H2. destruct b; auto. 
-      unfold delay_trace. destruct (leb 1 i). apply IHd; eauto. autounfold. eauto. constructor.
+  + simpl. induction n; intros;inversion C; subst.
+    - simpl. eapply  Esem_typed_total in H3; eauto. decompose [and ex] H3.
+      rewrite H0. inversion H1. destruct b; eauto. 
+    - simpl. eapply  Esem_typed_total in H3; eauto. decompose [and ex] H3.
+      rewrite H0. inversion H1. destruct b; eauto. 
+      unfold delay_trace. destruct (leb 1 i). eapply IHn; eauto. inversion C; subst. 
+      constructor; auto. autounfold. eauto.
 Qed.

@@ -10,22 +10,22 @@ Require Import DenotationalTyped.
 (* Full equivalence. *)
 
 Definition equiv (c1 c2 : Contr) : Prop := 
-  forall rho : ExtEnv, TypeExt rho -> C[|c1|]rho = C[|c2|]rho.
+  forall (rho : ExtEnv), TypeExt rho -> C[|c1|]nil rho = C[|c2|]nil rho.
 Infix "≡" := equiv (at level 40).
 
 (* [c1 ⊑ c2] iff the semantics of [c1] and [c2] coincidese "in all
 places" that [c1]'s semantics is defined. *)
 
 Definition lequiv (c1 c2 : Contr) : Prop := 
-  forall rho : ExtEnv, C[|c1|]rho ⊆ C[|c2|]rho.
+  forall rho : ExtEnv, C[|c1|]nil rho ⊆ C[|c2|]nil rho.
 
 Infix "⊑" := lequiv (at level 40).
 
 
-Lemma lequiv_total c1 c2 r : total_trace (C[|c1|]r) -> c1 ⊑ c2 -> C[|c1|]r = C[|c2|]r.
+Lemma lequiv_total c1 c2 vars r : total_trace (C[|c1|]vars r) -> c1 ⊑ c2 -> C[|c1|]vars r = C[|c2|]vars r.
 Proof.
   unfold lequiv, total_trace, lep. intros T S.   apply functional_extensionality. intro.
-  remember (C[|c1|] r x) as C1. destruct C1. erewrite S. reflexivity. auto.
+  remember (C[|c1|] vars r x) as C1. destruct C1. erewrite S. reflexivity. auto.
   symmetry in HeqC1. pose (T x) as HH. destruct HH. tryfalse.
 Qed.
 

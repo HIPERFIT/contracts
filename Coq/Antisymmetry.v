@@ -6,7 +6,7 @@ Require Import Tactics.
 Definition antisym' (t : Trans') : Prop := forall p1 p2 c, t p1 p2 c = - t p2 p1 c.
 Definition antisym (t : Trans) : Prop := forall t', t = Some t' -> antisym' t'.
 Definition antisym_trace (t : trace) : Prop := forall i, antisym (t i).
-Definition antisym_trace' (t : ExtEnv -> trace) : Prop := forall rho, antisym_trace (t rho).
+Definition antisym_trace' (t : Env -> ExtEnv -> trace) : Prop := forall vars rho, antisym_trace (t vars rho).
 
 
 Hint Resolve Ropp_0 Ropp_involutive.
@@ -102,17 +102,19 @@ Qed.
 Hint Resolve const_trace_antisym add_trace_antisym delay_trace_antisym 
      scale_trace_antisym singleton_trace_antisym bot_trans_antisym empty_trans_antisym.
 
-Lemma within_trace_antisym t1 t2 b rho n : antisym_trace' t1 -> antisym_trace' t2 -> 
-                                           antisym_trace (within_sem t1 t2 b rho n).
+Lemma within_trace_antisym t1 t2 b vars rho n : antisym_trace' t1 -> antisym_trace' t2 -> 
+                                                antisym_trace (within_sem t1 t2 b vars rho n).
 Proof.
   intros. generalize dependent rho. induction n; intros; simpl;
-                                    destruct (E[|b|]rho); try destruct v; try destruct b0; auto.
+                                    destruct (E[|b|]vars rho); try destruct v; try destruct b0; auto.
  Qed.
 
 Hint Resolve within_trace_antisym.
 
 
-Theorem sem_antisym c rho : antisym_trace (C[| c |]rho).
+Theorem sem_antisym c vars rho : antisym_trace (C[| c |] vars rho).
 Proof.
-  generalize dependent rho. induction c; intros; simpl; unfold empty_trace; auto. 
+  generalize dependent rho. generalize dependent vars. 
+  induction c; intros; simpl; unfold empty_trace; auto. 
+  destruct (E[|e|] vars rho); auto. 
 Qed.

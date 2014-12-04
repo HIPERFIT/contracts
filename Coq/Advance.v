@@ -25,8 +25,8 @@ Ltac rewr_assumption := idtac; match goal with
                         end.
 
 
-Lemma adv_exp_ext' (vars : Env) d (e : Exp) rho : 
-  E'[|adv_exp d e|] vars rho = E'[|e|] vars (adv_ext d rho).
+Lemma adv_exp_ext (vars : Env) d (e : Exp) rho : 
+  E[|adv_exp d e|] vars rho = E[|e|] vars (adv_ext d rho).
 Proof.
   generalize dependent rho.   generalize dependent vars. 
   induction e using Exp_ind';intros; 
@@ -47,9 +47,6 @@ Proof.
     repeat rewrite Zpos_P_of_succ_nat. do 2 f_equal. omega. rewrite <- adv_ext_0. f_equal.
     omega.
 Qed.
-
-Lemma adv_exp_ext d (e : Exp) rho : E[|adv_exp d e|] rho = E[|e|] (adv_ext d rho).
-Proof. apply adv_exp_ext'. Qed.
 
 
 Lemma adv_exp_type g d e t : g |-E e ∶ t -> g |-E adv_exp d e ∶ t.

@@ -55,6 +55,7 @@ fix F (e : Exp) : P e :=
 
 Inductive Contr : Type :=
  | Zero : Contr
+ | Let : Exp -> Contr -> Contr
  | Transfer : Party -> Party -> Asset -> Contr
  | Scale : Exp -> Contr -> Contr
  | Translate : nat -> Contr -> Contr

@@ -104,9 +104,6 @@ Proof.
     + simpl. assumption.
 Qed.
 
-
-Reserved Notation "'E'[|' e '|]'" (at level 9).
-
 Import ListNotations.
 
 Definition OpSem (op : Op) (vs : list Val) : option Val :=
@@ -141,19 +138,18 @@ Fixpoint lookupEnv (v : Var) (rho : Env) : option Val :=
     | _,_ => None
   end.
 
-Fixpoint Esem' (e : Exp) (rho : Env) (erho : ExtEnv) : option Val :=
+Reserved Notation "'E[|' e '|]'" (at level 9).
+
+Fixpoint Esem (e : Exp) (rho : Env) (erho : ExtEnv) : option Val :=
     match e with
-      | OpE op args => sequence (map (fun e => E'[|e|] rho erho) args) >>= OpSem op
+      | OpE op args => sequence (map (fun e => E[|e|] rho erho) args) >>= OpSem op
       | Obs l i => Some (erho l i)
       | VarE v => lookupEnv v rho
       | Acc f l z => let erho' := adv_ext (- Z.of_nat l) erho
-                     in Acc_sem (fun m x => E'[| f |] (x :: rho) 
-                                              (adv_ext (Z.of_nat m) erho')) l (E'[|z|] rho erho')
+                     in Acc_sem (fun m x => E[| f |] (x :: rho) 
+                                              (adv_ext (Z.of_nat m) erho')) l (E[|z|] rho erho')
     end
-      where "'E'[|' e '|]'" := (Esem' e ). 
-
-(*  *)
-Notation "'E[|' e '|]' r" := (E'[|e|] nil r) (at level 9).
+      where "'E[|' e '|]'" := (Esem e ). 
 
 
 Lemma adv_ext_step n erho : ((adv_ext (- Z.of_nat (S n)) erho) = (adv_ext (- Z.of_nat n) (adv_ext (-1) erho))).
@@ -171,9 +167,9 @@ Qed.
 
 (* Semantic structures for contracts. *)
 
-(* An elemtn of type [trans] represents a set of transfers that a
+(* An elemtn of type [trans] represents a set of Transfers that a
  contract specifies at a particular point in time. It can also be
- [None], which indicates that the set of transfers is undefined (read:
+ [None], which indicates that the set of Transfers is undefined (read:
  "bottom"). *)
 
 Definition Trans' := Party -> Party -> Asset -> R.
@@ -194,10 +190,10 @@ Definition singleton_trans' (p1 p2 : Party) (a : Asset) r : Trans'
                                  then -r
                                  else 0.
 Definition singleton_trans (p1 p2 : Party) (a : Asset) r : Trans  := Some (singleton_trans' p1 p2 a r).
-Definition add_trans' : trans' -> trans' -> trans' := fun t1 t2 p1 p2 c => (t1 p1 p2 c + t2 p1 p2 c).
-Definition add_trans : trans -> trans -> trans := liftM2 add_trans'.
-Definition scale_trans' : R -> trans' -> trans' := fun s t p1 p2 c => (t p1 p2 c * s).
-Definition scale_trans : option R -> trans -> trans := liftM2 scale_trans'.
+Definition add_trans' : Trans' -> Trans' -> Trans' := fun t1 t2 p1 p2 c => (t1 p1 p2 c + t2 p1 p2 c).
+Definition add_trans : Trans -> Trans -> Trans := liftM2 add_trans'.
+Definition scale_trans' : R -> Trans' -> Trans' := fun s t p1 p2 c => (t p1 p2 c * s).
+Definition scale_trans : option R -> Trans -> Trans := liftM2 scale_trans'.
 
 
 Lemma scale_empty_trans' r : scale_trans' r empty_trans' = empty_trans'.
@@ -225,7 +221,7 @@ Hint Resolve scale_empty_trans' scale_empty_trans add_empty_trans' add_empty_tra
 (* Traces represent the sequence of obligations that a contract
 specifies. *)
 
-Definition trace := nat -> trans.
+Definition trace := nat -> Trans.
 
 
 Instance trace_Partial : Partial trace := {
@@ -235,9 +231,9 @@ Instance trace_Partial : Partial trace := {
 
 (* The following are combinators to contruct traces. *)
 
-Definition const_trace (t : trans) : trace := fun x => t.
+Definition const_trace (t : Trans) : trace := fun x => t.
 Definition empty_trace : trace := const_trace empty_trans.
-Definition singleton_trace (t : trans) : trace
+Definition singleton_trace (t : Trans) : trace
   := fun x => match x with 
                 | O => t
                 | _ => empty_trans
@@ -288,13 +284,13 @@ Qed.
 
 (* The following function is needed to define the semantics of [IfWithin]. *)
 
-Fixpoint within_sem (c1 c2 : ExtEnv -> trace) 
-         (e : Exp) (rc : ExtEnv) (i : nat) : trace 
-  := match E[|e|]rc with
-       | Some (BVal true) => c1 rc
+Fixpoint within_sem (c1 c2 : Env -> ExtEnv -> trace) 
+         (e : Exp) (vars : Env) (rc : ExtEnv) (i : nat) : trace 
+  := match E[|e|] vars rc with
+       | Some (BVal true) => c1 vars rc
        | Some (BVal false) => match i with
-                         | O => c2 rc
-                         | S j => delay_trace 1 (within_sem c1 c2 e (adv_ext 1 rc) j)
+                         | O => c2 vars rc
+                         | S j => delay_trace 1 (within_sem c1 c2 e vars (adv_ext 1 rc) j)
                        end
        | _ => const_trace bot_trans
      end.
@@ -310,14 +306,17 @@ Definition toReal (v : Val) : option R :=
     | BVal _ => None
   end.
 
-Fixpoint Csem (c : Contr) : ExtEnv -> trace :=
-  fun rho => 
+Fixpoint Csem (c : Contr) (vars : Env) (rho : ExtEnv) : trace :=
     match c with
       | Zero => empty_trace
+      | Let e c => match E[|e|] vars rho with
+                     | None => const_trace bot_trans
+                     | Some val => C[|c|] (val :: vars) rho
+                   end
       | Transfer p1 p2 c => singleton_trace (singleton_trans p1 p2 c  1)
-      | Scale e c' => scale_trace (E[|e|]rho >>= toReal) (C[|c'|]rho) 
-      | Translate d c' => (delay_trace d) (C[|c'|](adv_ext (Z.of_nat d) rho))
-      | Both c1 c2 => add_trace (C[|c1|]rho) (C[|c2|]rho)
-      | If e d c1 c2 => within_sem C[|c1|] C[|c2|] e rho d
+      | Scale e c' => scale_trace (E[|e|] vars rho >>= toReal) (C[|c'|] vars rho) 
+      | Translate d c' => (delay_trace d) (C[|c'|]vars (adv_ext (Z.of_nat d) rho))
+      | Both c1 c2 => add_trace (C[|c1|]vars rho) (C[|c2|]vars rho)
+      | If e d c1 c2 => within_sem C[|c1|] C[|c2|] e vars rho d
     end
       where "'C[|' e '|]'" := (Csem e).

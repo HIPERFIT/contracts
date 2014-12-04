@@ -90,16 +90,17 @@ fix F (t : TyEnv) (e : Exp) (t0 : Ty) (t1 : t |-E e ∶ t0) {struct t1} :
   end.
 
 
-Reserved Notation "'|-C' e" (at level 20).
+Reserved Notation "g '|-C' e" (at level 20).
 
-Inductive TypeContr : Contr -> Prop :=
-| type_zero : |-C Zero
-| type_transfer p1 p2 c : |-C Transfer p1 p2 c
-| type_scale e c : nil |-E e ∶ REAL -> |-C c -> |-C Scale e c
-| type_translate d c : |-C c -> |-C Translate d c
-| type_both c1 c2 : |-C c1 ->  |-C c2 -> |-C Both c1 c2
-| type_if e d c1 c2 : nil |-E e ∶ BOOL -> |-C c1 ->  |-C c2 -> |-C If e d c1 c2
-  where "'|-C' c" := (TypeContr c).
+Inductive TypeContr : TyEnv -> Contr -> Prop :=
+| type_zero g : g |-C Zero
+| type_let e c t g : g |-E e ∶ t -> (t :: g) |-C c -> g |-C Let e c
+| type_transfer p1 p2 c g : g |-C Transfer p1 p2 c
+| type_scale e c g : g |-E e ∶ REAL -> g |-C c -> g |-C Scale e c
+| type_translate d c g : g |-C c -> g |-C Translate d c
+| type_both c1 c2 g : g |-C c1 -> g |-C c2 -> g |-C Both c1 c2
+| type_if e d c1 c2 g : g |-E e ∶ BOOL -> g |-C c1 -> g |-C c2 -> g |-C If e d c1 c2
+  where "g '|-C' c" := (TypeContr g c).
 
 
 Hint Constructors TypeOp TypeObs TypeExp TypeVar TypeContr.
