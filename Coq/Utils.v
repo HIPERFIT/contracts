@@ -199,10 +199,9 @@ Proof.
   intros. destruct x; subst; simpl; auto.
 Qed.
 
-Lemma bind_some {A B} x (f : A -> option B) : (exists v, x = Some v) ->
-                                                  (forall i, exists v, f i = Some v) -> exists v, x >>= f = Some v.
+Lemma bind_some {A B} x v (f : A -> option B) : x >>= f = Some v -> exists x', x = Some x' /\ f x' = Some v.
 Proof.
-  intros. destruct H. pose (H0 x0) as E; subst; simpl; auto.
+  destruct x; simpl; autounfold; intros; inversion H. eexists. split; reflexivity.
 Qed.
 
 
@@ -210,11 +209,27 @@ Lemma liftM_some {A B} (f : A -> B) x y : liftM f x = Some y -> exists x', x = S
 Proof.
   destruct x; simpl; autounfold; intros; inversion H. eexists. split; reflexivity.
 Qed.
-                                 
-      
+
+Lemma liftM2_some {A1 A2 B} (f : A1 -> A2 -> B) x1 x2 y : liftM2 f x1 x2 = Some y
+                                           -> exists x1' x2', x1 = Some x1' /\ x2 = Some x2' /\ y = f x1' x2'.
+Proof.
+  destruct x1; destruct x2; simpl; autounfold; intros; inversion H. do 2 eexists. do 2 split; reflexivity.
+Qed.
 
 
+Ltac option_inv T := idtac;let H := fresh "H" in pose T as H; match goal with
+                      | [T : liftM _ _ = Some _ |- _] => apply liftM_some in H
+                      | [T : liftM2 _ _ _ = Some _ |- _] => apply liftM2_some in H
+                      | [T : _ >>= _ = Some _ |- _] => apply bind_some in H
+                     end; decompose [ex and] H; clear H.
 
+Ltac option_inv' T := option_inv T; subst; clear T.
+
+Ltac option_inv_auto := repeat (idtac; match goal with
+                      | [T : liftM _ _ = Some _ |- _] => apply liftM_some in T; decompose [ex and] T; clear T
+                      | [T : liftM2 _ _ _ = Some _ |- _] => apply liftM2_some in T; decompose [ex and] T; clear T
+                      | [T : _ >>= _ = Some _ |- _] => apply bind_some in T; decompose [ex and] T; clear T
+                     end;subst).
 
 
 Lemma map_rewrite {A B} (f g : A -> option B) l : forall_list (fun x => f x = g x) l -> map f l = map g l.
@@ -231,8 +246,6 @@ Proof.
 Qed.
 
 
-
-
 Lemma forall_list_zip T T' (P : T -> T' -> Prop) l l' f :
   forall_list (fun x => forall t, P x t -> P (f x) t) l -> forall_zip P l l' -> forall_zip P (map f l) l'.
 Proof.
@@ -245,4 +258,13 @@ Lemma forall_list_apply_dep' {A} (P Q : Type) (q : Q) (R : A -> P -> Q -> Prop) 
   forall_list (fun x => forall (p:P) (q:Q), R x p q) xs -> forall_list (fun x => forall (p:P), R x p q) xs.
 Proof.
   intros F. induction F; auto.
+Qed.
+
+Lemma liftM_liftM A B C (f : B -> C) (g : A -> B) x : liftM f (liftM g x) = liftM (f ∘ g) x.
+Proof.
+  unfold liftM, bind. destruct x. unfold compose, pure. reflexivity. reflexivity.
+Qed.
+Lemma liftM_extensionality A B (f g : A -> B) x : (forall x, f x = g x) -> liftM f x = liftM g x.
+Proof.
+  intros. unfold liftM, bind, pure, compose. destruct x. rewrite H. reflexivity. reflexivity.
 Qed.

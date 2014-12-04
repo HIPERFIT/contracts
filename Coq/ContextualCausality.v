@@ -10,22 +10,43 @@ causality is slightly weaker. *)
 
 Open Scope Z.
 
-Reserved Notation "d 'R|-' c" (at level 20).
 
-Inductive rpc : forall {V}, Z -> rexp' V -> Prop:=
-| rpc_obs : forall d V o i,  i <= d ->  d R|- Obs o i (V:=V)
-| rpc_lit : forall d V q, d R|- RLit q (V:=V)
-| rpc_bin : forall V op e1 e2 d, d R|- e1 -> d R|- e2 -> d R|- RBin op e1 e2  (V:=V)
-| rpc_neg : forall V e d, d R|- e -> d R|- RNeg e  (V:=V)
-| rpc_var : forall d V q, d R|- RVar q (V:=V)
-| rpc_acc : forall d V f m z, d  R|- f -> d R|- z -> d R|- RAcc f m z (V:=V)
+Definition TimeEnv := list Z.
 
-                                         where "d 'R|-' e" := (rpc d e). 
 
-Lemma rpc_open d d' n (e : rexp' n) : d R|- e -> (d <= d')%Z -> d' R|- e.
+Inductive CausalV : TimeEnv -> Z -> Var -> Prop :=
+| time_var_1 t t' g  : t <= t' -> CausalV (t :: g) t' V1
+| time_var_S g v t t' : CausalV g t v -> CausalV (t' :: g) t (VS v).
+
+
+(* Lemma CausalV_open t t' ts ts' (v : Var) : forall_zip Z.le ts' ts -> t <= t' -> CausalV ts t v -> CausalV ts' t' v. *)
+(* Proof. *)
+(*   intros Is I P. generalize dependent t. generalize dependent t'. generalize dependent ts. generalize dependent ts'. *)
+(*   induction v; intros; inversion P; subst. *)
+(*   - inversion Is. subst. constructor. omega. *)
+(*   - inversion Is. subst. constructor. eauto. *)
+(* Qed. *)
+
+Inductive CausalE : TimeEnv -> Z -> Exp -> Prop:= 
+ | ce_op t ts op args : forall_list (CausalE ts t) args -> CausalE ts t (OpE op args)
+ | ce_obs l t' t ts : t' <= t -> CausalE ts t (Obs l t')
+ | ce_var t ts v : CausalV ts t v -> CausalE ts t (VarE v)
+ | ce_acc t ts e1 e2 n : CausalE ts (t + Z.of_nat n) e2 -> CausalE ts t e1 -> CausalE ts t (Acc e1 n e2)
+  .
+
+
+
+Lemma CausalE_open t t' ts (e : Exp) : t <= t' -> CausalE ts t e -> CausalE ts t' e.
 Proof.
-  intros P. generalize dependent d'. induction P; intros; constructor; auto.
+  intros I P. generalize dependent t. generalize dependent t'. generalize dependent ts.
+  induction e using Exp_ind'; intros;inversion P;subst;constructor.
+  - induction args.
+    * constructor.
+    * inversion H3. inversion H. subst. constructor. eauto. apply IHargs. auto. constructor. auto. auto.
   - omega.
+  - eapply CausalV_open; eauto.
+  - eapply IHe2; eauto. omega.
+  - eapply IHe1; eauto. 
 Qed.
 
 

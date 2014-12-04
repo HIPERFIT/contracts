@@ -1,5 +1,6 @@
 Require Import Causality.
 Require Import Advance.
+Require Import Tactics.
 
 (* Syntactic causality. We define a simple syntactic notion of
 causality that conservatively approximates the semantic notion. In
@@ -59,8 +60,8 @@ Hint Constructors Epc Pc.
 (* Below follows the proof that provable causality is sound (i.e. it
 implies semantic causality). *)
 
-Lemma epc_ext_until' (e : Exp) d r1 r2 vars : 
-  Epc e -> 0 <= d -> ext_until d r1 r2 -> E'[|e|]vars r1 = E'[|e|]vars r2.
+Lemma epc_ext_until (e : Exp) d r1 r2 vars : 
+  Epc e -> 0 <= d -> ext_until d r1 r2 -> E[|e|]vars r1 = E[|e|]vars r2.
 Proof.
   intros R D O.   generalize dependent vars. generalize dependent r2. generalize dependent r1.
   induction R using Epc_ind'; intros; try solve [simpl; f_equal; auto].
@@ -76,30 +77,28 @@ Proof.
       omega. constructor.
 Qed.
 
-Corollary epc_ext_until (e : Exp) d r1 r2 : 
-  Epc e -> 0 <= d -> ext_until d r1 r2 -> E[|e|] r1 = E[|e|]r2.
-Proof. apply epc_ext_until'. Qed.
 
 
 
 Theorem pc_causal c : Pc c -> causal c.
 Proof.
   intros. induction H; unfold causal in *; intros; simpl.
-
-  unfold delay_trace.
-  remember (leb d d0) as C. destruct C.
+  
+  - simpl in *. option_inv_auto. unfold delay_trace.
+    remember (leb d d0) as C. destruct C.
     symmetry in HeqC. apply leb_complete in HeqC.
-    apply IHPc. rewrite ext_until_adv. assert (Z.of_nat d + Z.of_nat(d0 - d) = Z.of_nat d0) as D.
+    assert (Z.of_nat d + Z.of_nat(d0 - d) = Z.of_nat d0) as D.
     rewrite <- Nat2Z.inj_add. f_equal. omega.
-    rewrite D. assumption.
-    
-    reflexivity.
-
-  reflexivity.
-
-  unfold scale_trace, compose. erewrite IHPc by apply H1.
-  unfold scale_trans. rewrite epc_ext_until with (r2:=r2) (d:=Z.of_nat d) by (auto; omega).
-  reflexivity. 
+    eapply IHPc. rewrite ext_until_adv with (t:=Z.of_nat d).  
+    rewrite D. eassumption.
+    eassumption. eassumption. reflexivity.
+  - simpl in *. rewrite H0 in H1. inversion H1. reflexivity.
+  - simpl in *. option_inv_auto. destruct x3;destruct x4;tryfalse. 
+    simpl in *. inversion H8. inversion H9.
+    unfold scale_trace, compose. erewrite IHPc.
+by apply H1.
+    unfold scale_trans. rewrite epc_ext_until with (r2:=r2) (d:=Z.of_nat d) by (auto; omega).
+    reflexivity. 
 
   unfold add_trace. f_equal; auto.
 

@@ -13,7 +13,8 @@ Definition ext_until (d : Z) (r1 r2 : ExtEnv) : Prop :=
 (* Semantic causality *)
 
 Definition causal (c : Contr) : Prop :=
-  forall d vars r1 r2,  ext_until (Z.of_nat d) r1 r2 -> (C[|c|]vars r1) d = (C[|c|] vars r2) d.
+  forall d vars r1 r2 t1 t2,  ext_until (Z.of_nat d) r1 r2 -> C[|c|]vars r1 = Some t1 -> C[|c|] vars r2 = Some t2
+                        -> t1 d = t2 d.
 
 
 Lemma ext_until_adv d t (r1 r2 : ExtEnv): 

@@ -172,16 +172,12 @@ Qed.
  [None], which indicates that the set of Transfers is undefined (read:
  "bottom"). *)
 
-Definition Trans' := Party -> Party -> Asset -> R.
-
-Definition Trans := option Trans'.
+Definition Trans := Party -> Party -> Asset -> R.
 
 
 Open Scope R.
-Definition empty_trans' : Trans' := fun p1 p2 c => 0.
-Definition empty_trans : Trans := Some empty_trans'.
-Definition bot_trans : Trans := None.
-Definition singleton_trans' (p1 p2 : Party) (a : Asset) r : Trans'
+Definition empty_trans : Trans := fun p1 p2 c => 0.
+Definition singleton_trans (p1 p2 : Party) (a : Asset) r : Trans
   := fun p1' p2' a' => if Party.eqb p1 p2
                        then 0
                        else if Party.eqb p1 p1' && Party.eqb p2 p2' && Asset.eqb a a'
@@ -189,66 +185,51 @@ Definition singleton_trans' (p1 p2 : Party) (a : Asset) r : Trans'
                             else if Party.eqb p1 p2' && Party.eqb p2 p1' && Asset.eqb a a'
                                  then -r
                                  else 0.
-Definition singleton_trans (p1 p2 : Party) (a : Asset) r : Trans  := Some (singleton_trans' p1 p2 a r).
-Definition add_trans' : Trans' -> Trans' -> Trans' := fun t1 t2 p1 p2 c => (t1 p1 p2 c + t2 p1 p2 c).
-Definition add_trans : Trans -> Trans -> Trans := liftM2 add_trans'.
-Definition scale_trans' : R -> Trans' -> Trans' := fun s t p1 p2 c => (t p1 p2 c * s).
-Definition scale_trans : option R -> Trans -> Trans := liftM2 scale_trans'.
+Definition add_trans : Trans -> Trans -> Trans := fun t1 t2 p1 p2 c => (t1 p1 p2 c + t2 p1 p2 c).
+Definition scale_trans : R -> Trans -> Trans := fun s t p1 p2 c => (t p1 p2 c * s).
 
 
-Lemma scale_empty_trans' r : scale_trans' r empty_trans' = empty_trans'.
+Lemma scale_empty_trans r : scale_trans r empty_trans = empty_trans.
 Proof.
-  unfold scale_trans', empty_trans'. rewrite Rmult_0_l. reflexivity.
+  unfold scale_trans, empty_trans. rewrite Rmult_0_l. reflexivity.
 Qed.
 
-Lemma scale_empty_trans r : scale_trans (Some r) empty_trans = empty_trans.
-Proof.
-  simpl. unfold pure, compose. rewrite scale_empty_trans'. reflexivity.
-Qed.
-
-Lemma add_empty_trans' : add_trans' empty_trans' empty_trans' = empty_trans'.
-Proof.
-  unfold add_trans', empty_trans'. rewrite Rplus_0_l. reflexivity.
-Qed.
 
 Lemma add_empty_trans : add_trans empty_trans empty_trans = empty_trans.
 Proof.
-  simpl. unfold pure, compose. rewrite add_empty_trans'. reflexivity.
+  unfold add_trans, empty_trans. rewrite Rplus_0_l. reflexivity.
 Qed.
 
-Hint Resolve scale_empty_trans' scale_empty_trans add_empty_trans' add_empty_trans.
+
+Hint Resolve scale_empty_trans add_empty_trans.
 
 (* Traces represent the sequence of obligations that a contract
 specifies. *)
 
-Definition trace := nat -> Trans.
+Definition Trace := nat -> Trans.
 
-
-Instance trace_Partial : Partial trace := {
-  lep t1 t2  := forall i z , t1 i = Some z -> t2 i = Some z
-  }.
 
 
 (* The following are combinators to contruct traces. *)
 
-Definition const_trace (t : Trans) : trace := fun x => t.
-Definition empty_trace : trace := const_trace empty_trans.
-Definition singleton_trace (t : Trans) : trace
+Definition const_trace (t : Trans) : Trace := fun x => t.
+Definition empty_trace : Trace := const_trace empty_trans.
+Definition singleton_trace (t : Trans) : Trace
   := fun x => match x with 
                 | O => t
                 | _ => empty_trans
               end.
-Definition scale_trace (s : option R) (t : trace) : trace
+Definition scale_trace (s : R) (t : Trace) : Trace
   := scale_trans s ∘ t.
 
 Open Scope nat.
 
-Definition delay_trace (d : nat) (t : trace) : trace :=
+Definition delay_trace (d : nat) (t : Trace) : Trace :=
   fun x => if leb d x
            then t (x - d)
            else empty_trans.
 
-Definition add_trace (t1 t2 : trace) : trace 
+Definition add_trace (t1 t2 : Trace) : Trace 
   := fun x => add_trans (t1 x) (t2 x).
 
 (* Some lemmas about [delay_trace]. *)
@@ -284,15 +265,15 @@ Qed.
 
 (* The following function is needed to define the semantics of [IfWithin]. *)
 
-Fixpoint within_sem (c1 c2 : Env -> ExtEnv -> trace) 
-         (e : Exp) (vars : Env) (rc : ExtEnv) (i : nat) : trace 
+Fixpoint within_sem (c1 c2 : Env -> ExtEnv -> option Trace) 
+         (e : Exp) (i : nat)  (vars : Env) (rc : ExtEnv) : option Trace 
   := match E[|e|] vars rc with
        | Some (BVal true) => c1 vars rc
        | Some (BVal false) => match i with
                          | O => c2 vars rc
-                         | S j => delay_trace 1 (within_sem c1 c2 e vars (adv_ext 1 rc) j)
+                         | S j => liftM (delay_trace 1) (within_sem c1 c2 e j vars (adv_ext 1 rc))
                        end
-       | _ => const_trace bot_trans
+       | _ => None
      end.
 
 
@@ -306,17 +287,14 @@ Definition toReal (v : Val) : option R :=
     | BVal _ => None
   end.
 
-Fixpoint Csem (c : Contr) (vars : Env) (rho : ExtEnv) : trace :=
+Fixpoint Csem (c : Contr) (vars : Env) (rho : ExtEnv) : option Trace :=
     match c with
-      | Zero => empty_trace
-      | Let e c => match E[|e|] vars rho with
-                     | None => const_trace bot_trans
-                     | Some val => C[|c|] (val :: vars) rho
-                   end
-      | Transfer p1 p2 c => singleton_trace (singleton_trans p1 p2 c  1)
-      | Scale e c' => scale_trace (E[|e|] vars rho >>= toReal) (C[|c'|] vars rho) 
-      | Translate d c' => (delay_trace d) (C[|c'|]vars (adv_ext (Z.of_nat d) rho))
-      | Both c1 c2 => add_trace (C[|c1|]vars rho) (C[|c2|]vars rho)
-      | If e d c1 c2 => within_sem C[|c1|] C[|c2|] e vars rho d
+      | Zero => Some empty_trace
+      | Let e c => E[|e|] vars rho >>= fun val => C[|c|] (val :: vars) rho
+      | Transfer p1 p2 c => Some (singleton_trace (singleton_trans p1 p2 c 1))
+      | Scale e c' => liftM2 scale_trace (E[|e|] vars rho >>= toReal) (C[|c'|] vars rho) 
+      | Translate d c' => liftM (delay_trace d) (C[|c'|]vars (adv_ext (Z.of_nat d) rho))
+      | Both c1 c2 => liftM2 add_trace (C[|c1|]vars rho) (C[|c2|]vars rho)
+      | If e d c1 c2 => within_sem C[|c1|] C[|c2|] e d vars rho
     end
       where "'C[|' e '|]'" := (Csem e).

@@ -44,7 +44,7 @@ Proof.
 Qed.
 
 
-Definition total_trace (t : trace) := forall i, exists v, t i = Some v.
+Definition total_trace (t : option Trace) := exists v, t = Some v.
 
 Hint Unfold empty_trace empty_trans const_trace empty_trans 
      total_trace singleton_trace singleton_trans scale_trace scale_trans.
@@ -62,24 +62,28 @@ Proof.
   + simpl. repeat autounfold. intros. inversion C; subst. clear C. 
     eapply Esem_typed_total in H2; eauto. decompose [ex and] H2. rewrite H0.
     assert (TypeEnv (t :: g) (x :: rho)) as T'. constructor; auto.
-    destruct (IHc (t :: g) H3 erho R (x :: rho) T' i). rewrite H. eauto.
-  + simpl. repeat autounfold. intros. destruct i; eauto.
+    destruct (IHc (t :: g) H3 erho R (x :: rho) T'). simpl. rewrite H. eauto.
+  + simpl. repeat autounfold. intros. eauto.
   + simpl. repeat autounfold. intros. unfold liftM2, bind.
-    inversion C. subst. destruct (IHc g H3 erho R rho T i). 
+    inversion C. subst. destruct (IHc g H3 erho R rho T). 
     eapply Esem_typed_total in H2; eauto. decompose [and ex] H2.
     rewrite H1. inversion H4. simpl. rewrite  H.
     unfold pure, compose. eauto. 
-  + intros. simpl. unfold delay_trace. inversion C; subst. destruct (leb n i).
-    simpl. eapply IHc; eauto. autounfold; eauto.
+  + intros. simpl. unfold delay_trace. inversion C; subst. 
+    assert (TypeExt (adv_ext (Z.of_nat n) erho)) as R' by auto.
+    destruct (IHc g H1 (adv_ext (Z.of_nat n) erho) R' rho T).
+    rewrite H. simpl. autounfold; eauto.
   + intros. simpl. unfold add_trace, add_trans, liftM2, bind. inversion C; subst.
-    destruct (IHc1 g H2 erho R rho T i). rewrite H.
-    destruct (IHc2 g H3 erho R rho T i). rewrite H0.
+    destruct (IHc1 g H2 erho R rho T). rewrite H.
+    destruct (IHc2 g H3 erho R rho T). rewrite H0.
     unfold pure, compose. eauto.
   + simpl. induction n; intros;inversion C; subst.
     - simpl. eapply  Esem_typed_total in H3; eauto. decompose [and ex] H3.
       rewrite H0. inversion H1. destruct b; eauto. 
     - simpl. eapply  Esem_typed_total in H3; eauto. decompose [and ex] H3.
       rewrite H0. inversion H1. destruct b; eauto. 
-      unfold delay_trace. destruct (leb 1 i). eapply IHn; eauto. inversion C; subst. 
-      constructor; auto. autounfold. eauto.
+      assert (TypeExt (adv_ext 1 erho)) as R' by auto.
+      assert (g |-C If e n c1 c2) as C' by (inversion C; constructor;auto).
+      destruct (IHn g C' (adv_ext 1 erho) R' rho T).
+      rewrite H2. simpl. autounfold. eauto.
 Qed.
