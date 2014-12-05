@@ -48,6 +48,7 @@ fix F (e : Exp) (e0 : Epc e) {struct e0} : P e :=
 
 Inductive Pc : Contr -> Prop :=
 | pc_transl : forall d c, Pc c -> Pc (Translate d c)
+| pc_let : forall e c, Epc e -> Pc c -> Pc (Let e c)
 | pc_transf : forall cur p1 p2, Pc (Transfer cur p1 p2)
 | pc_scale : forall e c, Epc e -> Pc c -> Pc (Scale e c)
 | pc_both : forall c1 c2, Pc c1 -> Pc c2 -> Pc (Both c1 c2)
@@ -92,32 +93,28 @@ Proof.
     eapply IHPc. rewrite ext_until_adv with (t:=Z.of_nat d).  
     rewrite D. eassumption.
     eassumption. eassumption. reflexivity.
+  - simpl in *. option_inv_auto. erewrite epc_ext_until in H4; eauto. rewrite H4 in H5. 
+    inversion H5. subst. eauto. omega.
   - simpl in *. rewrite H0 in H1. inversion H1. reflexivity.
-  - simpl in *. option_inv_auto. destruct x3;destruct x4;tryfalse. 
-    simpl in *. inversion H8. inversion H9.
-    unfold scale_trace, compose. erewrite IHPc.
-by apply H1.
-    unfold scale_trans. rewrite epc_ext_until with (r2:=r2) (d:=Z.of_nat d) by (auto; omega).
-    reflexivity. 
-
-  unfold add_trace. f_equal; auto.
-
-  reflexivity.
-
-  generalize dependent d. generalize dependent r1. generalize dependent r2. 
-  induction l; intros; simpl.
-  
-  rewrite epc_ext_until with (r2:=r2) (d:=Z.of_nat d) by (eauto;omega). 
-  remember (E[|b|]r2) as bl. destruct bl. destruct v. destruct b0. eapply IHPc1; eassumption. 
-  eapply IHPc2; eassumption. reflexivity. reflexivity.
-
-  rewrite epc_ext_until with (r2:=r2) (d:=Z.of_nat d) by (eauto;omega). 
-  remember (E[|b|]r2) as bl. destruct bl. destruct v. destruct b0.  eapply IHPc1; eassumption. 
-  unfold delay_trace. remember (leb 1 d) as L. destruct L.  apply IHl. 
-  rewrite Nat2Z.inj_sub.
-  apply ext_until_adv_1. symmetry in HeqL. apply leb_complete in HeqL. apply inj_le in HeqL. auto.
-  auto.
-  apply leb_complete. auto. auto. reflexivity. reflexivity.
+  - simpl in *. rewrite epc_ext_until with (r2:=r2) (d:=Z.of_nat d) in H2 by first[eassumption|omega].
+    option_inv_auto. rewrite H7 in H3. inversion H3. clear H3. subst. 
+    rewrite H9 in H8. inversion H8. clear H8. subst.
+    unfold scale_trace, compose. erewrite IHPc by eassumption. reflexivity. 
+  - simpl in *. option_inv_auto. unfold add_trace. f_equal; eauto.
+  - simpl in *. inversion H0. inversion H1. reflexivity.
+  - generalize dependent d. generalize dependent r1. generalize dependent r2. 
+    generalize dependent t1. generalize dependent t2. 
+    induction l; intros; simpl in *.
+    + rewrite epc_ext_until with (r2:=r2) (d:=Z.of_nat d) in * by (eauto;omega).
+      remember (E[|b|] vars r2) as bl. destruct bl;tryfalse. destruct v;tryfalse. 
+      destruct b0; [eapply IHPc1|eapply IHPc2]; eassumption. 
+    +rewrite epc_ext_until with (r2:=r2) (d:=Z.of_nat d) in * by (eauto;omega). 
+     remember (E[|b|] vars r2) as bl. destruct bl;tryfalse. destruct v;tryfalse.
+     destruct b0.  eapply IHPc1; eassumption. 
+     option_inv_auto. pose (IHl _ _ _ H5 _ H6) as IH.
+     unfold delay_trace in *. remember (leb 1 d) as L. destruct L;try reflexivity. eapply IH.
+     symmetry in HeqL. apply leb_complete in HeqL. rewrite Nat2Z.inj_sub by assumption.
+     apply ext_until_adv_1. apply inj_le in HeqL. assumption. assumption.
 Qed.
 
 Open Scope bool.
@@ -161,6 +158,7 @@ Qed.
 Fixpoint pc_dec (c : Contr) : bool :=
   match c with
     | Zero => true
+    | Let e c => epc_dec e && pc_dec c
     | Transfer _ _ _ => true
     | Scale e c => epc_dec e && pc_dec c
     | Translate _ c => pc_dec c
@@ -175,8 +173,10 @@ Proof.
     try first [repeat rewrite Bool.andb_true_iff in D; decompose [and] D
               |rewrite Z.leb_le in D]; auto.
     + rewrite -> epc_dec_correct in H. auto.
+    + rewrite -> epc_dec_correct in H. auto.
     + rewrite epc_dec_correct in H1. auto.
   - intros D. induction D; simpl; try first [rewrite IHD1, IHD2| apply Z.leb_le]; auto.
     + rewrite <- epc_dec_correct in H. rewrite H, IHD. auto.
+    + rewrite <-epc_dec_correct in H. rewrite H. auto.
     + rewrite <-epc_dec_correct in H. rewrite H. auto.
 Qed.

@@ -92,8 +92,9 @@ Hint Resolve within_trace_antisym.
 
 Theorem sem_antisym c : antisym_trace' (C[| c |]).
 Proof.
-  (* unfold antisym_trace'. induction c; intros; simpl in *; inversion H; subst; unfold empty_trace; auto.  *)
-  (* destruct (E[|e|] vars rho). simpl in *. eapply IHc. apply H. tryfalse. *)
-  (* destruct (E[|e|] vars rho); auto.  *)
-  admit.
+  
+  induction c; try solve[unfold antisym_trace'; intros; simpl in *; 
+                         first[progress option_inv_auto| inversion H]; subst; unfold empty_trace; eauto].
+  
+  simpl. apply within_trace_antisym; auto.
 Qed.
