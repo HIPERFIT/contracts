@@ -4,7 +4,7 @@
 
 module SyntaxContract (
 -- * Data types used in contracts
-Currency,
+Asset,
 Party,
 
 Exp,
@@ -39,7 +39,7 @@ ExtEnv,
 Trans,
 horizon,
 advance,
-specialise,
+--specialise,
 
 ExpHoas,
 R, B
@@ -47,7 +47,7 @@ R, B
 ) where
 
 
-import Contract hiding (Exp,translate)
+import Contract hiding (Exp)
 import qualified Contract as C
 
 deriving instance Show Var
@@ -152,7 +152,7 @@ true = opE (BLit True) []
 zero :: Contr
 zero = Zero
 
-transfer :: Party -> Party -> Currency -> Contr
+transfer :: Party -> Party -> Asset -> Contr
 transfer = Transfer
 
 scale :: RExp -> Contr -> Contr
@@ -170,5 +170,5 @@ ifWithin e = If (toExp e)
 iff :: BExp -> Contr -> Contr -> Contr
 iff e  = ifWithin e 0
 
-advance :: Contr -> ExtEnv -> Maybe (Contr, Trans)
+advance :: Contr -> Env -> ExtEnv -> Maybe (Contr, Trans)
 advance = redFun

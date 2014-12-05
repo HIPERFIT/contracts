@@ -3,7 +3,7 @@ Add LoadPath "..".
 Require Import Denotational.
 Require Import Reduction.
 Require Import Horizon.
-Require Import Specialise.
+
 
 
 
@@ -43,7 +43,7 @@ Extract Inlined Constant R0 => "0".
 
 Extract Inlined Constant negb => "not".
 Extract Inlined Constant Z.eqb => "(==)".
-Extract Inlined Constant eq_str => "(==)".
+
 
 Extract Inductive prod => "(,)" [ "(,)" ].
 Extract Inlined Constant fst => "fst".
@@ -58,17 +58,27 @@ Extract Inlined Constant Z.to_nat => "id".
 Extract Inductive option => "Maybe" [ "Just" "Nothing" ].
 Extract Constant option_rect => "flip maybe".
 Extraction Inline option_rect option_rec.
+Extract Inlined Constant bind => "(>>=)".
+Extract Inlined Constant liftM => "liftM".
+Extract Inlined Constant liftM2 => "liftM2".
+Extract Inlined Constant pure => "return".
+Extract Inlined Constant sequence => "sequence".
+Extract Inlined Constant mapM => "mapM".
+
 
 Extract Inductive sum => "Either" ["Left" "Right"].
 
-Extract Inductive string => "String" ["[]" "(:)"].
+Extract Inlined Constant Asset => "Asset".
+Extract Inlined Constant Party => "Party".
+Extract Inlined Constant BoolObs => "String".
+Extract Inlined Constant RealObs => "String".
 
-Extract Inductive Ascii.ascii => "Char" ["'a'"]. (* TODO: real translation *)
+Extract Inlined Constant Asset.eqb => "(==)".
+Extract Inlined Constant Party.eqb => "(==)".
 
 
 
 Extraction "ContractExtracted.hs" 
   Contr
   horizon
-  RedFun
-  specialise.
+  RedFun.

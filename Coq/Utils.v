@@ -1,6 +1,5 @@
 Require Export List.
 Require Export Basics.
-Require Export String.
 Require Import Tactics.
 
 Infix "∘" := compose (at level 40, left associativity).

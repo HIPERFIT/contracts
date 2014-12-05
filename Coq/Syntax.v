@@ -1,18 +1,29 @@
 (********** Syntax of the contract language **********)
 
 Require Export Reals.
-Require Export String.
 Require Export Utils.
 Require Export Equalities.
 
-Declare Module Asset:UsualDecidableTypeFull.
-Declare Module Party:UsualDecidableTypeFull.
 
 (* The types of assets and parties are keep abstract. They should at
 least be decicable, though. *)
 
-Definition Asset := Asset.t.
-Definition Party := Party.t.
+Parameter Asset : Set.
+Parameter Party : Set.
+
+Parameter BoolObs : Set.
+Parameter RealObs : Set.
+
+Module Asset.
+  Parameter eqb : Asset -> Asset -> bool.
+  Parameter eqb_eq : forall x y, eqb x y = true <-> x = y.
+End Asset.
+
+Module Party.
+  Parameter eqb : Party -> Party -> bool.
+  Parameter eqb_eq : forall x y, eqb x y = true <-> x = y.
+End Party.
+
 
 (* The type of variables. *)
 
@@ -20,7 +31,7 @@ Inductive Var : Set := V1 | VS (v:Var).
 
 (* The type of labels that describe external observables. *)
 
-Inductive ObsLabel : Set := LabR (l:string) | LabB (l:string).
+Inductive ObsLabel : Set := LabR (l:RealObs) | LabB (l:BoolObs).
 
 (* The type of operations that may be used in expressions. *)
 
