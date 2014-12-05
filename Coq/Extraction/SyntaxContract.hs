@@ -1,4 +1,3 @@
-{-# LANGUAGE ImpredicativeTypes #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
@@ -27,7 +26,7 @@ bNot,
 bObs,
 reifyExp,
 
--- -- * Contract combinators
+-- * Contract combinators
 ContrHoas,
 Contr,
 zero,
