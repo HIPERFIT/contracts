@@ -1,14 +1,7 @@
 import SyntaxContract
 
-iff(be,c1,c2) = ifWithin(be,0,c1,c2)
+-- Silly example to test the interaction of binders on contract and
+-- expression level.
 
-ex1 = iff(bLit False,zero,both(transfOne("ME","YOU","EUR"),
-                               scale(rLit 3.2, transfOne("ME","YOU","EUR"))))
-
-ex1s = specialise ex1 envEmpty
-
-res = advance ex1 envEmpty 
-
-pp :: Maybe(Contract,Trans) -> String
-pp Nothing = "Nothing"
-pp (Just (c,t)) = "New Contract: " ++ show c ++ "\nTrans: " ++ show (t "ME" "YOU" "EUR")
+ex1 :: Contr
+ex1 = letc 0 (\ b -> scale (acc (\r -> r + (acc (\r' -> b) 0 0)) 0 0) zero)

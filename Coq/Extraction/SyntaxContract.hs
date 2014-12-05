@@ -1,3 +1,6 @@
+{-# LANGUAGE ImpredicativeTypes #-}
+{-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -22,8 +25,10 @@ false, true,
 (!<!), (!<=!), (!=!), (!>!), (!>=!), (!&!), (!|!),
 bNot,
 bObs,
+reifyExp,
 
--- * Contract combinators
+-- -- * Contract combinators
+ContrHoas,
 Contr,
 zero,
 transfer,
@@ -32,6 +37,8 @@ both,
 translate,
 ifWithin,
 iff,
+letc,
+reifyContr,
 
 -- * Operations on contracts
 ObsLabel (..),
@@ -47,11 +54,11 @@ R, B
 ) where
 
 
-import Contract hiding (Exp)
+import Contract hiding (Exp,Contr)
 import qualified Contract as C
 
 deriving instance Show Var
-deriving instance Show Contr
+deriving instance Show C.Contr
 deriving instance Show ObsLabel
 deriving instance Show Op
 deriving instance Show C.Exp
@@ -74,7 +81,7 @@ newtype DB t = DB {unDB :: Int -> C.Exp}
 instance ExpHoas' DB where
     ife b e1 e2 = DB (\ i -> OpE Cond [unDB b i, unDB e1 i, unDB e2 i])
     opE op args = DB (\ i -> OpE op (map (($ i) . unDB) args))
-    obs l t = DB (\i -> Obs l t)
+    obs l t = DB (\_ -> Obs l t)
     acc f t e = DB (\i -> let v = \ j -> VarE (toVar (j-(i+1))) 
                           in Acc (unDB (f (DB v)) (i+1)) t (unDB e i))
 
@@ -102,9 +109,8 @@ instance ExpHoas DB
 
 type Exp t = forall exp . ExpHoas exp => exp t
 
-toExp :: Exp t -> C.Exp
-toExp t = unDB t 0
-
+reifyExp :: Exp t -> C.Exp
+reifyExp t = unDB t 0
 
 
 rObs :: ExpHoas exp => String -> Int -> exp R
@@ -149,26 +155,39 @@ false = opE (BLit False) []
 true :: BExp
 true = opE (BLit True) []
 
-zero :: Contr
-zero = Zero
 
-transfer :: Party -> Party -> Asset -> Contr
-transfer = Transfer
 
-scale :: RExp -> Contr -> Contr
-scale e = Scale (toExp e)
+newtype CDB = CDB {unCDB :: Int -> C.Contr}
 
-both :: Contr -> Contr -> Contr
-both = Both
+class ExpHoas exp => ContrHoas exp contr | exp -> contr, contr -> exp where
+    zero :: contr
+    letc :: exp t -> (exp t -> contr) -> contr
+    scale :: exp R -> contr -> contr
+    both :: contr -> contr -> contr
+    transfer :: Party -> Party -> Asset -> contr
+    translate :: Int -> contr -> contr
+    ifWithin :: exp B -> Int -> contr -> contr -> contr
 
-translate :: Int -> Contr -> Contr
-translate = Translate
 
-ifWithin :: BExp -> Int -> Contr -> Contr -> Contr
-ifWithin e = If (toExp e)
+instance ContrHoas DB CDB where
+    zero = CDB (\_-> Zero)
+    letc e c = CDB (\i -> let v = \ j -> VarE (toVar (j-(i+1))) 
+                          in Let (unDB e i) (unCDB (c (DB v)) (i+1)))
+    transfer p1 p2 a = CDB (\_-> Transfer p1 p2 a)
+    scale e c = CDB (\i -> Scale (unDB e i) (unCDB c i))
+    translate t c = CDB (\i -> Translate t (unCDB c i))
+    both c1 c2 = CDB (\i -> Both (unCDB c1 i) (unCDB c2 i))
+    ifWithin e t c1 c2 = CDB (\i -> If (unDB e i) t (unCDB c1 i) (unCDB c2 i))
+    
 
-iff :: BExp -> Contr -> Contr -> Contr
+type Contr = forall exp contr . ContrHoas exp contr => contr
+
+reifyContr :: Contr -> C.Contr
+reifyContr t = unCDB t 0
+
+iff :: ContrHoas exp contr => exp B -> contr -> contr -> contr
 iff e  = ifWithin e 0
 
-advance :: Contr -> Env -> ExtEnv -> Maybe (Contr, Trans)
+
+advance :: C.Contr -> Env -> ExtEnv -> Maybe (C.Contr, Trans)
 advance = redFun
