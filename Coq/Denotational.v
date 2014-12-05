@@ -6,34 +6,18 @@ Require Import Equality.
 Require Import FunctionalExtensionality.
 Require Import Tactics.
 
-(* Observations: mapping observables to values *)
+Import ListNotations.
+
+(* The type of values for evaluating expressions *)
 
 Inductive Val : Set := BVal : bool -> Val | RVal : R -> Val.
+
+(* External environments map observables to values *)
 
 Definition ExtEnv := ObsLabel -> Z -> Val.
 
 
-Reserved Notation "'|-V' e '∶' t" (at level 20).
-
-Inductive TypeVal : Val -> Ty -> Prop := 
-| type_bool b : |-V BVal b ∶ BOOL
-| type_real b : |-V RVal b ∶ REAL
-        where "'|-V' v '∶' t" := (TypeVal v t).
-
-
-Reserved Notation "'|-V'' e '∶' t" (at level 20).
-
-Inductive TypeVal' : option Val -> Ty -> Prop := 
-| type_some v t : |-V v ∶ t -> |-V' Some v ∶ t
-| type_none t : |-V' None ∶ t
-        where "'|-V'' v '∶' t" := (TypeVal' v t).
-
-Hint Constructors TypeVal TypeVal'.
-
-Definition TypeExt (rho : ExtEnv) := forall z l t, |-O l ∶ t -> |-V (rho l z)  ∶ t.
-
-
-(* Move observations into the future. *)
+(* Move external environments into the future. *)
 
 Definition adv_ext (d : Z) (e : ExtEnv) : ExtEnv
   := fun l x => e l (d + x)%Z.
@@ -59,13 +43,6 @@ Proof.
   repeat rewrite adv_ext_iter. rewrite Z.add_comm. reflexivity.
 Qed.
 
-
-Lemma adv_ext_type e d : TypeExt e -> TypeExt (adv_ext d e).
-Proof.
-  unfold TypeExt, adv_ext. intros. auto.
-Qed.
-
-Hint Resolve adv_ext_type.
 
 (* Semantics of (real) binary operations. *)
 
@@ -104,7 +81,7 @@ Proof.
     + simpl. assumption.
 Qed.
 
-Import ListNotations.
+(* Semantics of operations *)
 
 Definition OpSem (op : Op) (vs : list Val) : option Val :=
   match op with
@@ -127,6 +104,7 @@ Definition OpSem (op : Op) (vs : list Val) : option Val :=
     | Not => match vs with ([BVal x]) => Some (BVal (negb x)) | _ => None end
   end.
 
+(* (Internal) environments map variables to values. *)
 
 Definition Env := list Val.
 
@@ -137,6 +115,8 @@ Fixpoint lookupEnv (v : Var) (rho : Env) : option Val :=
     | VS v, _::xs => lookupEnv v xs
     | _,_ => None
   end.
+
+(* Semantics of expressions. *)
 
 Reserved Notation "'E[|' e '|]'" (at level 9).
 

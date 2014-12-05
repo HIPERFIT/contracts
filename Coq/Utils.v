@@ -48,19 +48,6 @@ Proof.
 Qed.
 
 
-Definition eq_str (s1 s2 : string) : bool :=
-  match string_dec s1 s2 with
-      | left  _ => true
-      | right _ => false
-  end.
-
-Lemma eq_str_iff s1 s2 : eq_str s1 s2 = true <-> s1 = s2.
-Proof.
-  split.
-  + unfold eq_str. destruct (string_dec s1 s2). auto. intro H. inversion H.
-  + intro H. rewrite H. unfold eq_str. destruct (string_dec s2 s2). reflexivity. 
-    tryfalse.
-Qed.
   
 
 Class Partial t := {

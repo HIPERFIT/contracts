@@ -1,3 +1,5 @@
+(********** Syntax of the contract language **********)
+
 Require Export Reals.
 Require Export String.
 Require Export Utils.
@@ -6,25 +8,37 @@ Require Export Equalities.
 Declare Module Asset:UsualDecidableTypeFull.
 Declare Module Party:UsualDecidableTypeFull.
 
+(* The types of assets and parties are keep abstract. They should at
+least be decicable, though. *)
+
 Definition Asset := Asset.t.
 Definition Party := Party.t.
 
+(* The type of variables. *)
+
 Inductive Var : Set := V1 | VS (v:Var).
 
+(* The type of labels that describe external observables. *)
+
 Inductive ObsLabel : Set := LabR (l:string) | LabB (l:string).
+
+(* The type of operations that may be used in expressions. *)
 
 Inductive Op : Set := Add | Sub | Mult | Div | And | Or | Less | Leq | Equal |
                       Not | Neg |
                       BLit (b : bool) | RLit (r:R) |
                       Cond.
 
-
+(* The type of expressions. *)
 
 Inductive Exp : Set := OpE (op : Op) (args : list Exp)
                      | Obs (l:ObsLabel) (i: Z)
                      | VarE (v:Var)
                      | Acc (f : Exp) (d : nat) (e : Exp).
 
+
+(* We need to define a custom induction principle for expressions. The
+automatically generated induction principle is too weak. *)
 
 Definition Exp_ind'   : forall P : Exp -> Prop,
        (forall (op : Op) (args : list Exp), forall_list P args -> P (OpE op args)) ->

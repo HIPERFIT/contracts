@@ -2,11 +2,15 @@
 
 Require Export Syntax.
 
+Import ListNotations.
+
+(* Types for the expression language *)
 Inductive Ty := REAL | BOOL.
 
-Reserved Notation "'|-Op' e '∶' t '=>' r" (at level 20).
 
-Import ListNotations.
+(* Typing of operations *)
+
+Reserved Notation "'|-Op' e '∶' t '=>' r" (at level 20).
 
 Inductive TypeOp : Op -> list Ty -> Ty -> Prop := 
 | type_blit b : |-Op (BLit b) ∶ [] => BOOL
@@ -25,6 +29,8 @@ Inductive TypeOp : Op -> list Ty -> Ty -> Prop :=
 | type_equal : |-Op Equal ∶ [REAL;REAL] => BOOL
         where "'|-Op' v '∶' t '=>' r" := (TypeOp v t r).
 
+
+(* Typing of observalbes *)
 Reserved Notation "'|-O' e '∶' t" (at level 20).
 
 Inductive TypeObs : ObsLabel -> Ty -> Prop := 
@@ -32,14 +38,22 @@ Inductive TypeObs : ObsLabel -> Ty -> Prop :=
 | type_obs_real b : |-O LabR b ∶ REAL
         where "'|-O' v '∶' t" := (TypeObs v t).
 
-Reserved Notation "g '|-X' v '∶' t" (at level 20).
+
+(* Type environments map variables to their types. *)
 
 Definition TyEnv := list Ty.
+
+(* Typing of variables *)
+
+Reserved Notation "g '|-X' v '∶' t" (at level 20).
 
 Inductive TypeVar : TyEnv -> Var -> Ty -> Prop :=
 | type_var_1 t g  : (t :: g) |-X V1 ∶ t
 | type_var_S g v t : g |-X v ∶ t -> (t :: g) |-X VS v ∶ t
         where "g '|-X' v '∶' t" := (TypeVar g v t).
+
+
+(* Typing of expressions *)
 
 Reserved Notation "g '|-E' e '∶' t" (at level 20).
 
@@ -89,6 +103,8 @@ fix F (t : TyEnv) (e : Exp) (t0 : Ty) (t1 : t |-E e ∶ t0) {struct t1} :
       f2 n t2 g e1 e2 t3 (F (t2 :: g) e1 t2 t3) t4 (F g e2 t2 t4)
   end.
 
+
+(* Typing of contracts. *)
 
 Reserved Notation "g '|-C' e" (at level 20).
 

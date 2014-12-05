@@ -1,9 +1,46 @@
 (********** Denotational semantics preserves types  **********)
+(**********    (and is total on typed contracts)    **********)
 
 Require Import Equality.
 Require Import Denotational.
 
+
+(* Typing of values *)
+
+Reserved Notation "'|-V' e '∶' t" (at level 20).
+
+Inductive TypeVal : Val -> Ty -> Prop := 
+| type_bool b : |-V BVal b ∶ BOOL
+| type_real b : |-V RVal b ∶ REAL
+        where "'|-V' v '∶' t" := (TypeVal v t).
+
+(* Typing of partial values *)
+
+Reserved Notation "'|-V'' e '∶' t" (at level 20).
+
+Inductive TypeVal' : option Val -> Ty -> Prop := 
+| type_some v t : |-V v ∶ t -> |-V' Some v ∶ t
+| type_none t : |-V' None ∶ t
+        where "'|-V'' v '∶' t" := (TypeVal' v t).
+
+Hint Constructors TypeVal TypeVal'.
+
+(* Typing of external environments *)
+
+Definition TypeExt (rho : ExtEnv) := forall z l t, |-O l ∶ t -> |-V (rho l z)  ∶ t.
+
+Lemma adv_ext_type e d : TypeExt e -> TypeExt (adv_ext d e).
+Proof.
+  unfold TypeExt, adv_ext. intros. auto.
+Qed.
+
+Hint Resolve adv_ext_type.
+
+(* Typing of environments *)
+
 Definition TypeEnv (g : TyEnv) (rho : Env) : Prop := forall_zip TypeVal rho g.
+
+(* Typing of arguments (to an operation). *)
 
 Definition TypeArgs (ts : list Ty) (args : list Val) : Prop := forall_zip TypeVal args ts.
 
