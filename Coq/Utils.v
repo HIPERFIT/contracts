@@ -47,6 +47,14 @@ Proof.
 Qed.
 
 
+Lemma forall_zip_map {A} (P : A -> A -> Prop) (f g : A -> A) xs ys :
+  (forall x y, P x y -> P (f x) (g y)) ->
+  forall_zip P xs ys -> forall_zip P (map f xs) (map g ys).
+Proof.
+  intros I Z. induction Z;constructor; auto.
+Qed.
+
+
   
 
 Class Partial t := {

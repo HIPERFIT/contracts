@@ -2,6 +2,7 @@ Require Import Causality.
 Require Import Advance.
 Require Import FunctionalExtensionality.
 Require Import Tactics.
+Require Import Utils.
 
 (* Contextual syntactic causality. This syntactic notion of causality
 is more permissive than plain syntactic causality. However, the
@@ -11,6 +12,8 @@ causality is slightly weaker. *)
 Open Scope Z.
 
 
+(* Definition of the inference rules for contextual causality. *)
+
 Definition TimeEnv := list Z.
 
 
@@ -19,14 +22,6 @@ Inductive CausalV : TimeEnv -> Z -> Var -> Prop :=
 | causal_VS g v t t' : CausalV g t v -> CausalV (t' :: g) t (VS v).
 
 
-Lemma CausalV_open t t' ts ts' (v : Var) : forall_zip Z.le ts' ts -> t <= t' -> CausalV ts t v -> CausalV ts' t' v.
-Proof.
-  intros Is I P. generalize dependent t. generalize dependent t'. generalize dependent ts. generalize dependent ts'.
-  induction v; intros; inversion P; subst.
-  - inversion Is. subst. constructor. omega.
-  - inversion Is. subst. constructor. eauto.
-Qed.
-
 Inductive CausalE : TimeEnv -> Z -> Exp -> Prop:= 
  | causal_op t ts op args : forall_list (CausalE ts t) args -> CausalE ts t (OpE op args)
  | causal_obs l t' t ts : t' <= t -> CausalE ts t (Obs l t')
@@ -34,22 +29,6 @@ Inductive CausalE : TimeEnv -> Z -> Exp -> Prop:=
  | causal_acc t t' ts e1 e2 n : CausalE ts (t + Z.of_nat n) e2 -> CausalE (t' :: ts) t e1
                                 -> CausalE ts t (Acc e1 n e2)
   .
-
-
-
-Lemma CausalE_open t t' ts ts' (e : Exp) : forall_zip Z.le ts' ts -> t <= t' -> CausalE ts t e -> CausalE ts' t' e.
-Proof.
-  intros Is I P. generalize dependent t. generalize dependent t'.
-  generalize dependent ts. generalize dependent ts'.
-  induction e using Exp_ind'; intros;inversion P;subst;econstructor.
-  - induction args.
-    * constructor.
-    * inversion H3. inversion H. subst. constructor. eauto. apply IHargs. auto. constructor. auto. auto.
-  - omega.
-  - eapply CausalV_open; eauto. 
-  - eapply IHe2; eauto. omega.
-  - eapply IHe1 in H5.  apply H5; auto. constructor; auto. apply Z.le_refl. assumption.
-Qed.
 
 
 
@@ -65,12 +44,30 @@ Inductive CausalC : TimeEnv -> Z -> Contr -> Prop :=
                              -> CausalC ts t (If e d c1 c2)
 .
 
-Lemma forall_zip_map {A} (P : A -> A -> Prop) (f g : A -> A) xs ys :
-  (forall x y, P x y -> P (f x) (g y)) ->
-  forall_zip P xs ys -> forall_zip P (map f xs) (map g ys).
+(* Contextual causality is 'open': i.e. it is (anti-)monotone w.r.t. ordering on time. *)
+
+Lemma CausalV_open t t' ts ts' (v : Var) : forall_zip Z.le ts' ts -> t <= t' -> CausalV ts t v -> CausalV ts' t' v.
 Proof.
-  intros I Z. induction Z;constructor; auto.
+  intros Is I P. generalize dependent t. generalize dependent t'. generalize dependent ts. generalize dependent ts'.
+  induction v; intros; inversion P; subst.
+  - inversion Is. subst. constructor. omega.
+  - inversion Is. subst. constructor. eauto.
 Qed.
+
+Lemma CausalE_open t t' ts ts' (e : Exp) : forall_zip Z.le ts' ts -> t <= t' -> CausalE ts t e -> CausalE ts' t' e.
+Proof.
+  intros Is I P. generalize dependent t. generalize dependent t'.
+  generalize dependent ts. generalize dependent ts'.
+  induction e using Exp_ind'; intros;inversion P;subst;econstructor.
+  - induction args.
+    * constructor.
+    * inversion H3. inversion H. subst. constructor. eauto. apply IHargs. auto. constructor. auto. auto.
+  - omega.
+  - eapply CausalV_open; eauto. 
+  - eapply IHe2; eauto. omega.
+  - eapply IHe1 in H5.  apply H5; auto. constructor; auto. apply Z.le_refl. assumption.
+Qed.
+
 
 Lemma CausalC_open t t' ts ts' (c : Contr):
   forall_zip Z.le ts' ts -> t' <= t -> CausalC ts t c -> CausalC ts' t' c.
