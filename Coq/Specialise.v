@@ -149,7 +149,7 @@ Proof.
   generalize dependent vars. 
   induction e using Exp_ind'; intros vars rho' rho R. 
   - unfold "⊆". simpl.  intros v E.
-    do 4 (eapply forall_list_apply_dep in H; eauto).
+    do 4 (eapply all_apply_dep in H; eauto).
     remember (map (fun e' : Exp => specialiseExp e' rho vars) args) as args'. unfold default.
     remember (liftM toLit (OpSemLazy op (map fromLit args'))) as A. destruct A.
 

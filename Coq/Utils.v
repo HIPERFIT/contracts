@@ -7,49 +7,43 @@ Infix "∘" := compose (at level 40, left associativity).
 Import ListNotations.
 
 
-Inductive forall_list {A} (P : A -> Prop) : list A -> Prop :=
-| forall_nil : forall_list P nil
-| forall_cons {x xs} : P x -> forall_list P xs -> forall_list P (x :: xs).
+Inductive all {A} (P : A -> Prop) : list A -> Prop :=
+| forall_nil : all P nil
+| forall_cons {x xs} : P x -> all P xs -> all P (x :: xs).
 
-Hint Constructors forall_list.
+Hint Constructors all.
 
-Inductive forall_zip {A B} (R : A -> B -> Prop) : list A -> list B -> Prop :=
-| forall_zip_nil : forall_zip R [] []
-| forall_zip_cons {x y xs ys} : R x y -> forall_zip R xs ys -> forall_zip R (x::xs) (y::ys).
+Inductive all2 {A B} (R : A -> B -> Prop) : list A -> list B -> Prop :=
+| all2_nil : all2 R [] []
+| all2_cons {x y xs ys} : R x y -> all2 R xs ys -> all2 R (x::xs) (y::ys).
 
-Hint Constructors forall_zip.
+Hint Constructors all2.
 
 
-Lemma forall_zip_impl {A B} (R1 R2 : A -> B -> Prop) xs ys : 
-  (forall x y, R1 x y -> R2 x y) -> forall_zip R1 xs ys -> forall_zip R2 xs ys.
+Lemma all2_impl {A B} (R1 R2 : A -> B -> Prop) xs ys : 
+  (forall x y, R1 x y -> R2 x y) -> all2 R1 xs ys -> all2 R2 xs ys.
 Proof.
   intros f l. induction l; auto. 
 Qed.
 
 
-Lemma forall_zip_apply {A B} (R : A -> B -> Prop) (P : Prop) xs ys : 
-  forall_zip (fun x y => P -> R x y) xs ys -> P -> forall_zip R xs ys.
-Proof.
-  intros F p. induction F; auto.
-Qed.
-
-Lemma forall_zip_apply_dep {A B} (P : Type) (p : P) (R : A -> B -> P -> Prop) xs ys : 
-  forall_zip (fun x y => forall (p:P), R x y p) xs ys -> forall_zip (fun x y => R x y p) xs ys.
+Lemma all2_apply {A B} (P : Type) (p : P) (R : A -> B -> P -> Prop) xs ys : 
+  all2 (fun x y => forall (p:P), R x y p) xs ys -> all2 (fun x y => R x y p) xs ys.
 Proof.
   intros F. induction F; auto.
 Qed.
 
 
-Lemma forall_zip_and {A B} (R1 R2 : A -> B -> Prop) xs ys : 
-  forall_zip R1 xs ys -> forall_zip R2 xs ys -> forall_zip (fun x y => R1 x y /\ R2 x y) xs ys.
+Lemma all2_and {A B} (R1 R2 : A -> B -> Prop) xs ys : 
+  all2 R1 xs ys -> all2 R2 xs ys -> all2 (fun x y => R1 x y /\ R2 x y) xs ys.
 Proof.
   intros A1 A2. induction A1; inversion A2; auto.
 Qed.
 
 
-Lemma forall_zip_map {A} (P : A -> A -> Prop) (f g : A -> A) xs ys :
+Lemma all2_map {A} (P : A -> A -> Prop) (f g : A -> A) xs ys :
   (forall x y, P x y -> P (f x) (g y)) ->
-  forall_zip P xs ys -> forall_zip P (map f xs) (map g ys).
+  all2 P xs ys -> all2 P (map f xs) (map g ys).
 Proof.
   intros I Z. induction Z;constructor; auto.
 Qed.
@@ -127,14 +121,14 @@ Proof.
   simpl. rewrite IHl. reflexivity.
 Qed.
 
-Lemma mapM_rewrite {A B} (f g : A -> option B) l : forall_list (fun x => f x = g x) l -> mapM f l = mapM g l.
+Lemma mapM_rewrite {A B} (f g : A -> option B) l : all (fun x => f x = g x) l -> mapM f l = mapM g l.
 Proof.
   intros. induction l. reflexivity.
   inversion H. subst. simpl. rewrite IHl by auto. rewrite H2. reflexivity.
 Qed.
 
 
-Lemma mapM_monotone {A B} (f g : A -> option B) l : forall_list (fun x => f x ⊆ g x) l -> mapM f l ⊆ mapM g l.
+Lemma mapM_monotone {A B} (f g : A -> option B) l : all (fun x => f x ⊆ g x) l -> mapM f l ⊆ mapM g l.
 Proof.
   intros. unfold "⊆" in *. simpl in *. induction l; intros.
   + auto.
@@ -146,20 +140,20 @@ Proof.
 Qed.
 
 Instance list_Partial {A} : Partial (list (option A)) := {
-  lep t1 t2  := forall_zip lep t1 t2
+  lep t1 t2  := all2 lep t1 t2
   }.
 
 
 Lemma sequence_monotone {A} (l l' : list (option A)) : l ⊆ l' -> sequence l ⊆ sequence l'.
 Proof.
   intro H. induction H. simpl. auto.
-  simpl. destruct (sequence xs). erewrite IHforall_zip by reflexivity. destruct x. erewrite H by reflexivity. auto.
+  simpl. destruct (sequence xs). erewrite IHall2 by reflexivity. destruct x. erewrite H by reflexivity. auto.
   intros. simpl in *. tryfalse.
   intros. rewrite liftM2_none in H1. tryfalse.
 Qed.
 
 
-Lemma sequence_map_monotone {A B} (f g : A -> option B) l : forall_list (fun x => f x ⊆ g x) l ->
+Lemma sequence_map_monotone {A B} (f g : A -> option B) l : all (fun x => f x ⊆ g x) l ->
                                                             sequence (map f l) ⊆ sequence (map g l).
 Proof.
   repeat rewrite sequence_map. apply mapM_monotone.
@@ -226,30 +220,30 @@ Ltac option_inv_auto := repeat (idtac; match goal with
                      end;subst).
 
 
-Lemma map_rewrite {A B} (f g : A -> option B) l : forall_list (fun x => f x = g x) l -> map f l = map g l.
+Lemma map_rewrite {A B} (f g : A -> option B) l : all (fun x => f x = g x) l -> map f l = map g l.
 Proof.
   intros. induction l. reflexivity.
   inversion H. subst. simpl. rewrite IHl by auto. rewrite H2. reflexivity.
 Qed.
 
 
-Lemma forall_list_apply_dep {A} (P : Type) (p : P) (R : A -> P -> Prop) xs : 
-  forall_list (fun x => forall (p:P), R x p) xs -> forall_list (fun x => R x p) xs.
+Lemma all_apply {A} (P : Type) (p : P) (R : A -> P -> Prop) xs : 
+  all (fun x => forall (p:P), R x p) xs -> all (fun x => R x p) xs.
 Proof.
   intros F. induction F; auto.
 Qed.
 
 
-Lemma forall_list_zip T T' (P : T -> T' -> Prop) l l' f :
-  forall_list (fun x => forall t, P x t -> P (f x) t) l -> forall_zip P l l' -> forall_zip P (map f l) l'.
+Lemma all_zip T T' (P : T -> T' -> Prop) l l' f :
+  all (fun x => forall t, P x t -> P (f x) t) l -> all2 P l l' -> all2 P (map f l) l'.
 Proof.
   generalize dependent l'. induction l; intros.
   + simpl. assumption.
   + simpl. inversion H. inversion H0. subst. constructor. auto. apply IHl; auto.
 Qed.
 
-Lemma forall_list_apply_dep' {A} (P Q : Type) (q : Q) (R : A -> P -> Q -> Prop) xs : 
-  forall_list (fun x => forall (p:P) (q:Q), R x p q) xs -> forall_list (fun x => forall (p:P), R x p q) xs.
+Lemma all_apply' {A} (P Q : Type) (q : Q) (R : A -> P -> Q -> Prop) xs : 
+  all (fun x => forall (p:P) (q:Q), R x p q) xs -> all (fun x => forall (p:P), R x p q) xs.
 Proof.
   intros F. induction F; auto.
 Qed.

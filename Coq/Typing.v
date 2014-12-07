@@ -58,7 +58,7 @@ Inductive TypeVar : TyEnv -> Var -> Ty -> Prop :=
 Reserved Notation "g '|-E' e '∶' t" (at level 20).
 
 Inductive TypeExp : TyEnv -> Exp -> Ty -> Prop :=
-| type_op g op es ts t : |-Op op ∶ ts => t -> forall_zip (TypeExp g) es ts -> g |-E OpE op es ∶ t
+| type_op g op es ts t : |-Op op ∶ ts => t -> all2 (TypeExp g) es ts -> g |-E OpE op es ∶ t
 | type_obs t g o z : |-O o ∶ t -> g |-E Obs o z ∶ t
 | type_var t g v : g |-X v ∶ t -> g |-E VarE v ∶ t
 | type_acc n t g e1 e2 : (t :: g) |-E e1 ∶ t -> g |-E e2 ∶ t -> g |-E Acc e1 n e2 ∶ t
@@ -70,7 +70,7 @@ need to roll our own. *)
 Definition TypeExp_ind' : forall P : TyEnv -> Exp -> Ty -> Prop,
        (forall (g : TyEnv) (op : Op) (es : list Exp) (ts : list Ty) (t : Ty),
         |-Op op ∶ ts => t ->
-        forall_zip (TypeExp g) es ts -> forall_zip (P g) es ts -> P g (OpE op es) t) ->
+        all2 (TypeExp g) es ts -> all2 (P g) es ts -> P g (OpE op es) t) ->
        (forall (t : Ty) (g : TyEnv) (o : ObsLabel) (z : Z),
         |-O o ∶ t -> P g (Obs o z) t) ->
        (forall (t : Ty) (g : TyEnv) (v : Var), g |-X v ∶ t -> P g (VarE v) t) ->
@@ -80,7 +80,7 @@ Definition TypeExp_ind' : forall P : TyEnv -> Exp -> Ty -> Prop,
        forall (t : TyEnv) (e : Exp) (t0 : Ty), t |-E e ∶ t0 -> P t e t0 :=
   fun (P : TyEnv -> Exp -> Ty -> Prop)
   (f : forall (g : TyEnv) (op : Op) (es : list Exp) (ts : list Ty) (t : Ty),
-       |-Op op ∶ ts => t -> forall_zip (TypeExp g) es ts -> forall_zip (P g) es ts -> P g (OpE op es) t)
+       |-Op op ∶ ts => t -> all2 (TypeExp g) es ts -> all2 (P g) es ts -> P g (OpE op es) t)
   (f0 : forall (t : Ty) (g : TyEnv) (o : ObsLabel) (z : Z),
         |-O o ∶ t -> P g (Obs o z) t)
   (f1 : forall (t : Ty) (g : TyEnv) (v : Var), g |-X v ∶ t -> P g (VarE v) t)
@@ -91,10 +91,10 @@ fix F (t : TyEnv) (e : Exp) (t0 : Ty) (t1 : t |-E e ∶ t0) {struct t1} :
   P t e t0 :=
   match t1 in (t2 |-E e0 ∶ t3) return (P t2 e0 t3) with
   | type_op g op es ts t2 t3 f3 =>
-    let fix step es ts (args: forall_zip (TypeExp g) es ts) :=
+    let fix step es ts (args: all2 (TypeExp g) es ts) :=
         match args with
-          | forall_zip_nil => forall_zip_nil (P g)
-          | forall_zip_cons e t0 es ts ty tys => forall_zip_cons (P g) (F g e t0 ty) (step es ts tys)
+          | all2_nil => all2_nil (P g)
+          | all2_cons e t0 es ts ty tys => all2_cons (P g) (F g e t0 ty) (step es ts tys)
         end
           in f g op es ts t2 t3 f3 (step es ts f3)
   | type_obs t2 g o z t3 => f0 t2 g o z t3

@@ -23,7 +23,7 @@ Inductive CausalV : TimeEnv -> Z -> Var -> Prop :=
 
 
 Inductive CausalE : TimeEnv -> Z -> Exp -> Prop:= 
- | causal_op t ts op args : forall_list (CausalE ts t) args -> CausalE ts t (OpE op args)
+ | causal_op t ts op args : all (CausalE ts t) args -> CausalE ts t (OpE op args)
  | causal_obs l t' t ts : t' <= t -> CausalE ts t (Obs l t')
  | causal_var t ts v : CausalV ts t v -> CausalE ts t (VarE v)
  | causal_acc t t' ts e1 e2 n : CausalE ts (t + Z.of_nat n) e2 -> CausalE (t' :: ts) t e1
@@ -46,7 +46,7 @@ Inductive CausalC : TimeEnv -> Z -> Contr -> Prop :=
 
 (* Contextual causality is 'open': i.e. it is (anti-)monotone w.r.t. ordering on time. *)
 
-Lemma CausalV_open t t' ts ts' (v : Var) : forall_zip Z.le ts' ts -> t <= t' -> CausalV ts t v -> CausalV ts' t' v.
+Lemma CausalV_open t t' ts ts' (v : Var) : all2 Z.le ts' ts -> t <= t' -> CausalV ts t v -> CausalV ts' t' v.
 Proof.
   intros Is I P. generalize dependent t. generalize dependent t'. generalize dependent ts. generalize dependent ts'.
   induction v; intros; inversion P; subst.
@@ -54,7 +54,7 @@ Proof.
   - inversion Is. subst. constructor. eauto.
 Qed.
 
-Lemma CausalE_open t t' ts ts' (e : Exp) : forall_zip Z.le ts' ts -> t <= t' -> CausalE ts t e -> CausalE ts' t' e.
+Lemma CausalE_open t t' ts ts' (e : Exp) : all2 Z.le ts' ts -> t <= t' -> CausalE ts t e -> CausalE ts' t' e.
 Proof.
   intros Is I P. generalize dependent t. generalize dependent t'.
   generalize dependent ts. generalize dependent ts'.
@@ -70,7 +70,7 @@ Qed.
 
 
 Lemma CausalC_open t t' ts ts' (c : Contr):
-  forall_zip Z.le ts' ts -> t' <= t -> CausalC ts t c -> CausalC ts' t' c.
+  all2 Z.le ts' ts -> t' <= t -> CausalC ts t c -> CausalC ts' t' c.
 Proof.
   intros Is I P. generalize dependent t. generalize dependent t'.
   generalize dependent ts. generalize dependent ts'.
@@ -82,7 +82,7 @@ Proof.
   - apply causal_scale with (t' := t'0). omega. eapply CausalE_open. eassumption.
     apply Z.le_refl. eassumption. eapply IHc; eassumption.
   - constructor. eapply IHc with (ts := map (fun x : Z => x - Z.of_nat n) ts) (t := t - Z.of_nat n).
-    apply forall_zip_map; [intros; omega|assumption]. omega. assumption.
+    apply all2_map; [intros; omega|assumption]. omega. assumption.
   - constructor;[eapply IHc1|eapply IHc1]; eauto.
   - constructor.
     + eapply CausalE_open;eauto. omega.

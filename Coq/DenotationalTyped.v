@@ -38,15 +38,15 @@ Hint Resolve adv_ext_type.
 
 (* Typing of environments *)
 
-Definition TypeEnv (g : TyEnv) (rho : Env) : Prop := forall_zip TypeVal rho g.
+Definition TypeEnv (g : TyEnv) (rho : Env) : Prop := all2 TypeVal rho g.
 
 (* Typing of arguments (to an operation). *)
 
-Definition TypeArgs (ts : list Ty) (args : list Val) : Prop := forall_zip TypeVal args ts.
+Definition TypeArgs (ts : list Ty) (args : list Val) : Prop := all2 TypeVal args ts.
 
 
 Lemma OpSem_typed_total {A} op ts t (args : list A) (f : A -> option Val) :
-|-Op op ∶ ts => t -> forall_zip (fun x t => exists v, f x = Some v /\ |-V v ∶ t) args ts -> 
+|-Op op ∶ ts => t -> all2 (fun x t => exists v, f x = Some v /\ |-V v ∶ t) args ts -> 
                      exists v, (mapM f args >>= OpSem op) = Some v /\ |-V v ∶ t.
 Proof.
   intros O T. induction O;
@@ -55,7 +55,7 @@ Proof.
         let H1 := fresh in let H2 := fresh in let H3 := fresh in
         let H4 := fresh in
         destruct H as [H1 H2]; destruct H2 as [H3 H4]; rewrite H3 in *; inversion H4
-      | [H : forall_zip _ _ _ |- _] => inversion H; clear H
+      | [H : all2 _ _ _ |- _] => inversion H; clear H
   end; subst; simpl; unfold liftM2, bind); eexists; auto.
 Qed.
 
@@ -69,7 +69,7 @@ Proof.
   intros E R V'. generalize dependent rho. generalize dependent erho.
   dependent induction E using TypeExp_ind'; intros.
   + simpl. rewrite sequence_map. eapply OpSem_typed_total. apply H.
-    do 4 (eapply forall_zip_apply_dep in H1;eauto). 
+    do 4 (eapply all2_apply in H1;eauto). 
   + simpl. eauto.
   + simpl. generalize dependent rho. 
     generalize dependent g. induction v; intros.

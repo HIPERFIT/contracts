@@ -52,21 +52,21 @@ Inductive Exp : Set := OpE (op : Op) (args : list Exp)
 automatically generated induction principle is too weak. *)
 
 Definition Exp_ind'   : forall P : Exp -> Prop,
-       (forall (op : Op) (args : list Exp), forall_list P args -> P (OpE op args)) ->
+       (forall (op : Op) (args : list Exp), all P args -> P (OpE op args)) ->
        (forall (l : ObsLabel) (i : Z), P (Obs l i)) ->
        (forall v : Var, P (VarE v)) ->
        (forall f2 : Exp,
         P f2 -> forall (d : nat) (e : Exp), P e -> P (Acc f2 d e)) ->
        forall e : Exp, P e := 
 fun (P : Exp -> Prop)
-  (f : forall (op : Op) (args : list Exp), forall_list P args -> P (OpE op args))
+  (f : forall (op : Op) (args : list Exp), all P args -> P (OpE op args))
   (f0 : forall (l : ObsLabel) (i : Z), P (Obs l i))
   (f1 : forall v : Var, P (VarE v))
   (f2 : forall f2 : Exp,
         P f2 -> forall (d : nat) (e : Exp), P e -> P (Acc f2 d e)) =>
 fix F (e : Exp) : P e :=
   match e as e0 return (P e0) with
-  | OpE op args => let fix step es : forall_list P es := 
+  | OpE op args => let fix step es : all P es := 
                        match es with
                            | nil => forall_nil P
                            | e' :: es' => forall_cons P (F e') (step es')

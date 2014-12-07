@@ -10,7 +10,7 @@ choices are never queried at a positive offset. *)
 
 Inductive Epc : Exp -> Prop:=
 | epc_obs : forall o i, i <= 0 -> Epc (Obs o i)
-| epc_op : forall op es, forall_list Epc es -> Epc (OpE op es)
+| epc_op : forall op es, all Epc es -> Epc (OpE op es)
 | epc_var : forall v, Epc (VarE v)
 | epc_acc : forall f l z, Epc f -> Epc z -> Epc (Acc f l z).
 
@@ -19,7 +19,7 @@ Inductive Epc : Exp -> Prop:=
 
 Definition Epc_ind' : forall P : Exp -> Prop,
        (forall (o : ObsLabel) (i : Z), i <= 0 -> P (Obs o i)) ->
-       (forall (op : Op) (es : list Exp), forall_list Epc es -> forall_list P es -> P (OpE op es)) ->
+       (forall (op : Op) (es : list Exp), all Epc es -> all P es -> P (OpE op es)) ->
        (forall v : Var, P (VarE v)) ->
        (forall (f2 : Exp) (l : nat) (z : Exp),
         Epc f2 -> P f2 -> Epc z -> P z -> P (Acc f2 l z)) ->
@@ -27,15 +27,15 @@ Definition Epc_ind' : forall P : Exp -> Prop,
   := 
 fun (P : Exp -> Prop)
   (f : forall (o : ObsLabel) (i : Z), i <= 0 -> P (Obs o i))
-  (f0 : forall (op : Op) (es : list Exp), forall_list Epc es -> forall_list P es -> P (OpE op es))
+  (f0 : forall (op : Op) (es : list Exp), all Epc es -> all P es -> P (OpE op es))
   (f1 : forall v : Var, P (VarE v))
   (f2 : forall (f2 : Exp) (l : nat) (z : Exp),
         Epc f2 -> P f2 -> Epc z -> P z -> P (Acc f2 l z)) =>
 fix F (e : Exp) (e0 : Epc e) {struct e0} : P e :=
   match e0 in (Epc e1) return (P e1) with
   | epc_obs o i l => f o i l
-  | epc_op op es f3 => let fix step {es} (ps : forall_list Epc es) : forall_list P es := 
-                           match ps in forall_list _ es return forall_list P es with
+  | epc_op op es f3 => let fix step {es} (ps : all Epc es) : all P es := 
+                           match ps in all _ es return all P es with
                              | forall_nil => forall_nil P
                              | forall_cons e es p ps' => forall_cons P (F e p) (step ps')
                            end
@@ -67,7 +67,7 @@ Proof.
   intros R D O.   generalize dependent vars. generalize dependent r2. generalize dependent r1.
   induction R using Epc_ind'; intros; try solve [simpl; f_equal; auto].
   - simpl; unfold ext_until in O. rewrite O. reflexivity. omega.
-  - do 4 (eapply forall_list_apply_dep in H0;eauto).
+  - do 4 (eapply all_apply in H0;eauto).
     apply map_rewrite in H0. simpl. rewrite H0. reflexivity.
   - generalize dependent vars. generalize dependent r2. generalize dependent r1. induction l; intros. 
     + simpl. apply IHR2. assumption.
@@ -142,7 +142,7 @@ Proof.
     constructor. induction H. 
     + auto.
     + constructor.  destruct (epc_dec x); tryfalse. auto.
-      apply IHforall_list. destruct ((fix run (es : list Exp) : bool :=
+      apply IHall. destruct ((fix run (es : list Exp) : bool :=
       match es with
       | Datatypes.nil => true
       | e' :: es' => epc_dec e' && run es'
@@ -151,7 +151,7 @@ Proof.
   - intros D. induction D using Epc_ind'; try first [simpl; rewrite IHD1, IHD2| apply Z.leb_le]; auto.
     induction H0.
     + auto.
-    + simpl in *. rewrite IHforall_list. rewrite H0. reflexivity. inversion H. auto.
+    + simpl in *. rewrite IHall. rewrite H0. reflexivity. inversion H. auto.
 Qed.
 
 

@@ -32,8 +32,8 @@ Proof.
   induction e using Exp_ind';intros; 
   try solve [simpl; repeat rewr_assumption; reflexivity].
   rewrite adv_exp_ope. simpl. rewrite map_map.
-  eapply forall_list_apply_dep with (p:= vars) in H.
-  eapply forall_list_apply_dep with (p:= rho) in H.
+  eapply all_apply with (p:= vars) in H.
+  eapply all_apply with (p:= rho) in H.
   apply map_rewrite in H. rewrite H. reflexivity.
 
   generalize dependent rho.   generalize dependent vars. 
@@ -53,5 +53,5 @@ Lemma adv_exp_type g d e t : g |-E e ∶ t -> g |-E adv_exp d e ∶ t.
 Proof.
   intro T. generalize dependent g. generalize dependent t. 
   induction e using Exp_ind'; intros; simpl; inversion T; subst; try auto.
-  - econstructor. eassumption. eapply forall_list_apply_dep' in H. apply forall_list_zip; eauto. 
+  - econstructor. eassumption. eapply all_apply' in H. apply all_zip; eauto. 
 Qed.
