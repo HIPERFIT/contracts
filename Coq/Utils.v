@@ -19,6 +19,12 @@ Inductive all2 {A B} (R : A -> B -> Prop) : list A -> list B -> Prop :=
 
 Hint Constructors all2.
 
+Inductive all3 {A B C} (R : A -> B -> C -> Prop) : list A -> list B -> list C -> Prop :=
+| all3_nil : all3 R [] [] []
+| all3_cons {x y z xs ys zs} : R x y z -> all3 R xs ys zs -> all3 R (x::xs) (y::ys) (z::zs).
+
+Hint Constructors all3.
+
 
 Lemma all2_impl {A B} (R1 R2 : A -> B -> Prop) xs ys : 
   (forall x y, R1 x y -> R2 x y) -> all2 R1 xs ys -> all2 R2 xs ys.
@@ -255,4 +261,10 @@ Qed.
 Lemma liftM_extensionality A B (f g : A -> B) x : (forall x, f x = g x) -> liftM f x = liftM g x.
 Proof.
   intros. unfold liftM, bind, pure, compose. destruct x. rewrite H. reflexivity. reflexivity.
+Qed.
+
+
+Lemma all_mp {A} (P Q : A -> Prop) xs : all P xs -> all (fun x => P x -> Q x) xs -> all Q xs.
+Proof.
+  intro All. induction All;constructor;inversion H0; auto.
 Qed.
