@@ -10,10 +10,10 @@ Open Scope Z.
 Definition ext_until (d : Z) (r1 r2 : ExtEnv) : Prop :=
   forall l z, Z.le z d -> r1 l z = r2 l z.
 
-(* Semantic causality *)
+(* Semantic causality of (closed) contracts *)
 
 Definition causal (c : Contr) : Prop :=
-  forall d vars r1 r2 t1 t2,  ext_until (Z.of_nat d) r1 r2 -> C[|c|]vars r1 = Some t1 -> C[|c|] vars r2 = Some t2
+  forall d r1 r2 t1 t2,  ext_until (Z.of_nat d) r1 r2 -> C[|c|]nil r1 = Some t1 -> C[|c|]nil r2 = Some t2
                         -> t1 d = t2 d.
 
 

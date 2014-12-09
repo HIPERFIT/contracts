@@ -5,9 +5,7 @@ Require Import Tactics.
 Require Import Utils.
 
 (* Contextual syntactic causality. This syntactic notion of causality
-is more permissive than plain syntactic causality. However, the
-causality property that follows from this syntactic notion of
-causality is slightly weaker. *)
+is more permissive than plain syntactic causality. *)
 
 Open Scope Z.
 
@@ -104,19 +102,19 @@ Proof.
 Qed.
 
 
-Lemma env_until_monotone' {A} t ts f (e1 e2 : list A) : (forall x y, x <= y -> f x <= f y)
-                                                        -> env_until (f t) (map f ts) e1 e2
-                                                        ->  env_until t ts e1 e2.
-Proof.
-  intros M U. remember (map f ts) as ts'. induction U; destruct ts;tryfalse;constructor;
-                                          simpl in *; inversion Heqts'; subst; auto. admit.
-Qed.
-
-
 Lemma env_until_weaken {A} t t' ts (vars1 vars2 : list A) : 
   env_until t ts vars1 vars2 -> t' <= t ->  env_until t' ts vars1 vars2.
 Proof.
   intros U I. induction U;constructor;auto. intro. apply H. omega.
+Qed.
+
+Lemma env_until_weaken' {A} t ts ts' (vars1 vars2 : list A) : 
+  env_until t ts vars1 vars2 -> all2 Z.le ts ts' ->  env_until t ts' vars1 vars2.
+Proof.
+  intros U I. generalize dependent vars1. generalize dependent vars2. induction I;intros.
+  inversion U. subst. constructor.
+  inversion U. subst. constructor. intros. apply H2. omega. 
+  unfold env_until in *. auto.
 Qed.
 
 Definition causalE ts t e := forall vars1 vars2 rho1 rho2, env_until t ts vars1 vars2 -> ext_until t rho1 rho2
@@ -211,9 +209,13 @@ Qed.
 
 
 
+Lemma all2_map_forall {A B} f l (P : A -> B -> Prop) : (forall x, P (f x) x) -> all2 P (map f l) l.
+Proof.
+  intro G. induction l;simpl;constructor;auto.
+Qed.
 
-Lemma CausalC_sound ts t t1 t2 i vars1 vars2 r1 r2 c : 
-  CausalC ts t c -> env_until t ts vars1 vars2 ->
+Lemma CausalC_sound' ts t t1 t2 i vars1 vars2 r1 r2 c : 
+  CausalC ts t c -> env_until (Z.of_nat i) ts vars1 vars2 ->
   ext_until (Z.of_nat i) r1 r2 -> C[|c|]vars1 r1 = Some t1 -> C[|c|] vars2 r2 = Some t2 ->
   t <= Z.of_nat i -> t1 i = t2 i.
 Proof.
@@ -231,12 +233,14 @@ Proof.
   - simpl in *. option_inv_auto. unfold scale_trace, compose. erewrite IHc; eauto.
     rewrite CausalE_sound in H5; eauto. rewrite H5 in H6. inversion H6. subst.
     destruct x3; tryfalse. rewrite H7 in H8. inversion H8. reflexivity.
+    eapply env_until_weaken. eassumption. omega.
     eapply ext_until_le. eassumption. omega.
   - simpl in *. option_inv_auto. unfold delay_trace. remember (leb n i) as L.
     destruct L; try reflexivity. symmetry in HeqL. apply leb_complete in HeqL.
     eapply IHc; eauto. rewrite ext_until_adv. rewrite Nat2Z.inj_sub by assumption.
     eapply ext_until_le. eassumption.  omega. rewrite Nat2Z.inj_sub by assumption. omega.
-    apply env_until_monotone with (f := (fun x1 : Z => x1 - Z.of_nat n)) in V. apply V.
+    apply env_until_monotone with (f := (fun x1 : Z => x1 - Z.of_nat n)) in V. 
+    rewrite Nat2Z.inj_sub by assumption. apply V.
     intros. omega.
   - simpl in *. option_inv_auto. unfold add_trace. f_equal; [eapply IHc1|eapply IHc2]; eauto.
   - simpl in *. apply CausalE_sound in H4. unfold causalE in *.
@@ -247,9 +251,13 @@ Proof.
          forall r1 : ExtEnv,
          C[|c1|] vars1 r1 = Some t1 ->
          ext_until (Z.of_nat i) r1 r2 ->
-         t <= Z.of_nat i ->
-         env_until t ts vars1 vars2 -> t1 i = t2 i) as IH1.
-    intros. eapply IHc1;eauto. clear H6. clear IHc1.
+         env_until (Z.of_nat i) ts vars1 vars2 -> t1 i = t2 i) as IH1.
+    intros. remember (t <=? Z.of_nat i0) as L. symmetry in HeqL. destruct L.
+    rewrite Z.leb_le in HeqL. eapply IHc1;eauto. rewrite Z.leb_gt in HeqL.
+    eapply CausalC_empty in H; eauto. eapply CausalC_empty in H0; eauto. 
+    rewrite H. rewrite H0. reflexivity.
+    
+    clear H6. clear IHc1.
     generalize dependent ts. generalize dependent t. generalize dependent r1. generalize dependent r2.
     generalize dependent vars1. generalize dependent vars2. generalize dependent i.
     generalize dependent t1. generalize dependent t2.
@@ -257,7 +265,9 @@ Proof.
     + simpl in *. rewrite H4 with (vars2:=vars2) (rho2:=r2) in C1;auto.
       destruct (E[|e|] vars2 r2);tryfalse. destruct v;tryfalse. rewrite Z.sub_0_r in *. 
       destruct b; [eapply IH1|eapply IHc2]; eauto. erewrite map_ext. rewrite map_id. assumption.
-      intros. omega.
+      intros. omega. 
+      eapply env_until_weaken. eassumption. omega.
+      eapply ext_until_le. eassumption. omega.
     + simpl in *. rewrite H4 with (vars2:=vars2) (rho2:=r2) in C1;auto.
       destruct (E[|e|] vars2 r2);tryfalse. destruct v;tryfalse. destruct b.
         eapply IH1; eauto.
@@ -265,11 +275,29 @@ Proof.
         symmetry in HeqL. apply leb_complete in HeqL.
         eapply IHn with (t:=t-1) (ts :=map (fun x => x - 1) ts);clear IHn;eauto. 
         * rewrite ext_until_adv. eapply ext_until_le.
-          apply X. omega. 
+          apply X. rewrite Nat2Z.inj_sub by assumption. 
+          assert (Z.of_nat 1 = 1) as E by reflexivity. rewrite E. omega. 
         * rewrite Nat2Z.inj_sub by assumption. simpl. omega.
-        * apply env_until_monotone with (f:=fun x1 : Z => x1 - 1) in V. apply V.
+        * apply env_until_monotone with (f:=fun x1 : Z => x1 - 1) in V. 
+          rewrite Nat2Z.inj_sub by assumption. apply V.
           intros. omega. 
-        * intros. apply H4. apply env_until_monotone' with (f:=fun x1 : Z => x1 - 1) in H. apply H.
-          intros. omega. auto. admit.
+        * intros. apply H4. 
+          eapply env_until_weaken'. eassumption. apply all2_map_forall. intro. omega.
+          assumption.
         * rewrite map_map. rewrite prec_of_nat. erewrite map_ext. apply H7. intros. apply prec_of_nat.
-        *   intros. eapply IH1;eauto.
+        * intros. eapply IH1;eauto. 
+          eapply env_until_weaken'. eassumption. apply all2_map_forall. intro. omega.
+        * eapply env_until_weaken. eassumption. omega.
+        * eapply ext_until_le. eassumption. omega.
+Qed.
+
+
+Theorem CausalC_sound t c : CausalC nil t c  -> causal c.
+Proof.
+  intros C. unfold causal. intros. 
+  remember (t <=? Z.of_nat d) as L. symmetry in HeqL. destruct L.
+  - rewrite Z.leb_le in HeqL. eapply CausalC_sound'; eauto. constructor.
+  - rewrite Z.leb_gt in HeqL.
+    eapply CausalC_empty in H0; eauto. eapply CausalC_empty in H1; eauto. 
+    rewrite H0. rewrite H1. reflexivity.
+Qed.

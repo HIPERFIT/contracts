@@ -78,12 +78,16 @@ Proof.
       omega. constructor.
 Qed.
 
+(* Causality of (open) contracts *)
+
+Definition causal' (c : Contr) : Prop :=
+  forall d vars r1 r2 t1 t2,  ext_until (Z.of_nat d) r1 r2 -> C[|c|]vars r1 = Some t1 -> C[|c|] vars r2 = Some t2
+                        -> t1 d = t2 d.
 
 
-
-Theorem pc_causal c : Pc c -> causal c.
+Lemma pc_causal' c : Pc c -> causal' c.
 Proof.
-  intros. induction H; unfold causal in *; intros; simpl.
+  intros. induction H; unfold causal' in *; intros; simpl.
   
   - simpl in *. option_inv_auto. unfold delay_trace.
     remember (leb d d0) as C. destruct C.
@@ -116,6 +120,12 @@ Proof.
      symmetry in HeqL. apply leb_complete in HeqL. rewrite Nat2Z.inj_sub by assumption.
      apply ext_until_adv_1. apply inj_le in HeqL. assumption. assumption.
 Qed.
+
+Theorem pc_causal c : Pc c -> causal c.
+Proof.
+  unfold causal. intros. eapply pc_causal';eauto.
+Qed.
+
 
 Open Scope bool.
 
