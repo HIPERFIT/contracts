@@ -37,10 +37,11 @@ Inductive CausalC : TimeEnv -> Z -> Contr -> Prop :=
 | causal_translate ts t d c : CausalC (map (fun x => x - Z.of_nat d) ts) (t - Z.of_nat d) c
                                      -> CausalC ts t (Translate d c)
 | causal_let ts t t' e c : CausalE ts t' e -> CausalC (t' :: ts) t c -> CausalC ts t (Let e c)
-| causal_scale ts t t' e c : t <= t' -> CausalE ts t' e -> CausalC ts t c -> CausalC ts t (Scale e c)
-| causal_both ts t c1 c2 : CausalC ts t c1 -> CausalC ts t c1 -> CausalC ts t (Both c1 c2)
+| causal_scale ts t e c : CausalE ts t e -> CausalC ts t c -> CausalC ts t (Scale e c)
+| causal_both ts t c1 c2 : CausalC ts t c1 -> CausalC ts t c2 -> CausalC ts t (Both c1 c2)
 | causal_transfer t ts p1 p2 a : t <= 0 -> CausalC ts t (Transfer p1 p2 a)
-| causal_if ts t d e c1 c2 : CausalE ts 0 e -> CausalC ts (t - Z.of_nat d) c1 -> CausalC ts t c2
+| causal_if ts t d e c1 c2 : CausalE ts 0 e -> CausalC ts t c1
+                             -> CausalC (map (fun x => x - Z.of_nat d) ts) (t - Z.of_nat d) c2
                              -> CausalC ts t (If e d c1 c2)
 .
 
@@ -69,28 +70,6 @@ Proof.
 Qed.
 
 
-Lemma CausalC_open t t' ts ts' (c : Contr):
-  all2 Z.le ts' ts -> t' <= t -> CausalC ts t c -> CausalC ts' t' c.
-Proof.
-  intros Is I P. generalize dependent t. generalize dependent t'.
-  generalize dependent ts. generalize dependent ts'.
-  induction c;intros;inversion P;subst.
-  - constructor.
-  - econstructor. eapply CausalE_open. eauto. apply Z.le_refl. eassumption.
-    eapply IHc. constructor. apply Z.le_refl. eassumption. eassumption. eassumption.
-  - econstructor. omega.
-  - apply causal_scale with (t' := t'0). omega. eapply CausalE_open. eassumption.
-    apply Z.le_refl. eassumption. eapply IHc; eassumption.
-  - constructor. eapply IHc with (ts := map (fun x : Z => x - Z.of_nat n) ts) (t := t - Z.of_nat n).
-    apply all2_map; [intros; omega|assumption]. omega. assumption.
-  - constructor;[eapply IHc1|eapply IHc1]; eauto.
-  - constructor.
-    + eapply CausalE_open;eauto. omega.
-    + eapply IHc1 with (t:=t - Z.of_nat n). eassumption. omega. eassumption.
-    + eapply IHc2 with (t:=t). eassumption. omega. eassumption.
-Qed.
-
-
 Lemma CausalV_shift ts t v d : 0 <= d -> CausalV ts t v -> CausalV (map (fun x => x + d) ts) (t + d) v.
 Proof.
   intros D V. induction V;constructor. omega. assumption.
@@ -116,8 +95,6 @@ Proof.
   intros. apply CausalE_shift. omega. assumption.
 Qed.
 
-
-
 Definition env_until {A} t := all3 (B:=A) (fun t' x y => t' <= t -> x = y).
 
 Lemma env_until_monotone {A} t ts f (e1 e2 : list A) : (forall x y, f x <= f y -> x <= y)
@@ -126,6 +103,21 @@ Proof.
   intros M U. induction U; constructor;auto. 
 Qed.
 
+
+Lemma env_until_monotone' {A} t ts f (e1 e2 : list A) : (forall x y, x <= y -> f x <= f y)
+                                                        -> env_until (f t) (map f ts) e1 e2
+                                                        ->  env_until t ts e1 e2.
+Proof.
+  intros M U. remember (map f ts) as ts'. induction U; destruct ts;tryfalse;constructor;
+                                          simpl in *; inversion Heqts'; subst; auto. admit.
+Qed.
+
+
+Lemma env_until_weaken {A} t t' ts (vars1 vars2 : list A) : 
+  env_until t ts vars1 vars2 -> t' <= t ->  env_until t' ts vars1 vars2.
+Proof.
+  intros U I. induction U;constructor;auto. intro. apply H. omega.
+Qed.
 
 Definition causalE ts t e := forall vars1 vars2 rho1 rho2, env_until t ts vars1 vars2 -> ext_until t rho1 rho2
                                                         -> E[|e|] vars1 rho1 = E[|e|]vars2 rho2.
@@ -173,3 +165,111 @@ Proof.
         do 2 rewrite adv_ext_iter. rewrite Pos2Z.add_neg_pos. rewrite Z.pos_sub_diag.
         do 2 rewrite adv_ext_0. assumption.
 Qed.
+
+Lemma prec_of_nat t n : t - 1 - Z.of_nat n = t - Z.pos (Pos.of_succ_nat n).
+Proof. rewrite Zpos_P_of_succ_nat. omega. Qed.
+
+Lemma CausalC_empty ts t c tr i vars rho : CausalC ts t c -> C[|c|]vars rho = Some tr -> Z.of_nat i < t
+                                           -> tr i = empty_trans.
+Proof.
+  generalize dependent vars. generalize dependent rho. generalize dependent tr. 
+  generalize dependent i. generalize dependent ts. generalize dependent t.
+  induction c;intros t ts i tr rho vars C R I; simpl in *.
+  - inversion R. reflexivity.
+  - option_inv_auto. inversion C. subst. eapply IHc; eauto.
+  - inversion C. subst. eapply Z.lt_le_trans in H2;eauto. assert (0 = Z.of_nat 0) as Z by reflexivity.
+    rewrite Z in H2. rewrite <- Nat2Z.inj_lt in H2. inversion H2.
+  - option_inv_auto. inversion C. subst. rewrite <- scale_empty_trans with (r:=x). unfold scale_trace,compose.
+    f_equal. eapply IHc; eauto.
+  - option_inv_auto. inversion C. subst. unfold delay_trace. remember (leb n i) as L. destruct L;try reflexivity. 
+    symmetry in HeqL. apply leb_complete in HeqL. eapply IHc in H0. apply H0. 
+    apply H3. rewrite Nat2Z.inj_sub by assumption. omega.
+  - option_inv_auto. erewrite <- add_empty_trans. inversion C. subst. unfold add_trace. 
+    f_equal; [eapply IHc1|eapply IHc2]; eauto.
+  - inversion C. clear C. subst. 
+    assert (
+        forall (i : nat) (tr : Trace) 
+                      (rho : ExtEnv) (vars : Env),
+                 C[|c1|] vars rho = Some tr -> Z.of_nat i < t -> tr i = empty_trans) as IH1.
+    intros. eauto. clear H6. clear H4.
+    generalize dependent rho. generalize dependent vars. 
+    generalize dependent t. generalize dependent ts. generalize dependent tr. generalize dependent i. 
+    induction n; intros.
+    + simpl in *. destruct (E[|e|] vars rho);tryfalse. destruct v;tryfalse. destruct b.
+      * eapply IH1;eauto.
+      * eapply IHc2; eauto. rewrite Z.sub_0_r. assumption.
+    + simpl in *.  destruct (E[|e|] vars rho);tryfalse. destruct v;tryfalse. destruct b.
+      * eapply IH1 in R; eauto.
+      * option_inv_auto. unfold delay_trace. remember (leb 1 i) as L. destruct L; try reflexivity.
+        symmetry in HeqL. apply leb_complete in HeqL.
+        eapply IHn with (t:=(t - 1)) (ts:=map (fun x => x - 1) ts); auto. 
+        rewrite Nat2Z.inj_sub by assumption. 
+        simpl. omega. rewrite prec_of_nat. rewrite map_map. erewrite map_ext. eassumption. 
+        intros. simpl. apply prec_of_nat.
+        intros. eapply IH1; eauto. omega. apply H0.
+Qed.
+
+
+
+
+Lemma CausalC_sound ts t t1 t2 i vars1 vars2 r1 r2 c : 
+  CausalC ts t c -> env_until t ts vars1 vars2 ->
+  ext_until (Z.of_nat i) r1 r2 -> C[|c|]vars1 r1 = Some t1 -> C[|c|] vars2 r2 = Some t2 ->
+  t <= Z.of_nat i -> t1 i = t2 i.
+Proof.
+  intros C V X C1 C2 I. 
+  generalize dependent ts. generalize dependent t. generalize dependent r1. generalize dependent r2.
+  generalize dependent vars1. generalize dependent vars2. generalize dependent i.
+  generalize dependent t1. generalize dependent t2.
+  induction c; intros; inversion C;subst;clear C.
+  - simpl in *. inversion C1. inversion C2. reflexivity.
+  - simpl in *. option_inv_auto. eapply IHc; eauto. constructor;auto.
+    intro. rewrite CausalE_sound in H0;eauto. rewrite H0 in H2. 
+    inversion H2. subst. reflexivity. eapply env_until_weaken; eassumption.
+    eapply ext_until_le. eassumption. omega.
+  - simpl in *. inversion C1. inversion C2. reflexivity.
+  - simpl in *. option_inv_auto. unfold scale_trace, compose. erewrite IHc; eauto.
+    rewrite CausalE_sound in H5; eauto. rewrite H5 in H6. inversion H6. subst.
+    destruct x3; tryfalse. rewrite H7 in H8. inversion H8. reflexivity.
+    eapply ext_until_le. eassumption. omega.
+  - simpl in *. option_inv_auto. unfold delay_trace. remember (leb n i) as L.
+    destruct L; try reflexivity. symmetry in HeqL. apply leb_complete in HeqL.
+    eapply IHc; eauto. rewrite ext_until_adv. rewrite Nat2Z.inj_sub by assumption.
+    eapply ext_until_le. eassumption.  omega. rewrite Nat2Z.inj_sub by assumption. omega.
+    apply env_until_monotone with (f := (fun x1 : Z => x1 - Z.of_nat n)) in V. apply V.
+    intros. omega.
+  - simpl in *. option_inv_auto. unfold add_trace. f_equal; [eapply IHc1|eapply IHc2]; eauto.
+  - simpl in *. apply CausalE_sound in H4. unfold causalE in *.
+    assert (
+        forall (t2 t1 : Trace) (i : nat) (vars2 vars1 : list Val)
+           (r2 : ExtEnv),
+         C[|c1|] vars2 r2 = Some t2 ->
+         forall r1 : ExtEnv,
+         C[|c1|] vars1 r1 = Some t1 ->
+         ext_until (Z.of_nat i) r1 r2 ->
+         t <= Z.of_nat i ->
+         env_until t ts vars1 vars2 -> t1 i = t2 i) as IH1.
+    intros. eapply IHc1;eauto. clear H6. clear IHc1.
+    generalize dependent ts. generalize dependent t. generalize dependent r1. generalize dependent r2.
+    generalize dependent vars1. generalize dependent vars2. generalize dependent i.
+    generalize dependent t1. generalize dependent t2.
+    induction n;intros.
+    + simpl in *. rewrite H4 with (vars2:=vars2) (rho2:=r2) in C1;auto.
+      destruct (E[|e|] vars2 r2);tryfalse. destruct v;tryfalse. rewrite Z.sub_0_r in *. 
+      destruct b; [eapply IH1|eapply IHc2]; eauto. erewrite map_ext. rewrite map_id. assumption.
+      intros. omega.
+    + simpl in *. rewrite H4 with (vars2:=vars2) (rho2:=r2) in C1;auto.
+      destruct (E[|e|] vars2 r2);tryfalse. destruct v;tryfalse. destruct b.
+        eapply IH1; eauto.
+        option_inv_auto. unfold delay_trace. remember (leb 1 i) as L. destruct L;try reflexivity.
+        symmetry in HeqL. apply leb_complete in HeqL.
+        eapply IHn with (t:=t-1) (ts :=map (fun x => x - 1) ts);clear IHn;eauto. 
+        * rewrite ext_until_adv. eapply ext_until_le.
+          apply X. omega. 
+        * rewrite Nat2Z.inj_sub by assumption. simpl. omega.
+        * apply env_until_monotone with (f:=fun x1 : Z => x1 - 1) in V. apply V.
+          intros. omega. 
+        * intros. apply H4. apply env_until_monotone' with (f:=fun x1 : Z => x1 - 1) in H. apply H.
+          intros. omega. auto. admit.
+        * rewrite map_map. rewrite prec_of_nat. erewrite map_ext. apply H7. intros. apply prec_of_nat.
+        *   intros. eapply IH1;eauto.
