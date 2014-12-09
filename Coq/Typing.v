@@ -49,7 +49,7 @@ Reserved Notation "g '|-X' v '∶' t" (at level 20).
 
 Inductive TypeVar : TyEnv -> Var -> Ty -> Prop :=
 | type_var_1 t g  : (t :: g) |-X V1 ∶ t
-| type_var_S g v t : g |-X v ∶ t -> (t :: g) |-X VS v ∶ t
+| type_var_S g v t t' : g |-X v ∶ t -> (t' :: g) |-X VS v ∶ t
         where "g '|-X' v '∶' t" := (TypeVar g v t).
 
 

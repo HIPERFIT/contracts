@@ -43,6 +43,8 @@ Inductive CausalC : TimeEnv -> Z -> Contr -> Prop :=
                              -> CausalC ts t (If e d c1 c2)
 .
 
+Hint Constructors CausalV CausalE CausalC.
+
 (* Contextual causality is 'open': i.e. it is (anti-)monotone w.r.t. ordering on time. *)
 
 Lemma CausalV_open t t' ts ts' (v : Var) : all2 Z.le ts' ts -> t <= t' -> CausalV ts t v -> CausalV ts' t' v.
@@ -142,7 +144,7 @@ Proof.
   - unfold causalE. intros. simpl. unfold ext_until in *. rewrite H0; auto.
   - induction H2. 
     + unfold causalE. intros. inversion H0. subst. simpl. f_equal. auto.
-    + unfold causalE in *. intros. inversion H. subst. simpl in *. eapply IHCausalV; eauto. constructor. auto.
+    + unfold causalE in *. intros. inversion H. subst. simpl in *. eapply IHCausalV; eauto. 
   - unfold causalE. intros. simpl. generalize dependent t'. 
     generalize dependent t. generalize dependent ts.
     generalize dependent rho1. generalize dependent rho2. induction d; intros.
