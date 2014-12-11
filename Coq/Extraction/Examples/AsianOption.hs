@@ -1,4 +1,4 @@
-import SyntaxContract
+import EDSL
 
 option :: Contr
 option = translate 90 (iff (bObs "X" 0) trade zero)

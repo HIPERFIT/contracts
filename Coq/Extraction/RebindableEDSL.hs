@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE IncoherentInstances #-}
 
-module RebindableSyntaxContract 
+module RebindableEDSL
     (
      -- * comparison operators                            
      (<), (<=), (==), (>), (>=), 
@@ -17,11 +17,11 @@ module RebindableSyntaxContract
 
      module P,
      ifThenElse,
-     module SyntaxContract
+     module EDSL
 ) where
 
 
-import SyntaxContract
+import EDSL
 import Prelude as P (Int,Integer,error, Num(..), Fractional(..), fail, return)
 
 

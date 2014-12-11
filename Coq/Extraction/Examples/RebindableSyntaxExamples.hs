@@ -1,6 +1,6 @@
 {-# LANGUAGE RebindableSyntax #-}
 
-import RebindableSyntaxContract
+import RebindableEDSL
 
 ex1 :: Contr
 ex1 = do b <- rObs "DKK/USD" 0 > 5 && bObs "foo" 0

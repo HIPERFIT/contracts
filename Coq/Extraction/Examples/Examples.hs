@@ -1,4 +1,4 @@
-import SyntaxContract
+import EDSL
 
 -- Silly example to test the interaction of binders on contract and
 -- expression level.

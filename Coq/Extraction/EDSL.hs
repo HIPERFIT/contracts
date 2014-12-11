@@ -4,7 +4,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE StandaloneDeriving #-}
 
-module SyntaxContract (
+module EDSL (
 -- * Data types used in contracts
 Asset,
 Party,
