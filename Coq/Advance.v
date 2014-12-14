@@ -43,7 +43,8 @@ Proof.
     repeat rewrite adv_ext_iter. apply bind_equals.      
     f_equal; try (f_equal; omega). f_equal.
     f_equal; try (f_equal;f_equal; omega). do 2 (apply functional_extensionality; intro).
-    do 3 f_equal. omega. do 2 f_equal. omega. intros. rewrite IHe1.
+    do 3 f_equal. apply functional_extensionality. intros. do 3 f_equal. omega. do 2 f_equal. omega.
+    intros.    rewrite IHe1.
     repeat rewrite Zpos_P_of_succ_nat. do 2 f_equal. omega. rewrite <- adv_ext_0. f_equal.
     omega.
 Qed.

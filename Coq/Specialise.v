@@ -20,13 +20,6 @@ Definition fromLit (e : Exp) : option Val :=
   end.
 
 
-Fixpoint constFoldAcc (rho : ExtEnvP) (f : ExtEnvP -> option Val -> option Val)  (l : nat) (z : ExtEnvP -> option Val) :
-  option Val :=
-  match l with
-    | O => z rho
-    | S l' => f rho (constFoldAcc (adv_ext (-1) rho) f l' z)
-  end.
-
 
 Definition toLit (e : Val) : Exp :=
   match e with
@@ -116,11 +109,12 @@ Fixpoint specialiseExp (e : Exp) (rho : ExtEnvP) (vars : EnvP) : Exp :=
                        in default (OpE op args') (specialiseOp op args')
       | Obs obs t => default e (liftM toLit (rho obs t))
       | VarE v => default e (liftM toLit (lookupEnvP v vars))
-      | Acc f l z => let ze := (specialiseExp z rho vars) in
+      | Acc f l z => let rho' := adv_ext (-Z.of_nat l) rho in
+                     let ze := (specialiseExp z rho' vars) in
                      let fe := (specialiseExp z rho (None :: vars)) in
-                     let z' rho := fromLit ze in
-                     let f' rho r := fromLit (specialiseExp f rho (r :: vars))
-                     in default (Acc f l ze) (liftM toLit (constFoldAcc rho f' l z'))
+                     let z' := fromLit ze in
+                     let f' l r := fromLit (specialiseExp f (adv_ext (Z.of_nat l) rho') (r :: vars))
+                     in default (Acc f l ze) (liftM toLit (Acc_sem f' l z'))
     end.
 
 (* Definition of instantiation of external and internal environments *)
@@ -241,17 +235,19 @@ Qed.
   
 Lemma constFoldAcc_typed rho f l z t : 
   TypeExtP rho
-  -> (forall r x, TypeExtP r -> |-V' x ∶ t -> |-V' f r x ∶ t)
-  -> (forall r, TypeExtP r -> |-V' z r ∶ t)
-  -> |-V' constFoldAcc rho f l z ∶ t.
+  -> (forall i x, |-V' x ∶ t -> |-V' f i x ∶ t)
+  -> (|-V' z ∶ t)
+  -> |-V' Acc_sem f l z ∶ t.
 Proof.
-  intros. generalize dependent rho. induction l;intros; simpl; auto using adv_extp_type.
+  intros. induction l;intros; simpl; auto using adv_extp_type.
 Qed.
 
 Lemma TypeVal_Some v t : |-V' Some v ∶ t -> |-V v ∶ t.
 Proof.
   intros H. inversion H. auto.
 Qed.
+
+Hint Resolve adv_extp_type.
 
 Lemma specialiseExp_typed G e t rhop varsp : 
   G |-E e ∶ t -> TypeEnvP G varsp -> TypeExtP rhop
@@ -274,13 +270,17 @@ Proof.
     + simpl. apply toLit_typed. eapply lookupEnvP_typed in H;eauto. rewrite HeqL in H. inversion H.
       assumption.
     + simpl. auto.
-  - simpl. remember (constFoldAcc rhop
-               (fun (rho : ExtEnvP) (r : option Val) =>
-                fromLit (specialiseExp e1 rho (r :: varsp))) n
-               (fun _ : ExtEnvP => fromLit (specialiseExp e2 rhop varsp))) as S.
+  - simpl. remember (Acc_sem
+               (fun (l : nat) (r : option Val) =>
+                fromLit
+                  (specialiseExp e1
+                     (adv_ext (Z.of_nat l) (adv_ext (- Z.of_nat n) rhop))
+                     (r :: varsp))) n
+               (fromLit
+                  (specialiseExp e2 (adv_ext (- Z.of_nat n) rhop) varsp))) as S.
     symmetry in HeqS. destruct S. 
-    + simpl. apply toLit_typed. apply TypeVal_Some. rewrite <- HeqS. apply constFoldAcc_typed.
-      * assumption. 
+    + simpl. apply toLit_typed. apply TypeVal_Some. rewrite <- HeqS. eapply constFoldAcc_typed.
+      * eassumption. 
       * intros. eapply fromLit_typed. apply IHE1; auto. constructor;auto.
       * intros. eapply fromLit_typed. apply IHE2; auto. 
     + simpl. auto.

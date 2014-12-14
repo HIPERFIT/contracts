@@ -67,21 +67,19 @@ Definition Reqb (x y : R) : bool := Rleb x y && Rleb y x.
 
 (* Semantics of real expressions. *)
 
-Fixpoint Acc_sem {A} (f : nat -> A -> option A) (n : nat) (z : option A) : option A :=
+Fixpoint Acc_sem {A} (f : nat -> A -> A) (n : nat) (z : A) : A :=
   match n with
     | 0 => z
-    | S n' => Acc_sem f n' z >>= f n
+    | S n' => f n (Acc_sem f n' z)
   end.
 
 (* Induction principle for Acc_sem *)
-Lemma Acc_sem_ind A (P : option A -> Prop) f n z : (forall i (x : A), P (Some x) -> P (f i x)) ->  
+Lemma Acc_sem_ind A (P : A -> Prop) f n z : (forall i (x : A), P x -> P (f i x)) ->  
                                             P z -> P (Acc_sem f n z).
 Proof.
   intros F Z. induction n. 
   - simpl. auto.
-  - simpl. remember (Acc_sem f n z) as x. destruct x. 
-    + simpl. apply F. assumption.
-    + simpl. assumption.
+  - simpl. remember (Acc_sem f n z) as x. auto.
 Qed.
 
 (* Semantics of operations *)
@@ -129,7 +127,7 @@ Fixpoint Esem (e : Exp) (rho : Env) (erho : ExtEnv) : option Val :=
       | Obs l i => Some (erho l i)
       | VarE v => lookupEnv v rho
       | Acc f l z => let erho' := adv_ext (- Z.of_nat l) erho
-                     in Acc_sem (fun m x => E[| f |] (x :: rho) 
+                     in Acc_sem (fun m x => x >>= fun x' => E[| f |] (x' :: rho) 
                                               (adv_ext (Z.of_nat m) erho')) l (E[|z|] rho erho')
     end
       where "'E[|' e '|]'" := (Esem e ). 

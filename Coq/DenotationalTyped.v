@@ -76,8 +76,8 @@ Proof.
     - inversion H. subst. inversion R. subst. simpl. eauto.
     - simpl. inversion H. subst. inversion R. subst. eapply IHv. 
       apply H2. auto.
-  + simpl. eapply Acc_sem_ind. intros. apply IHE1. auto. decompose [ex and] H. 
-    inversion H1. subst. constructor;auto. apply IHE2; auto.
+  + simpl. eapply Acc_sem_ind. intros. decompose [ex and] H. subst.
+    simpl. apply IHE1; auto.  constructor;auto. apply IHE2; auto.
 Qed.
 
 
