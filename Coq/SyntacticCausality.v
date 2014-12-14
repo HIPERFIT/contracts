@@ -71,7 +71,7 @@ Proof.
     apply map_rewrite in H0. simpl. rewrite H0. reflexivity.
   - generalize dependent vars. generalize dependent r2. generalize dependent r1. induction l; intros. 
     + simpl. apply IHR2. assumption.
-    + pose (adv_ext_step l) as RE. simpl in *. do 2 rewrite RE.
+    + pose (adv_ext_step l (A:=Val)) as RE. simpl in *. do 2 rewrite RE.
       erewrite IHl. apply bind_equals. apply IHl. apply ext_until_adv. eapply ext_until_le. eauto.
       omega. intros. apply IHR1.  apply ext_until_adv. do 2 rewrite adv_ext_iter. apply ext_until_adv. 
       eapply ext_until_le.  apply O. rewrite Zpos_P_of_succ_nat.
@@ -94,9 +94,8 @@ Proof.
     symmetry in HeqC. apply leb_complete in HeqC.
     assert (Z.of_nat d + Z.of_nat(d0 - d) = Z.of_nat d0) as D.
     rewrite <- Nat2Z.inj_add. f_equal. omega.
-    eapply IHPc. rewrite ext_until_adv with (t:=Z.of_nat d).  
-    rewrite D. eassumption.
-    eassumption. eassumption. reflexivity.
+    eapply IHPc; eauto. rewrite ext_until_adv with (t:=Z.of_nat d).  
+    rewrite D. eassumption. reflexivity.
   - simpl in *. option_inv_auto. erewrite epc_ext_until in H4; eauto. rewrite H4 in H5. 
     inversion H5. subst. eauto. omega.
   - simpl in *. rewrite H0 in H1. inversion H1. reflexivity.

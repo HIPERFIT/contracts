@@ -47,7 +47,7 @@ Proof.
 Qed.
 
 
-Lemma all2_map {A} (P : A -> A -> Prop) (f g : A -> A) xs ys :
+Lemma all2_map {A B} (P : A -> B -> Prop) (f: A -> A) (g : B -> B) xs ys :
   (forall x y, P x y -> P (f x) (g y)) ->
   all2 P xs ys -> all2 P (map f xs) (map g ys).
 Proof.
@@ -213,16 +213,22 @@ Qed.
 
 Ltac option_inv T := idtac;let H := fresh "H" in pose T as H; match goal with
                       | [T : liftM _ _ = Some _ |- _] => apply liftM_some in H
+                      | [T : Some _ = liftM _ _ |- _] => symmetry in H; apply liftM_some in H
                       | [T : liftM2 _ _ _ = Some _ |- _] => apply liftM2_some in H
+                      | [T : Some _ = liftM2 _ _ _ |- _] => symmetry in H; apply liftM2_some in H
                       | [T : _ >>= _ = Some _ |- _] => apply bind_some in H
+                      | [T : Some _ = _ >>= _ |- _] => symmetry in H; apply bind_some in H
                      end; decompose [ex and] H; clear H.
 
 Ltac option_inv' T := option_inv T; subst; clear T.
 
 Ltac option_inv_auto := repeat (idtac; match goal with
                       | [T : liftM _ _ = Some _ |- _] => apply liftM_some in T; decompose [ex and] T; clear T
+                      | [T : Some _ = liftM _ _ |- _] => symmetry in T; apply liftM_some in T;decompose [ex and] T; clear T
                       | [T : liftM2 _ _ _ = Some _ |- _] => apply liftM2_some in T; decompose [ex and] T; clear T
+                      | [T : Some _ = liftM2 _ _ _ |- _] => symmetry in T; apply liftM2_some in T; decompose [ex and] T; clear T
                       | [T : _ >>= _ = Some _ |- _] => apply bind_some in T; decompose [ex and] T; clear T
+                      | [T : Some _ = _ >>= _ |- _] => symmetry in T; apply bind_some in T; decompose [ex and] T; clear T
                      end;subst).
 
 

@@ -14,6 +14,8 @@ module RebindableEDSL
      (>>=), 
      (>>),
      wait ,
+     max,
+     min,
 
      module P,
      ifThenElse,
@@ -23,6 +25,13 @@ module RebindableEDSL
 
 import EDSL
 import Prelude as P (Int,Integer,error, Num(..), Fractional(..), fail, return)
+
+
+max :: ExpHoas exp => exp R -> exp R -> exp R
+max x y = if x < y then y else x
+
+min :: ExpHoas exp => exp R -> exp R -> exp R
+min x y = if x < y then x else y
 
 
 (==) :: ExpHoas exp => exp R -> exp R -> exp B

@@ -56,10 +56,10 @@ Proof.
     rewrite H in *. simpl in *. option_inv' T1. option_inv' T2. unfold pure,compose in *.
     eapply IHR in H4;eauto. inversion H3. inversion H5. unfold scale_trace, compose in *. rewrite H4. 
     reflexivity.
-  - unfold delay_trace in *. rewrite adv_ext_0 in *. 
+  - unfold delay_trace in *. rewrite adv_ext_0 in T1. 
     option_inv' T1. simpl. apply IHR; auto. 
   - option_inv' T1. option_inv' T2.
-    unfold delay_trace in *. simpl in *. rewrite adv_ext_iter in *. 
+    unfold delay_trace in *. simpl in *. rewrite adv_ext_iter in H2. 
     assert (Z.pos (Pos.of_succ_nat n) = (1 + Z.of_nat n)%Z).
     assert (1%Z = Z.of_nat 1) by reflexivity. rewrite H in *.
     rewrite <- Nat2Z.inj_add in *. reflexivity.
@@ -83,7 +83,7 @@ Proof.
     unfold scale_trace, compose in *. option_inv' H1. destruct x2; tryfalse. 
     simpl in *. inversion H4. subst. eauto.
   - unfold delay_trace in *. option_inv' H. destruct n; simpl in *.
-    + rewrite adv_ext_0 in *. apply IHc in H2. eauto_destruct.
+    + rewrite adv_ext_0 in H2. apply IHc in H2. eauto_destruct.
     + eauto.
   -  unfold add_trace in *. option_inv' H. apply IHc1 in H1. apply IHc2 in H2.
      eauto_destruct.

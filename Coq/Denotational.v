@@ -14,21 +14,24 @@ Inductive Val : Set := BVal : bool -> Val | RVal : R -> Val.
 
 (* External environments map observables to values *)
 
-Definition ExtEnv := ObsLabel -> Z -> Val.
+Definition ExtEnv' A := ObsLabel -> Z -> A.
+
+Definition ExtEnv := ExtEnv' Val.
+
 
 
 (* Move external environments into the future. *)
 
-Definition adv_ext (d : Z) (e : ExtEnv) : ExtEnv
+Definition adv_ext {A} (d : Z) (e : ExtEnv' A) : ExtEnv' A
   := fun l x => e l (d + x)%Z.
 
-Lemma adv_ext_0 (e : ExtEnv) : adv_ext 0 e = e.
+Lemma adv_ext_0 {A} (e : ExtEnv' A) : adv_ext 0 e = e.
 Proof.
   apply functional_extensionality.
   unfold adv_ext. reflexivity.
 Qed.
 
-Lemma adv_ext_iter d d' (e : ExtEnv) : adv_ext d (adv_ext d' e) = adv_ext (d' + d) e.
+Lemma adv_ext_iter {A} d d' (e : ExtEnv' A) : adv_ext d (adv_ext d' e) = adv_ext (d' + d) e.
 Proof.
   apply functional_extensionality. intro. apply functional_extensionality. induction d'; intros.
   - simpl. rewrite adv_ext_0. reflexivity.
@@ -37,7 +40,7 @@ Proof.
 Qed.
 
 
-Lemma adv_ext_swap d d' (e : ExtEnv) : 
+Lemma adv_ext_swap {A} d d' (e : ExtEnv' A) : 
   adv_ext d (adv_ext d' e) = adv_ext d' (adv_ext d e).
 Proof.
   repeat rewrite adv_ext_iter. rewrite Z.add_comm. reflexivity.
@@ -132,14 +135,15 @@ Fixpoint Esem (e : Exp) (rho : Env) (erho : ExtEnv) : option Val :=
       where "'E[|' e '|]'" := (Esem e ). 
 
 
-Lemma adv_ext_step n erho : ((adv_ext (- Z.of_nat (S n)) erho) = (adv_ext (- Z.of_nat n) (adv_ext (-1) erho))).
+Lemma adv_ext_step {A} n (erho : ExtEnv' A) : 
+  ((adv_ext (- Z.of_nat (S n)) erho) = (adv_ext (- Z.of_nat n) (adv_ext (-1) erho))).
 Proof.
   rewrite adv_ext_iter. f_equal. rewrite Nat2Z.inj_succ. omega.
 Qed.
 
 Axiom Zneg_of_succ_nat : forall n, Z.neg (Pos.of_succ_nat n) = (- Z.of_nat (S n))%Z.
 
-Lemma adv_ext_step' n erho : ((adv_ext (Z.neg (Pos.of_succ_nat n)) erho) = (adv_ext (- Z.of_nat n) (adv_ext (-1) erho))).
+Lemma adv_ext_step' {A} n (erho : ExtEnv' A) : ((adv_ext (Z.neg (Pos.of_succ_nat n)) erho) = (adv_ext (- Z.of_nat n) (adv_ext (-1) erho))).
 Proof.
   rewrite Zneg_of_succ_nat. apply adv_ext_step.
 Qed.
