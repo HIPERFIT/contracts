@@ -85,15 +85,6 @@ Definition specialiseOp (op : Op) (args : list Exp) : option Exp :=
     | _ =>  None
   end.
 
-Ltac destruct_match := match goal with
-                         | [ _ : context [match ?x with 
-                                          | _ => _ 
-                                        end] |- _ ] => is_var x; destruct x
-                         | [ |- context [match ?x with 
-                                          | _ => _ 
-                                         end]] => is_var x; destruct x
-                         | [_:context[sequence [?o]]|- _] => is_var o; destruct o
-                      end.
   
 Fixpoint lookupEnvP (v : Var) (rho : EnvP) : option Val :=
   match v, rho with
@@ -145,13 +136,6 @@ Proof.
 Qed.
 
 
-
-
-Lemma liftM_none {A B} (f : A -> B)  x : liftM f x = None -> x = None.
-Proof.
-  intro. destruct x;tryfalse. reflexivity.
-Qed.
-
 Definition TypeExtP (rhop : ExtEnvP) := forall z l t, |-O l ∶ t -> |-V' (rhop l z)  ∶ t.
 Definition TypeEnvP (g : TyEnv) (rhop : EnvP) : Prop := all2 TypeVal' rhop g.
 
@@ -181,12 +165,6 @@ Proof.
   inversion H. clear H. subst. destruct op; simpl; try constructor;
                                destruct args;try inversion H3; auto.
  Qed.
-
-
-Lemma mapM_some {A B} (f : A -> option B) xs x : (mapM f xs) = Some x -> all (fun x => exists y, f x = Some y) xs.
-Proof.
-  intro M. generalize dependent x. induction xs;intros;constructor;simpl in *;option_inv_auto;eauto.
-Qed.
  
 Lemma specialiseOp_typed op es e G ts t : 
 |-Op op ∶ ts => t -> all2 (TypeExp G) es ts -> specialiseOp op es = Some e
@@ -200,12 +178,6 @@ Proof.
 
   intros O A S. inversion O;subst;clear O; simpl in *; tryfalse;
   repeat inv; tryfalse; auto.
-Qed.
-
-Lemma all2_map_all2 {A' A B B'} xs ys P (f : A -> A') (g : B -> B') : 
-  all2 (fun x y => P (f x) (g y)) xs ys -> all2 P (map f xs) (map g ys).
-Proof. 
-  intro Ps. induction Ps;simpl;constructor;auto.
 Qed.
 
 Lemma lookupEnvP_typed G varsp v t : TypeEnvP G varsp -> G |-X v ∶ t -> |-V' lookupEnvP v varsp ∶ t.
@@ -306,11 +278,6 @@ Proof.
 Qed.
 
 
-Lemma all2_all {A B} P (xs : list A) (ys : list B) : all2 (fun x y => P x) xs ys -> all P xs.
-Proof.
-  intros T. induction T;constructor;auto.
-Qed.
-
 Lemma ext_inst_adv rhop rho z : ext_inst rhop rho -> ext_inst (adv_ext z rhop) (adv_ext z rho).
 Proof.
   unfold ext_inst, adv_ext. intros. auto.
@@ -328,32 +295,7 @@ Proof.
   - eapply IHv;eauto.
 Qed.
 
-(* Induction principle for Acc_sem2 *)
-Lemma Acc_sem_ind2 A B (P : A -> B -> Prop) f1 f2 n z1 z2 : 
-  P z1 z2 -> (forall i (x : A) y, P x y -> P (f1 i x) (f2 i y)) ->  
-  P (Acc_sem f1 n z1) (Acc_sem f2 n z2).
-Proof.
-  intros. induction n;simpl; auto.
-Qed.
-
-(* Special case of Acc_sem2 *)
-Lemma Acc_sem_impl A f1 f2 n z1 z2 : 
-  (forall v v', z1 = Some v -> z2 = Some v' -> v = v') -> 
-  (forall i x y, (forall v v', x = Some v -> y = Some v' -> v = v') -> 
-  (forall v v', f1 i x = Some v -> f2 i y = Some v' -> v = v')) ->  
-  (forall v v' : A, Acc_sem f1 n z1 = Some v -> Acc_sem f2 n z2 = Some v' -> v = v').
-Proof.
-  intros Z F. induction n;intros;simpl; eauto.
-Qed.
-
 Hint Resolve bind_equals.
-
-Lemma bind_some':
-  forall (A B : Type) (x : option A) (v : B) (f : A -> option B),
-  (exists x' : A, x = Some x' /\ f x' = Some v) -> x >>= f = Some v.
-Proof.
-  intros. decompose [ex and] H. subst. auto.
-Qed.
 
 Theorem specialiseExp_sound G e t rhop rho varsp vars : 
   G |-E e ∶ t -> TypeExt rho -> TypeEnv G vars ->

@@ -274,3 +274,14 @@ Lemma all_mp {A} (P Q : A -> Prop) xs : all P xs -> all (fun x => P x -> Q x) xs
 Proof.
   intro All. induction All;constructor;inversion H0; auto.
 Qed.
+
+Lemma all2_map_all2 {A' A B B'} xs ys P (f : A -> A') (g : B -> B') : 
+  all2 (fun x y => P (f x) (g y)) xs ys -> all2 P (map f xs) (map g ys).
+Proof. 
+  intro Ps. induction Ps;simpl;constructor;auto.
+Qed.
+
+Lemma all2_all {A B} P (xs : list A) (ys : list B) : all2 (fun x y => P x) xs ys -> all P xs.
+Proof.
+  intros T. induction T;constructor;auto.
+Qed.
