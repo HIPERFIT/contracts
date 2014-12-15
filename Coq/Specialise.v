@@ -93,20 +93,20 @@ Fixpoint lookupEnvP (v : Var) (rho : EnvP) : option Val :=
     | _,_ => None
   end.
 
-Definition specialiseFun f (rho : ExtEnvP) (vars : EnvP) := 
-  fun l r => fromLit(f (adv_ext (Z.of_nat l) rho) (r :: vars)).
+Definition specialiseFun f  (vars : EnvP) (rho : ExtEnvP) := 
+  fun l r => fromLit(f (r :: vars) (adv_ext (Z.of_nat l) rho)).
 
-Fixpoint specialiseExp (e : Exp) (rho : ExtEnvP) (vars : EnvP) : Exp :=
+Fixpoint specialiseExp (e : Exp) (vars : EnvP) (rho : ExtEnvP)  : Exp :=
     match e with
-      | OpE op args => let args' := map (fun e' => specialiseExp e' rho vars) args
+      | OpE op args => let args' := map (fun e' => specialiseExp e' vars rho) args
                        in default (OpE op args') (specialiseOp op args')
       | Obs obs t => default e (liftM toLit (rho obs t))
       | VarE v => default e (liftM toLit (lookupEnvP v vars))
       | Acc f l z => let rho' := adv_ext (-Z.of_nat l) rho in
-                     let ze := (specialiseExp z rho' vars) in
-                     let fe := (specialiseExp z rho (None :: vars)) in
+                     let ze := (specialiseExp z vars rho') in
+                     let fe := (specialiseExp z (None :: vars) rho) in
                      let z' := fromLit ze in
-                     let f' := specialiseFun (specialiseExp f) rho' vars
+                     let f' := specialiseFun (specialiseExp f) vars rho'
                      in default (Acc f l ze) (liftM toLit (Acc_sem f' l z'))
     end.
 
@@ -220,11 +220,11 @@ Tactic Notation "destruct_toLit" ident (d')
 
 Lemma specialiseExp_typed G e t rhop varsp : 
   G |-E e ∶ t -> TypeEnvP G varsp -> TypeExtP rhop
-      -> G |-E specialiseExp e rhop varsp ∶ t.
+      -> G |-E specialiseExp e varsp rhop ∶ t.
 Proof.
   intros E V R. generalize dependent varsp. generalize dependent rhop. 
   induction E using TypeExp_ind'; intros.
-  - simpl. remember (specialiseOp op (map (fun e' : Exp => specialiseExp e' rhop varsp) es)) as S.
+  - simpl. remember (specialiseOp op (map (fun e' : Exp => specialiseExp e' varsp rhop) es)) as S.
     symmetry in HeqS. 
     do 4 (eapply all2_apply in H1; try eassumption).
     apply all2_map_all2 in H1. rewrite map_id in H1.
@@ -300,14 +300,14 @@ Hint Resolve bind_equals.
 Theorem specialiseExp_sound G e t rhop rho varsp vars : 
   G |-E e ∶ t -> TypeExt rho -> TypeEnv G vars ->
       ext_inst rhop rho -> env_inst varsp vars -> 
-      E[|specialiseExp e rhop varsp|] vars rho  = E[|e|] vars rho.
+      E[|specialiseExp e varsp rhop|] vars rho  = E[|e|] vars rho.
 Proof.
   intros T R V I J. generalize dependent rho. generalize dependent rhop. 
   generalize dependent vars. generalize dependent varsp.
   induction T using TypeExp_ind';intros.
   - simpl. 
     apply all2_all in H1. do 8 (eapply all_apply in H1;eauto). apply map_rewrite in H1.
-    remember (specialiseOp op (map (fun e' : Exp => specialiseExp e' rhop varsp) es)) as S.
+    remember (specialiseOp op (map (fun e' : Exp => specialiseExp e' varsp rhop) es)) as S.
     symmetry in HeqS. destruct S.
     + eapply specialiseOp_sound in HeqS;eauto. simpl in *. rewrite <- HeqS. 
       rewrite map_map. rewrite H1. reflexivity.
@@ -326,7 +326,7 @@ Proof.
       * simpl. auto.
     + assert (g |-E Acc e1 n e2 ∶ t) as A by auto.
       eapply Esem_typed_total with (erho:= adv_ext (-1) rho) in A; eauto.
-      assert (g |-E specialiseExp (Acc e1 n e2) (adv_ext (-1) rhop) varsp ∶ t) as As 
+      assert (g |-E specialiseExp (Acc e1 n e2) varsp (adv_ext (-1) rhop) ∶ t) as As 
                                                                                  by (apply specialiseExp_typed;eauto).
       eapply Esem_typed_total with (erho := adv_ext (-1) rho) in As;eauto.
       simpl in *. destruct_toLit S.
@@ -364,14 +364,14 @@ Qed.
 
 (* definitions below have to be revised *)
 
-Fixpoint traverseIfWithin (rho : ExtEnv) (e: Exp) (c1 c2 : ExtEnv -> Contr) (l : nat) : Contr + (Exp * nat) :=
-  match specialiseExp e rho nil with
-      | OpE (BLit true) nil => inl (c1 rho)
-      | OpE (BLit false) nil => match l with
-                        | O => inl (c2 rho)
-                        | S l' => traverseIfWithin (adv_ext 1 rho) e c1 c2 l'
+Fixpoint traverseIfWithin (vars:EnvP) (rho : ExtEnvP) (e: Exp) (c1 c2 : ExtEnvP -> Contr) (l : nat) : option Contr :=
+  match fromBLit (specialiseExp e vars rho) with
+      | Some true => Some (c1 rho)
+      | Some false => match l with
+                        | O => Some (c2 rho)
+                        | S l' => traverseIfWithin vars (adv_ext 1 rho) e c1 c2 l'
                         end
-      | e' => inr (e', l)
+      | _ => None
   end.
 
 Definition isZeroLit (e : Exp) : bool :=
@@ -380,27 +380,26 @@ Definition isZeroLit (e : Exp) : bool :=
     | _ => false
 end.
 
-Fixpoint specialise (c : Contr) (rho : ExtEnv) : Contr :=
+Fixpoint specialise (c : Contr) (vars : EnvP) (rho : ExtEnvP) : Contr :=
   match c with
     | Zero => c
     | Transfer _ _ _ => c
-    | Scale e c' => let e' := specialiseExp e rho nil
+    | Let e c' => let e' := specialiseExp e vars rho in
+                  Let e' (specialise c' (fromLit e' :: vars) rho)
+    | Scale e c' => let e' := specialiseExp e vars rho
                     in if isZeroLit e' then Zero
-                       else match specialise c' rho with
+                       else match specialise c' vars rho with
                               | Zero => Zero 
                               | c'' => Scale e' c''
                             end
-    | Translate l c' => match (specialise c' (adv_ext (Z.of_nat l) rho)) with
+    | Translate l c' => match (specialise c' vars (adv_ext (Z.of_nat l) rho)) with
                            | Zero => Zero
                            | c'' => translate l c''
                         end
-    | Both c1 c2 => match specialise c1 rho, specialise c2 rho with
+    | Both c1 c2 => match specialise c1 vars rho, specialise c2 vars rho with
                         | Zero, c' => c'
                         | c', Zero => c'
                         | c1', c2' => Both c1' c2'
                     end
-    | If e l c1 c2 => match traverseIfWithin rho e (specialise c1) (specialise c2) l with
-                              | inl c' => c'
-                              | inr (e', l') => translate (l - l') (If e' l' c1 c2)
-                            end
+    | If e l c1 c2 => default c (traverseIfWithin vars rho e (specialise c1 vars) (specialise c2 vars) l)
   end.
