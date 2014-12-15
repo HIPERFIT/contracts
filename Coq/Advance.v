@@ -37,10 +37,10 @@ Proof.
   apply map_rewrite in H. rewrite H. reflexivity.
 
   generalize dependent rho.   generalize dependent vars. 
-  simpl. induction d0; intros.
+  simpl. unfold Fsem in *. induction d0; intros.
   - simpl. apply IHe2.
   - repeat rewrite adv_ext_step. simpl. rewrite IHd0. 
-    repeat rewrite adv_ext_iter. apply bind_equals.      
+    repeat rewrite adv_ext_iter. apply bind_equals. 
     f_equal; try (f_equal; omega). f_equal.
     f_equal; try (f_equal;f_equal; omega). do 2 (apply functional_extensionality; intro).
     do 3 f_equal. apply functional_extensionality. intros. do 3 f_equal. omega. do 2 f_equal. omega.

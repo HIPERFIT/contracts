@@ -102,6 +102,8 @@ Fixpoint lookupEnvP (v : Var) (rho : EnvP) : option Val :=
     | _,_ => None
   end.
 
+Definition specialiseFun f (rho : ExtEnvP) (vars : EnvP) := 
+  fun l r => fromLit(f (adv_ext (Z.of_nat l) rho) (r :: vars)).
 
 Fixpoint specialiseExp (e : Exp) (rho : ExtEnvP) (vars : EnvP) : Exp :=
     match e with
@@ -113,7 +115,7 @@ Fixpoint specialiseExp (e : Exp) (rho : ExtEnvP) (vars : EnvP) : Exp :=
                      let ze := (specialiseExp z rho' vars) in
                      let fe := (specialiseExp z rho (None :: vars)) in
                      let z' := fromLit ze in
-                     let f' l r := fromLit (specialiseExp f (adv_ext (Z.of_nat l) rho') (r :: vars))
+                     let f' := specialiseFun (specialiseExp f) rho' vars
                      in default (Acc f l ze) (liftM toLit (Acc_sem f' l z'))
     end.
 
@@ -136,26 +138,13 @@ Proof.
 Qed.
 
 
-Lemma Esem_fromLit e vars rho : fromLit e ⊆ E[|e|] vars rho.
+Lemma Esem_fromLit e vars rho v : fromLit e = Some v -> E[|e|] vars rho = Some v.
 Proof.
-  unfold "⊆". simpl. intros. destruct e;tryfalse.
+  simpl. intros. destruct e;tryfalse.
   destruct op; simpl in H; tryfalse; destruct args; tryfalse; auto.
 Qed.
 
 
-Lemma mapM_partial {A B} (f g : A -> option B) P v xs : 
-  all P xs -> (forall x, P x -> forall v, f x = Some v -> g x = Some v) -> mapM f xs = Some v -> mapM g xs = Some v.
-Proof.
-  admit.
-Qed.
-
-
-Lemma sequence_map_partial {A B} (f g : A -> option B) v xs P : 
-  all P xs -> (forall x, P x -> forall v, f x = Some v -> g x = Some v) ->
-  sequence (map f xs) = Some v -> sequence (map g xs) = Some v.
-Proof.
-  admit.
-Qed.
 
 
 Lemma liftM_none {A B} (f : A -> B)  x : liftM f x = None -> x = None.
@@ -249,6 +238,14 @@ Qed.
 
 Hint Resolve adv_extp_type.
 
+Tactic Notation "destruct_toLit" ident (d') 
+  := match goal with
+       | [|- context[liftM toLit ?x]] => let d := fresh in 
+                                         remember x as d eqn:d';
+                                           symmetry in d';destruct d
+     end.
+
+
 Lemma specialiseExp_typed G e t rhop varsp : 
   G |-E e ∶ t -> TypeEnvP G varsp -> TypeExtP rhop
       -> G |-E specialiseExp e rhop varsp ∶ t.
@@ -270,16 +267,8 @@ Proof.
     + simpl. apply toLit_typed. eapply lookupEnvP_typed in H;eauto. rewrite HeqL in H. inversion H.
       assumption.
     + simpl. auto.
-  - simpl. remember (Acc_sem
-               (fun (l : nat) (r : option Val) =>
-                fromLit
-                  (specialiseExp e1
-                     (adv_ext (Z.of_nat l) (adv_ext (- Z.of_nat n) rhop))
-                     (r :: varsp))) n
-               (fromLit
-                  (specialiseExp e2 (adv_ext (- Z.of_nat n) rhop) varsp))) as S.
-    symmetry in HeqS. destruct S. 
-    + simpl. apply toLit_typed. apply TypeVal_Some. rewrite <- HeqS. eapply constFoldAcc_typed.
+  - simpl. destruct_toLit S.
+    + apply toLit_typed. apply TypeVal_Some. rewrite <- S. eapply constFoldAcc_typed.
       * eassumption. 
       * intros. eapply fromLit_typed. apply IHE1; auto. constructor;auto.
       * intros. eapply fromLit_typed. apply IHE2; auto. 
@@ -322,7 +311,12 @@ Proof.
   intros T. induction T;constructor;auto.
 Qed.
 
-Hint Resolve env_inst_typed ext_inst_typed specialiseExp_typed.
+Lemma ext_inst_adv rhop rho z : ext_inst rhop rho -> ext_inst (adv_ext z rhop) (adv_ext z rho).
+Proof.
+  unfold ext_inst, adv_ext. intros. auto.
+Qed.
+
+Hint Resolve env_inst_typed ext_inst_typed specialiseExp_typed ext_inst_adv.
 
 
 Lemma lookupEnvP_sound varsp vars v x : 
@@ -334,14 +328,43 @@ Proof.
   - eapply IHv;eauto.
 Qed.
 
+(* Induction principle for Acc_sem2 *)
+Lemma Acc_sem_ind2 A B (P : A -> B -> Prop) f1 f2 n z1 z2 : 
+  P z1 z2 -> (forall i (x : A) y, P x y -> P (f1 i x) (f2 i y)) ->  
+  P (Acc_sem f1 n z1) (Acc_sem f2 n z2).
+Proof.
+  intros. induction n;simpl; auto.
+Qed.
+
+(* Special case of Acc_sem2 *)
+Lemma Acc_sem_impl A f1 f2 n z1 z2 : 
+  (forall v v', z1 = Some v -> z2 = Some v' -> v = v') -> 
+  (forall i x y, (forall v v', x = Some v -> y = Some v' -> v = v') -> 
+  (forall v v', f1 i x = Some v -> f2 i y = Some v' -> v = v')) ->  
+  (forall v v' : A, Acc_sem f1 n z1 = Some v -> Acc_sem f2 n z2 = Some v' -> v = v').
+Proof.
+  intros Z F. induction n;intros;simpl; eauto.
+Qed.
+
+Hint Resolve bind_equals.
+
+Lemma bind_some':
+  forall (A B : Type) (x : option A) (v : B) (f : A -> option B),
+  (exists x' : A, x = Some x' /\ f x' = Some v) -> x >>= f = Some v.
+Proof.
+  intros. decompose [ex and] H. subst. auto.
+Qed.
+
 Theorem specialiseExp_sound G e t rhop rho varsp vars : 
   G |-E e ∶ t -> TypeExt rho -> TypeEnv G vars ->
       ext_inst rhop rho -> env_inst varsp vars -> 
       E[|specialiseExp e rhop varsp|] vars rho  = E[|e|] vars rho.
 Proof.
-  intros T R V I J. induction T using TypeExp_ind'.
+  intros T R V I J. generalize dependent rho. generalize dependent rhop. 
+  generalize dependent vars. generalize dependent varsp.
+  induction T using TypeExp_ind';intros.
   - simpl. 
-    apply all2_all in H1. apply all_apply in H1;auto. apply map_rewrite in H1.
+    apply all2_all in H1. do 8 (eapply all_apply in H1;eauto). apply map_rewrite in H1.
     remember (specialiseOp op (map (fun e' : Exp => specialiseExp e' rhop varsp) es)) as S.
     symmetry in HeqS. destruct S.
     + eapply specialiseOp_sound in HeqS;eauto. simpl in *. rewrite <- HeqS. 
@@ -353,120 +376,51 @@ Proof.
   - simpl. remember (lookupEnvP v varsp) as L. symmetry in HeqL. destruct L. 
     + simpl. rewrite Esem_toLit. erewrite lookupEnvP_sound;eauto.
     + reflexivity.
-  - (* case for accumulations still missing *)
+  - generalize dependent rho. generalize dependent rhop. 
+    generalize dependent vars. generalize dependent varsp. induction n;intros.
+    + simpl. destruct_toLit S.
+      * eapply Esem_fromLit in S. rewrite IHT2 in S; eauto. 
+        simpl. rewrite Esem_toLit. auto.
+      * simpl. auto.
+    + assert (g |-E Acc e1 n e2 ∶ t) as A by auto.
+      eapply Esem_typed_total with (erho:= adv_ext (-1) rho) in A; eauto.
+      assert (g |-E specialiseExp (Acc e1 n e2) (adv_ext (-1) rhop) varsp ∶ t) as As 
+                                                                                 by (apply specialiseExp_typed;eauto).
+      eapply Esem_typed_total with (erho := adv_ext (-1) rho) in As;eauto.
+      simpl in *. destruct_toLit S.
+      * simpl. rewrite Esem_toLit.         
+        unfold Fsem at 1. simpl. simpl in IHn. repeat rewrite adv_ext_step'. 
+        erewrite <- IHn with (rhop:=adv_ext (-1) rhop) (varsp := varsp); eauto.
+        destruct_toLit S'.
+        simpl. rewrite Esem_toLit. simpl. 
+        eapply Esem_fromLit with (vars := v0 :: vars) in S. rewrite <- S. 
+        eapply IHT1;eauto. constructor;eauto. 
+        decompose [ex and] As.  simpl in H0. rewrite Esem_toLit in H0. inversion H0. assumption.
+        constructor;auto.
+        intros. rewrite <- adv_ext_step' in S'. rewrite S' in H. inversion H. reflexivity. 
+        repeat rewrite adv_ext_iter. 
+        assert (Z.neg (Pos.of_succ_nat n) + Z.of_nat (Datatypes.S n) = 
+                (-1) + (- Z.of_nat n + Z.pos (Pos.of_succ_nat n)))%Z as E by
+        (rewrite Zneg_of_succ_nat; rewrite Zpos_P_of_succ_nat; repeat rewrite Nat2Z.inj_succ; omega) .
+        rewrite E. auto. 
 
+        
+        simpl. unfold specialiseFun in S. decompose [ex and] A. 
+        eapply Esem_fromLit with (vars := x :: vars) (rho :=(adv_ext (Z.pos (Pos.of_succ_nat n))
+        (adv_ext (- Z.of_nat n) (adv_ext (-1) rho)))) in S. 
+        rewrite <- S. rewrite IHT1;eauto. rewrite IHT2;eauto. rewrite H0. 
+        simpl. reflexivity. constructor;auto. constructor; auto.
+        intros. unfold specialiseFun in S'. 
+        rewrite <- adv_ext_step in S'. rewrite <- Zneg_of_succ_nat in S'.
+        rewrite S' in H. inversion H. repeat rewrite adv_ext_iter.
+        assert (Z.neg (Pos.of_succ_nat n) + Z.of_nat (Datatypes.S n) = 
+                (-1) + (- Z.of_nat n + Z.pos (Pos.of_succ_nat n)))%Z as E by
+        (rewrite Zneg_of_succ_nat; rewrite Zpos_P_of_succ_nat; repeat rewrite Nat2Z.inj_succ; omega) .
+        rewrite E. auto. 
+      * simpl. rewrite IHT2;auto.
 Qed.
 
-
-
-Theorem specializeExp e rhop rho varsp vars : ext_inst rhop rho -> env_inst varsp vars -> 
-                                            E[|specialiseExp e rhop varsp|] vars rho  ⊆ E[|e|] vars rho.
-Proof.
-  intros R V. induction e using Exp_ind';intros e E.
-  - simpl in *. rewrite map_map in *. option_inv_auto.
-    remember (liftM toLit (OpSemLazy op
-              (map (fun x : Exp => fromLit (specialiseExp x rhop varsp)) args))) as S.
-    destruct S. 
-    + option_inv_auto. destruct op; try solve[
-        simpl in *; rewrite Esem_toLit in E; inversion E; subst; option_inv_auto;
-        eapply sequence_map_partial in H2; [rewrite H2;simpl; assumption|apply H| simpl; intros;
-          eapply Esem_fromLit in H1; apply H0 in H1; apply H1]].
-      * simpl in *. rewrite Esem_toLit in E. inversion E. clear E. subst.
-        destruct H;tryfalse. destruct H0;tryfalse. destruct H2;tryfalse.
-        simpl in *. 
-        remember (fromLit (specialiseExp x rhop varsp)) as A. symmetry in HeqA.
-        remember (fromLit (specialiseExp x0 rhop varsp)) as B. symmetry in HeqB.
-        destruct A. eapply Esem_fromLit in HeqA. erewrite H;eauto. 
-        destruct B. eapply Esem_fromLit in HeqB. erewrite H0;eauto. simpl.
-        destruct v; destruct v0; try destruct b;try destruct b0;inversion H1; try reflexivity.
-
- destruct v. destruct b. destruct B. destruct v. destruct b. 
-      * admit.
-      * admit.
-    + clear HeqS. simpl in *. rewrite map_map in E. option_inv_auto. 
-      eapply sequence_map_partial in H1. rewrite H1. simpl. assumption. apply H. simpl.
-      intros. auto.
-  - simpl in *. remember (rhop l i) as O. destruct O;try assumption. simpl in *.
-    symmetry in HeqO. apply R in HeqO. rewrite HeqO.
-    rewrite Esem_toLit in E. assumption.
-  - simpl in *. remember (lookupEnvP v varsp) as S. destruct S;try assumption. simpl in *. symmetry in HeqS.
-    eapply env_inst_lookup in HeqS;eauto. rewrite Esem_toLit in E. inversion E. subst. assumption.
-  - 
-Qed.
-
-
-
-Ltac destruct_match' := match goal with
-                         | [ _ : context [match ?x with 
-                                          | _ => _ 
-                                        end] |- _ ] => is_var x; destruct x
-                         | [ |- context [match ?x with 
-                                          | _ => _ 
-                                         end]] => is_var x; destruct x
-                      end.
-
-Lemma OpSemLazy_monotone (op : Op) (args args' : list (option Val)) :
-  args ⊆ args' -> OpSemLazy op args ⊆ OpSemLazy op args'.
-Proof.
-  unfold "⊆". simpl. intros F S. destruct op;
-    try solve [simpl in *; apply bind_monotone; apply sequence_monotone; auto];
-
-    destruct F; try destruct F; try destruct F;auto; destruct x; destruct x0;
-    try erewrite H, H0 by reflexivity; auto; intros; simpl in *;
-    repeat (destruct_match';try pose (H _ eq_refl) as C; try pose (H0 _ eq_refl) as C; tryfalse;auto;try inversion F).
-Qed.
-
-Lemma map_monotone {A B} (f : A -> option B) g l : (forall x, f x ⊆ g x) -> map f l ⊆ map g l.
-Proof.
-  unfold "⊆". simpl. intros. induction l; simpl; constructor; auto.
-Qed.
-
-Theorem specialiseExp_sound e rho vars rhop varsp:
-                           ext_inst rhop rho -> env_inst varsp vars -> E[| e |] vars' rho' ⊆
-                           E[| specialiseExp e rho vars |] vars' rho'.
-Proof.
-  generalize dependent rho. generalize dependent rho'.
-  generalize dependent vars. 
-  induction e using Exp_ind'; intros vars rho' rho R. 
-  - unfold "⊆". simpl.  intros v E.
-    do 4 (eapply all_apply_dep in H; eauto).
-    remember (map (fun e' : Exp => specialiseExp e' rho vars) args) as args'. unfold default.
-    remember (liftM toLit (OpSemLazy op (map fromLit args'))) as A. destruct A.
-
-    + apply sequence_map_monotone in H. eapply bind_monotone' in H. apply H in E.
-      apply OpSemLazy_sound in E.
-      rewrite Heqargs' in HeqA. rewrite map_map in HeqA.
-      symmetry in HeqA. apply liftM_some in HeqA. decompose [ex and] HeqA. clear HeqA. subst.
-      rewrite Esem_toLit. eapply OpSemLazy_monotone  in H1. rewrite <- E. rewrite <- H1. reflexivity.
-      apply map_monotone. intros. apply Esem_fromLit.
-
-    + simpl. simpl in E. rewrite Heqargs'. rewrite map_map. 
-      apply mapM_monotone in H. rewrite sequence_map. rewrite sequence_map in E.
-      unfold "⊆" in H. simpl in H.
-      remember (mapM (fun e : Exp => E'[|e|] vars rho') args) as M. destruct M.
-      erewrite H by reflexivity. rewrite <- E. reflexivity.
-      simpl in E. inversion E.
-  - simpl. intros. unfold default. remember (rho l i) as L. destruct L. simpl.
-    symmetry in HeqL. apply R in HeqL. rewrite HeqL in H.
-    inversion H. subst. apply Esem_toLit. simpl. auto.
-  - simpl. intros. unfold default. rewrite H. simpl.
-    apply Esem_toLit.
-  - admit.
-     (* generalize dependent rho. generalize dependent rho'. *)
-     (* generalize dependent vars. *)
-     (* induction d. *)
-     (* + simpl. intros. unfold default. apply IHe2; eauto. *)
-     (* + simpl. unfold compose. intros. unfold default. simpl in IHe1. *)
-     (*   eapply bind_monotone in IHe1. eapply IHe1 in H.      remember (constFoldAcc (adv_ext (-1) rho) *)
-     (*          (fun (rho0 : ExtEnv) (r : option Val) => *)
-     (*           specialiseExp e1 rho0 (r :: vars)) d *)
-     (*          (fun rho0 : ExtEnv => specialiseExp e2 rho0 vars)) as E1. *)
-     (*   destruct E1. simpl. apply IHe1; eauto. constructor; eauto. *)
-     (*   symmetry in HeqE1. simpl in IHd. apply IHd in HeqE1.  *)
-     (*   remember (specialiseExp (Acc e1 d e2) (adv_ext (-1) rho) vars) as FOO. *)
-     (*   simpl in HeqFOO. unfold default in HeqFOO. *)
-Qed.
-
+(* definitions below have to be revised *)
 
 Fixpoint traverseIfWithin (rho : ExtEnv) (e: Exp) (c1 c2 : ExtEnv -> Contr) (l : nat) : Contr + (Exp * nat) :=
   match specialiseExp e rho nil with

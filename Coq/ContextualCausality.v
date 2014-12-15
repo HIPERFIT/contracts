@@ -147,7 +147,7 @@ Proof.
     + unfold causalE in *. intros. inversion H. subst. simpl in *. eapply IHCausalV; eauto. 
   - unfold causalE. intros. simpl. generalize dependent t'. 
     generalize dependent t. generalize dependent ts.
-    generalize dependent rho1. generalize dependent rho2. induction d; intros.
+    generalize dependent rho1. generalize dependent rho2. unfold Fsem in *. induction d; intros.
     + simpl. do 2 rewrite adv_ext_0. unfold causalE in IHe2. simpl in H3.
       rewrite Z.add_0_r in H3. eapply IHe2; eauto. erewrite map_ext. rewrite map_id. assumption.
       intros; omega.
