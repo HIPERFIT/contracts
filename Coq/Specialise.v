@@ -52,6 +52,20 @@ Definition fromRLit (e : Exp) : option R :=
     | _ => None
   end.
 
+
+Definition isZeroLit (e : Exp) : bool :=
+  match e with
+    | OpE (RLit r) nil => Reqb r 0
+    | _ => false
+end.
+
+Definition isOneLit (e : Exp) : bool :=
+  match e with
+    | OpE (RLit r) nil => Reqb r 1
+    | _ => false
+end.
+
+
 Definition specialiseOp (op : Op) (args : list Exp) : option Exp :=
   match op with
     | Cond => match args with
@@ -80,6 +94,18 @@ Definition specialiseOp (op : Op) (args : list Exp) : option Exp :=
                               | _, Some false => Some e1
                               | _, _ => None
                             end
+               | _ => None
+             end
+    | Add => match args with
+               | [e1;e2] => if isZeroLit e1 then Some e2
+                            else if isZeroLit e2 then Some e1 else None
+               | _ => None
+             end
+    | Mult => match args with
+               | [e1;e2] => if isOneLit e1 then Some e2
+                            else if isOneLit e2 then Some e1
+                                 else if isZeroLit e1 || isZeroLit e2 
+                                      then Some (OpE (RLit 0) []) else  None
                | _ => None
              end
     | _ =>  None
@@ -177,7 +203,7 @@ Proof.
             end.
 
   intros O A S. inversion O;subst;clear O; simpl in *; tryfalse;
-  repeat inv; tryfalse; auto.
+  repeat inv; tryfalse; eauto. 
 Qed.
 
 Lemma lookupEnvP_typed G varsp v t : TypeEnvP G varsp -> G |-X v ∶ t -> |-V' lookupEnvP v varsp ∶ t.
@@ -253,6 +279,20 @@ Proof.
   inversion H. reflexivity.
 Qed.
 
+
+Lemma isZeroLit_true x : true = isZeroLit x -> x = OpE (RLit 0) [].
+Proof.
+  intros. destruct x;tryfalse. destruct args; destruct op;tryfalse. 
+  simpl in H. symmetry in H. apply Reqb_iff in H. subst. reflexivity.
+Qed.
+
+Lemma isOneLit_true x : true = isOneLit x -> x = OpE (RLit 1) [].
+Proof.
+  intros. destruct x;tryfalse. destruct args; destruct op;tryfalse. 
+  simpl in H. symmetry in H. apply Reqb_iff in H. subst. reflexivity.
+Qed.
+
+
 Lemma specialiseOp_sound (op : Op) es e vars rho G ts t:
 |-Op op ∶ ts => t -> all2 (TypeExp G) es ts -> TypeEnv G vars -> TypeExt rho ->
   specialiseOp op es = Some e -> E[|OpE op es|] vars rho = E[|e|] vars rho.
@@ -262,6 +302,11 @@ Proof.
                 | [_: context[match ?x with _ => _ end]|- _] => let y := fresh in remember x as y;
                                                                                  destruct y;tryfalse
                 | [T : Some _ = fromBLit _ |- _] => apply fromBLit_Some in T
+                | [T : true = isZeroLit _ |- _] => apply isZeroLit_true in T
+                | [T : true = isOneLit _ |- _] => apply isOneLit_true in T
+                | [T : true = ?x || ?y |- _] => let X := fresh in 
+                                                let Y := fresh in 
+                                                remember x as X;remember y as Y;destruct X;destruct Y;simpl in T; tryfalse
                 | [T: Some _ = Some _|- _] => inversion T;clear T; subst
               end.
   Ltac tot := match goal with
@@ -274,7 +319,8 @@ Proof.
 
   intros O A E X R.
  inversion O;subst;clear O; simpl in *;tryfalse;
- repeat inv'; simpl; repeat tot; try reflexivity; destruct b; reflexivity.
+ repeat inv'; simpl; repeat tot; try reflexivity; try destruct b; 
+ try first [reflexivity|rewrite Rplus_0_l|rewrite Rplus_0_r|rewrite Rmult_1_l|rewrite Rmult_1_r|rewrite Rmult_0_l|rewrite Rmult_0_r]; try first [reflexivity|assumption].
 Qed.
 
 
@@ -374,11 +420,6 @@ Fixpoint traverseIfWithin (vars:EnvP) (rho : ExtEnvP) (e: Exp) (c1 c2 : ExtEnvP 
       | _ => None
   end.
 
-Definition isZeroLit (e : Exp) : bool :=
-  match e with
-    | OpE (RLit r) nil => Reqb r 0
-    | _ => false
-end.
 
 Fixpoint specialise (c : Contr) (vars : EnvP) (rho : ExtEnvP) : Contr :=
   match c with

@@ -47,24 +47,6 @@ Proof.
 Qed.
 
 
-(* Semantics of (real) binary operations. *)
-
-Definition Rleb (x y : R) : bool :=
-  match Rle_dec x y with
-    | left _ => true
-    | right _ => false
-  end.
-
-Definition Rltb (s1 s2 : R) : bool :=
-  match Rlt_dec s1 s2 with
-      | left  _ => true
-      | right _ => false
-  end.
-
-Open Scope bool.
-Definition Reqb (x y : R) : bool := Rleb x y && Rleb y x.
-
-
 (* Semantics of real expressions. *)
 
 Fixpoint Acc_sem {A} (f : nat -> A -> A) (n : nat) (z : A) : A :=

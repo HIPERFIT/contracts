@@ -2,6 +2,7 @@ Require Export List.
 Require Export Basics.
 Require Import Tactics.
 
+
 Infix "∘" := compose (at level 40, left associativity).
 
 Import ListNotations.
@@ -285,3 +286,46 @@ Lemma all2_all {A B} P (xs : list A) (ys : list B) : all2 (fun x y => P x) xs ys
 Proof.
   intros T. induction T;constructor;auto.
 Qed.
+
+
+Require Import Reals.
+
+Definition Rleb (x y : R) : bool :=
+  match Rle_dec x y with
+    | left _ => true
+    | right _ => false
+  end.
+
+Definition Rltb (s1 s2 : R) : bool :=
+  match Rlt_dec s1 s2 with
+      | left  _ => true
+      | right _ => false
+  end.
+
+Open Scope bool.
+Definition Reqb (x y : R) : bool := Rleb x y && Rleb y x.
+
+Open Scope R.
+
+Lemma Rleb_iff x y : Rleb x y = true <-> x <= y.
+Proof. 
+  unfold Rleb. split; intro; destruct (Rle_dec x y);auto;tryfalse.
+Qed.
+
+Lemma Rltb_iff x y : Rltb x y = true <-> x < y.
+Proof. 
+  unfold Rltb. split; intro; destruct (Rlt_dec x y);auto;tryfalse.
+Qed.
+
+
+Lemma Reqb_iff x y : Reqb x y = true <-> x = y.
+Proof.
+  unfold Reqb. 
+  split;intro.
+  - remember (Rleb x y) as R1. remember (Rleb y x) as R2.
+    destruct R1;destruct R2;tryfalse. symmetry in HeqR1. symmetry in HeqR2.
+    apply Rleb_iff in HeqR1. apply Rleb_iff in HeqR2. apply Rle_antisym; auto.
+  -  subst. pose (Rle_refl y) as R. rewrite <- Rleb_iff in R.
+     rewrite R. reflexivity.
+Qed.
+  
