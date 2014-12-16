@@ -1,6 +1,7 @@
 Require Import Denotational.
 Require Import DenotationalTyped.
 Require Import Tactics.
+Require Import Equivalence.
 
 
 (* Specialisation (a.k.a. partial evaluation) of contracts. *)
@@ -219,6 +220,7 @@ Proof.
   unfold TypeExtP, adv_ext. intros. auto.
 Qed.
 
+Hint Resolve adv_extp_type.
   
 Lemma constFoldAcc_typed rho f l z t : 
   TypeExtP rho
@@ -234,7 +236,7 @@ Proof.
   intros H. inversion H. auto.
 Qed.
 
-Hint Resolve adv_extp_type.
+
 
 Tactic Notation "destruct_toLit" ident (d') 
   := match goal with
@@ -341,8 +343,6 @@ Proof.
   - eapply IHv;eauto.
 Qed.
 
-Hint Resolve bind_equals.
-
 Theorem specialiseExp_sound G e t rhop rho varsp vars : 
   G |-E e ∶ t -> TypeExt rho -> TypeEnv G vars ->
       ext_inst rhop rho -> env_inst varsp vars -> 
@@ -421,12 +421,161 @@ Fixpoint traverseIfWithin (vars:EnvP) (rho : ExtEnvP) (e: Exp) (c1 c2 : ExtEnvP 
   end.
 
 
+Fixpoint elimVarV (v1 v2 : Var) : option Var :=
+  match v1, v2 with
+    | V1,V1 => None
+    | V1,VS v2' => Some v2'
+    | VS v1', V1 => Some V1
+    | VS v1', VS v2' => liftM VS (elimVarV v1' v2')
+  end.
+
+(* Checks whether the given variable occurs in the given expression. *)
+
+Fixpoint elimVarE (v : Var) (e : Exp) : option Exp :=
+  match e with
+    | OpE op args => liftM (OpE op) (sequence (map (elimVarE v) args))
+    | Obs _ _ => Some e
+    | VarE v' => liftM VarE (elimVarV v v')
+    | Acc e1 l e2 => liftM2 (fun e1' e2' => Acc e1' l e2') (elimVarE (VS v) e1) (elimVarE v e2)
+  end.
+
+(* Two internal environments are equivalent up to a variable. *)
+Inductive elimVarEnv {A} : Var -> list A -> list A -> Prop :=
+  | elimVarEnv_nil v : elimVarEnv v [] []
+  | elimVarEnv_V1 r x : elimVarEnv V1 (x::r) r
+  | elimVarEnv_VS r1 r2 x v : elimVarEnv v r1 r2 -> 
+                                elimVarEnv (VS v) (x::r1) (x::r2).
+
+Hint Constructors elimVarEnv.
+
+Lemma Acc_sem_ext {A} l (e1 e2 : A) f1 f2 : 
+  e1 = e2 -> (forall x y, f1 x y = f2 x y) ->  Acc_sem f1 l e1 = Acc_sem f2 l e2.
+Proof.
+  intros E F. induction l.
+  - simpl. assumption.
+  - simpl. rewrite IHl. apply F.
+Qed.
+
+Lemma elimVarE_sound v vs1 vs2 rho e e': elimVarE v e = Some e' -> elimVarEnv v vs1 vs2 -> 
+                                       E[|e|]vs1 rho = E[|e'|]vs2 rho.
+Proof.
+  intros O U. generalize dependent rho. generalize dependent vs1. generalize dependent vs2.
+  generalize dependent v. generalize dependent e'.
+  induction e using Exp_ind';intros;simpl in *. 
+  - option_inv_auto. simpl. apply bind_equals;auto.
+    generalize dependent x. induction H;intros.
+    + simpl in H1. inversion H1. reflexivity.
+    + simpl in H1. option_inv_auto. simpl. f_equal;eauto.
+  - inversion O. reflexivity.
+  - option_inv_auto. simpl. generalize dependent v. generalize dependent x.
+    induction U;intros.
+    + destruct x;destruct v0;reflexivity.
+    + destruct v;tryfalse. simpl in *. inversion H0. reflexivity.
+    + destruct v0; simpl in *. inversion H0. reflexivity.
+      option_inv_auto. simpl. apply IHU. assumption.
+  - option_inv_auto. simpl. generalize dependent rho. 
+    induction d;intros.
+    + simpl in *. eapply IHe2;eauto.
+    + rewrite adv_ext_step. simpl. erewrite IHd.
+      unfold Fsem. apply bind_equals. apply Acc_sem_ext; auto.
+      intros. erewrite IHe1;eauto.
+Qed. 
+
+Lemma elimVarE_typed v g1 g2 e e' t: elimVarE v e = Some e' -> elimVarEnv v g1 g2 -> 
+                                         g1 |-E e ∶ t -> g2 |-E e' ∶ t.
+Proof.
+  intros O U T. generalize dependent g1. generalize dependent g2.
+  generalize dependent t. generalize dependent e'. generalize dependent v.
+  induction e using Exp_ind';intros;simpl in *;first[option_inv' O|inversion O];inversion T;clear T;subst.
+  - econstructor;eauto. clear H4. generalize dependent x. induction H6;intros.
+    + simpl in H2. inversion H2. constructor.
+    + simpl in H2. option_inv' H2. inversion H. subst. constructor; eauto.
+  - auto.
+  - constructor. generalize dependent v. generalize dependent x. induction U;intros.
+    + destruct v0;destruct v;tryfalse; simpl in *; inversion H1;inversion H2;auto.
+    + destruct v;tryfalse. simpl in *. inversion H1. inversion H2. subst. assumption.
+    + destruct v0; simpl in *. inversion H1. inversion H2. subst. auto.
+      option_inv_auto. inversion H2. subst. eauto.
+  - constructor;eauto.
+Qed. 
+
+
+Fixpoint elimVarC (v : Var) (c : Contr) : option Contr :=
+  match c with
+    | Zero => Some c
+    | Transfer _ _ _ => Some c
+    | Let e c' => liftM2 Let (elimVarE v e) (elimVarC (VS v) c')
+    | Scale e c' => liftM2 Scale (elimVarE v e) (elimVarC v c')
+    | Translate l c' => liftM (Translate l) (elimVarC v c')
+    | Both c1 c2 => liftM2 Both (elimVarC v c1) (elimVarC v c2)
+    | If e l c1 c2 => liftM3 (fun e' c1' c2' => If e' l c1' c2') (elimVarE v e) (elimVarC v c1) (elimVarC v c2)
+  end.
+
+Lemma elimVarC_sound v vs1 vs2 rho c c' : elimVarC v c = Some c' -> elimVarEnv v vs1 vs2 -> 
+                                         C[|c|]vs1 rho = C[|c'|]vs2 rho.
+Proof.
+  intros O U. generalize dependent rho. generalize dependent vs1. generalize dependent vs2.
+  generalize dependent v. generalize dependent c'.
+  induction c;intros; simpl in *;try first [option_inv' O|inversion O];simpl;
+  try solve [reflexivity|eauto using bind_equals, elimVarE_sound|f_equal;eauto using bind_equals, elimVarE_sound].
+  
+  generalize dependent rho. induction n;intros;simpl;erewrite elimVarE_sound;eauto;erewrite IHc1;eauto.
+  - erewrite IHc2;eauto.
+  - erewrite IHn;eauto.
+Qed. 
+
+
+Lemma elimVarC_typed v g1 g2 c c' : elimVarC v c = Some c' -> elimVarEnv v g1 g2 -> 
+                                         g1 |-C c -> g2 |-C c'.
+Proof.
+  intros O U T. generalize dependent g1. generalize dependent g2.
+  generalize dependent c'. generalize dependent v.
+  induction c;intros;simpl in *;first[option_inv' O|inversion O];inversion T;clear T;subst;
+  eauto using elimVarE_typed.
+Qed. 
+
+
+
+(* Smart contructor for let bindings. If the bound variable of the let
+bindings occurs in the given contract, a let binding is constructed
+otherwise the input contract is returned. *)
+
+Definition smartLet (e : Exp) (c : Contr) : Contr := 
+  match elimVarC V1 c with
+    | None => Let e c
+    | Some c' => c'
+  end.
+
+(* The smart let binding is equivalent to the ordinary let binding. *)
+
+Lemma smartLet_sound e c vs rho t g : 
+  g |-E e ∶ t -> TypeEnv g vs -> TypeExt rho -> C[|smartLet e c|]vs rho = C[|Let e c|]vs rho.
+Proof.
+  intros T G R. unfold smartLet. remember (elimVarC V1 c) as O. 
+  symmetry in HeqO. destruct O; try reflexivity.
+  simpl.
+  eapply Esem_typed_total in T;eauto. decompose [ex and] T.
+  rewrite H0. simpl. erewrite <- elimVarC_sound;eauto.
+Qed.
+
+Corollary smartLet_equiv e c g : 
+  g |-C Let e c -> smartLet e c ≡[g] Let e c.
+Proof.
+  intros. pose H as H'. inversion H'. subst. 
+  unfold equiv. repeat split; auto. 
+  - unfold smartLet. 
+    remember (elimVarC V1 c) as O. symmetry in HeqO. 
+    destruct O; eauto using elimVarC_typed.
+  - intros. eauto using smartLet_sound.
+Qed.
+   
+
 Fixpoint specialise (c : Contr) (vars : EnvP) (rho : ExtEnvP) : Contr :=
   match c with
     | Zero => c
     | Transfer _ _ _ => c
     | Let e c' => let e' := specialiseExp e vars rho in
-                  Let e' (specialise c' (fromLit e' :: vars) rho)
+                  smartLet e' (specialise c' (fromLit e' :: vars) rho)
     | Scale e c' => let e' := specialiseExp e vars rho
                     in if isZeroLit e' then Zero
                        else match specialise c' vars rho with

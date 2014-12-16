@@ -90,6 +90,10 @@ Definition liftM {A B} (f : A -> B) (x : option A) : option B :=
 Definition liftM2 {A B C} (f : A -> B -> C) (x : option A) (y : option B) : option C :=
  x >>= (fun x' => y >>= pure ∘ f x').
 
+Definition liftM3 {A B C D} (f : A -> B -> C -> D) (x : option A) (y : option B) (z : option C) : option D :=
+ x >>= (fun x' => y >>= fun y' => z >>= pure ∘ f x' y').
+
+
 Fixpoint mapM {A B} (f : A -> option B) (l : list A) : option (list B) :=
   match l with
     | nil => Some nil
@@ -211,12 +215,22 @@ Proof.
   destruct x1; destruct x2; simpl; autounfold; intros; inversion H. do 2 eexists. do 2 split; reflexivity.
 Qed.
 
+Lemma liftM3_some {A1 A2 A3 B} (f : A1 -> A2-> A3 -> B) x1 x2 x3 y : 
+  liftM3 f x1 x2 x3 = Some y
+  -> exists x1' x2' x3', x1 = Some x1' /\ x2 = Some x2' /\ x3 = Some x3' /\ y = f x1' x2' x3'.
+Proof.
+  destruct x1; destruct x2; destruct x3; 
+  simpl; autounfold; intros; inversion H. do 3 eexists. do 3 split; reflexivity.
+Qed.
+
 
 Ltac option_inv T := idtac;let H := fresh "H" in pose T as H; match goal with
                       | [T : liftM _ _ = Some _ |- _] => apply liftM_some in H
                       | [T : Some _ = liftM _ _ |- _] => symmetry in H; apply liftM_some in H
                       | [T : liftM2 _ _ _ = Some _ |- _] => apply liftM2_some in H
+                      | [T : liftM3 _ _ _ _ = Some _ |- _] => apply liftM3_some in H
                       | [T : Some _ = liftM2 _ _ _ |- _] => symmetry in H; apply liftM2_some in H
+                      | [T : Some _ = liftM3 _ _ _ _ |- _] => symmetry in H; apply liftM3_some in H
                       | [T : _ >>= _ = Some _ |- _] => apply bind_some in H
                       | [T : Some _ = _ >>= _ |- _] => symmetry in H; apply bind_some in H
                      end; decompose [ex and] H; clear H.
@@ -227,7 +241,9 @@ Ltac option_inv_auto := repeat (idtac; match goal with
                       | [T : liftM _ _ = Some _ |- _] => apply liftM_some in T; decompose [ex and] T; clear T
                       | [T : Some _ = liftM _ _ |- _] => symmetry in T; apply liftM_some in T;decompose [ex and] T; clear T
                       | [T : liftM2 _ _ _ = Some _ |- _] => apply liftM2_some in T; decompose [ex and] T; clear T
+                      | [T : liftM3 _ _ _ _ = Some _ |- _] => apply liftM3_some in T; decompose [ex and] T; clear T
                       | [T : Some _ = liftM2 _ _ _ |- _] => symmetry in T; apply liftM2_some in T; decompose [ex and] T; clear T
+                      | [T : Some _ = liftM3 _ _ _ _ |- _] => symmetry in T; apply liftM3_some in T; decompose [ex and] T; clear T
                       | [T : _ >>= _ = Some _ |- _] => apply bind_some in T; decompose [ex and] T; clear T
                       | [T : Some _ = _ >>= _ |- _] => symmetry in T; apply bind_some in T; decompose [ex and] T; clear T
                      end;subst).
@@ -286,6 +302,8 @@ Lemma all2_all {A B} P (xs : list A) (ys : list B) : all2 (fun x y => P x) xs ys
 Proof.
   intros T. induction T;constructor;auto.
 Qed.
+
+Hint Resolve bind_equals.
 
 
 Require Import Reals.
