@@ -39,6 +39,12 @@ Proof.
   - unfold adv_ext. rewrite Z.add_assoc.  reflexivity.
 Qed.
 
+Lemma adv_ext_iter' {A} d d' (e : ExtEnv' A) : adv_ext d (adv_ext d' e) = adv_ext (d + d') e.
+Proof.
+  apply functional_extensionality. intro. apply functional_extensionality. destruct d; intros;
+  unfold adv_ext; f_equal; omega.
+Qed.
+
 
 Lemma adv_ext_swap {A} d d' (e : ExtEnv' A) : 
   adv_ext d (adv_ext d' e) = adv_ext d' (adv_ext d e).
@@ -158,14 +164,25 @@ Proof.
   unfold scale_trans, empty_trans. rewrite Rmult_0_l. reflexivity.
 Qed.
 
-
-Lemma add_empty_trans : add_trans empty_trans empty_trans = empty_trans.
+Lemma scale_trans_0 t : scale_trans 0 t = empty_trans.
 Proof.
-  unfold add_trans, empty_trans. rewrite Rplus_0_l. reflexivity.
+  unfold scale_trans, empty_trans. do 3 (apply functional_extensionality;intro). rewrite Rmult_0_r. reflexivity.
 Qed.
 
 
-Hint Resolve scale_empty_trans add_empty_trans.
+
+Lemma add_empty_trans_l t : add_trans empty_trans t = t.
+Proof.
+  unfold add_trans, empty_trans. do 3 (apply functional_extensionality;intro). rewrite Rplus_0_l. reflexivity.
+Qed.
+
+Lemma add_empty_trans_r t : add_trans t empty_trans = t.
+Proof.
+  unfold add_trans, empty_trans. do 3 (apply functional_extensionality;intro). rewrite Rplus_0_r. reflexivity.
+Qed.
+
+
+Hint Resolve scale_empty_trans add_empty_trans_l add_empty_trans_r.
 
 (* Traces represent the sequence of obligations that a contract
 specifies. *)
@@ -186,6 +203,19 @@ Definition singleton_trace (t : Trans) : Trace
 Definition scale_trace (s : R) (t : Trace) : Trace
   := scale_trans s ∘ t.
 
+Lemma scale_trace_0 t : scale_trace 0 t = empty_trace.
+Proof.
+  unfold scale_trace, empty_trace,compose. apply functional_extensionality. intros.
+  simpl. apply scale_trans_0.
+Qed.
+
+Lemma scale_empty_trace r : scale_trace r empty_trace = empty_trace.
+Proof.
+  unfold scale_trace, empty_trace,compose. apply functional_extensionality. intros.
+  simpl. apply scale_empty_trans.
+Qed.
+
+
 Open Scope nat.
 
 Definition delay_trace (d : nat) (t : Trace) : Trace :=
@@ -196,12 +226,31 @@ Definition delay_trace (d : nat) (t : Trace) : Trace :=
 Definition add_trace (t1 t2 : Trace) : Trace 
   := fun x => add_trans (t1 x) (t2 x).
 
+
+Lemma add_empty_trace_l t : add_trace empty_trace t = t.
+Proof.
+  unfold add_trace, empty_trace. apply functional_extensionality;intro. apply add_empty_trans_l.
+Qed.
+
+Lemma add_empty_trace_r t : add_trace t empty_trace = t.
+Proof.
+  unfold add_trace, empty_trace. apply functional_extensionality;intro. apply add_empty_trans_r.
+Qed.
+
+
 (* Some lemmas about [delay_trace]. *)
 
 Lemma delay_trace_0 t : delay_trace 0 t = t.
 Proof.
   apply functional_extensionality.
   unfold delay_trace. simpl. intros. f_equal. omega.
+Qed.
+
+
+Lemma delay_empty_trace r : delay_trace r empty_trace = empty_trace.
+Proof.
+  apply functional_extensionality. intros. 
+  unfold delay_trace, empty_trace,const_trace. destruct (leb r x);reflexivity.
 Qed.
 
 Lemma delay_trace_iter d d' t : delay_trace d (delay_trace d' t) = delay_trace (d' + d) t.

@@ -39,3 +39,14 @@ Tactic Notation "tryfalse" "by" tactic(tac) "/" :=
 Ltac rewr_assumption := idtac; match goal with
                           | [R: _ |- _ ] => rewrite R
                         end.
+
+Ltac def_to_eq_sym X HX E :=
+  assert (HX : E = X) by reflexivity; clearbody X.
+
+Tactic Notation "cases" constr(E) "as" ident(H) :=
+  let X := fresh "TEMP" in
+  set (X := E) in *; def_to_eq_sym X H E;
+  destruct X.
+
+Tactic Notation "cases" constr(E) :=
+  let H := fresh "Eq" in cases E as H.

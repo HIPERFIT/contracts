@@ -281,9 +281,15 @@ Lemma liftM_liftM A B C (f : B -> C) (g : A -> B) x : liftM f (liftM g x) = lift
 Proof.
   unfold liftM, bind. destruct x. unfold compose, pure. reflexivity. reflexivity.
 Qed.
-Lemma liftM_extensionality A B (f g : A -> B) x : (forall x, f x = g x) -> liftM f x = liftM g x.
+Lemma liftM_ext A B (f g : A -> B) x : (forall x, f x = g x) -> liftM f x = liftM g x.
 Proof.
   intros. unfold liftM, bind, pure, compose. destruct x. rewrite H. reflexivity. reflexivity.
+Qed.
+
+
+Lemma liftM_id {A} (m : option A) : liftM (fun x => x) m = m.
+Proof. 
+  destruct m; reflexivity.
 Qed.
 
 

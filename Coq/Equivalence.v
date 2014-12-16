@@ -44,6 +44,6 @@ Proof.
     destruct x; try destruct b; reflexivity.
   - pose H1 as H1'. eapply Esem_typed_total with (erho:=(adv_ext (Z.of_nat d) rho)) in H1';eauto.
     decompose [ex and] H1'. simpl in *. rewrite adv_exp_ext, H3. destruct x; try reflexivity. destruct b. reflexivity.
-    rewrite IHt;eauto. rewrite adv_ext_swap. repeat rewrite liftM_liftM. apply liftM_extensionality. 
+    rewrite IHt;eauto. rewrite adv_ext_swap. repeat rewrite liftM_liftM. apply liftM_ext. 
     intros. unfold compose. apply delay_trace_swap. 
 Qed.

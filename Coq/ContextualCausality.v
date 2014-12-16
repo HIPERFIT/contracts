@@ -184,7 +184,7 @@ Proof.
   - option_inv_auto. inversion C. subst. unfold delay_trace. remember (leb n i) as L. destruct L;try reflexivity. 
     symmetry in HeqL. apply leb_complete in HeqL. eapply IHc in H0. apply H0. 
     apply H3. rewrite Nat2Z.inj_sub by assumption. omega.
-  - option_inv_auto. erewrite <- add_empty_trans. inversion C. subst. unfold add_trace. 
+  - option_inv_auto. erewrite <- add_empty_trans_l. inversion C. subst. unfold add_trace. 
     f_equal; [eapply IHc1|eapply IHc2]; eauto.
   - inversion C. clear C. subst. 
     assert (

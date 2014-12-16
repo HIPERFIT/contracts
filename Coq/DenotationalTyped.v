@@ -40,6 +40,8 @@ Hint Resolve adv_ext_type.
 
 Definition TypeEnv (g : TyEnv) (rho : Env) : Prop := all2 TypeVal rho g.
 
+Hint Unfold TypeEnv.
+
 (* Typing of arguments (to an operation). *)
 
 Definition TypeArgs (ts : list Ty) (args : list Val) : Prop := all2 TypeVal args ts.
@@ -77,7 +79,7 @@ Proof.
     - simpl. inversion H. subst. inversion R. subst. eapply IHv. 
       apply H2. auto.
   + simpl. eapply Acc_sem_ind. intros. decompose [ex and] H. subst.
-    simpl. apply IHE1; auto.  constructor;auto. apply IHE2; auto.
+    simpl. apply IHE1; auto. apply IHE2; auto.
 Qed.
 
 
