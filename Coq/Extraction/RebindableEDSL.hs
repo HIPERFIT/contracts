@@ -28,42 +28,42 @@ import EDSL
 import Prelude as P (Int,Integer,error, Num(..), Fractional(..), fail, return, Bool(..))
 
 
-max :: ExpHoas exp => exp R -> exp R -> exp R
+max :: Exp R -> Exp R -> Exp R
 max x y = if x < y then y else x
 
-min :: ExpHoas exp => exp R -> exp R -> exp R
+min :: Exp R -> Exp R -> Exp R
 min x y = if x < y then x else y
 
 
-(==) :: ExpHoas exp => exp R -> exp R -> exp B
+(==) :: Exp R -> Exp R -> Exp B
 (==) = (!=!)
 
-(<) :: ExpHoas exp => exp R -> exp R -> exp B
+(<) :: Exp R -> Exp R -> Exp B
 (<) = (!<!)
 
-(<=) :: ExpHoas exp => exp R -> exp R -> exp B
+(<=) :: Exp R -> Exp R -> Exp B
 (<=) = (!<=!)
 
 
-(>) :: ExpHoas exp => exp R -> exp R -> exp B
+(>) :: Exp R -> Exp R -> Exp B
 (>) = (!>!)
 
-(>=) :: ExpHoas exp => exp R -> exp R -> exp B
+(>=) :: Exp R -> Exp R -> Exp B
 (>=) = (!>=!)
 
 
-(&&) :: ExpHoas exp => exp B -> exp B -> exp B
+(&&) :: Exp B -> Exp B -> Exp B
 (&&) = (!&!)
 
-(||) :: ExpHoas exp => exp B -> exp B -> exp B
+(||) :: Exp B -> Exp B -> Exp B
 (||) = (!|!)
 
-not :: ExpHoas exp => exp B -> exp B
+not :: Exp B -> Exp B
 not = bNot
 
 
 
-(>>=) :: ContrHoas exp contr => exp t -> (exp t -> contr) -> contr
+(>>=) :: Exp t -> (Exp t -> Contr) -> Contr
 (>>=) = letc
 
 newtype Wait = Wait Int
@@ -71,24 +71,24 @@ newtype Wait = Wait Int
 wait :: Int -> Wait
 wait = Wait
 
-data Within exp = Within (exp B) Int
+data Within = Within BExp Int
 
-within :: ExpHoas exp => exp B -> Int -> Within exp
+within :: Exp B -> Int -> Within
 within = Within
 
 class IfThenElse b c where
     ifThenElse :: b -> c -> c -> c
 
-instance ExpHoas exp => IfThenElse (exp B) (exp t) where
+instance IfThenElse (Exp B) (Exp t) where
     ifThenElse = ife
 
-instance ContrHoas exp contr => IfThenElse (exp B) contr where
+instance IfThenElse (Exp B) Contr where
     ifThenElse = iff
 
 
-instance ContrHoas exp contr => IfThenElse (Within exp) contr where
+instance IfThenElse Within Contr where
     ifThenElse (Within b l) = ifWithin b l
 
 
-(>>) :: ContrHoas exp contr => Wait -> contr -> contr
+(>>) :: Wait -> Contr -> Contr
 Wait n >> c = translate n c

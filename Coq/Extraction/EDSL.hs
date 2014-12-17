@@ -27,7 +27,6 @@ bObs,
 reifyExp,
 
 -- * Contract combinators
-ContrHoas,
 Contr,
 zero,
 transfer,
@@ -52,7 +51,6 @@ specialise,
 
 mkExtEnvP,
 
-ExpHoas,
 R, B
 
 ) where
@@ -79,26 +77,26 @@ toVar n = VS (toVar (n-1))
 data R
 data B
 
-class ExpHoas' exp where
-    ife :: exp B -> exp t -> exp t -> exp t
-    opE :: Op -> [exp t'] -> exp t
-    obs :: ObsLabel -> Int -> exp t
-    acc :: (exp t -> exp t) -> Int -> exp t -> exp t
 
-newtype DB t = DB {unDB :: Int -> C.Exp}
+newtype Exp t = Exp {unExp :: Int -> C.Exp}
 
-instance ExpHoas' DB where
-    ife b e1 e2 = DB (\ i -> OpE Cond [unDB b i, unDB e1 i, unDB e2 i])
-    opE op args = DB (\ i -> OpE op (map (($ i) . unDB) args))
-    obs l t = DB (\_ -> Obs l t)
-    acc f t e = DB (\i -> let v = \ j -> VarE (toVar (j-(i+1))) 
-                          in Acc (unDB (f (DB v)) (i+1)) t (unDB e i))
+
+ife :: Exp B -> Exp t -> Exp t -> Exp t
+opE :: Op -> [Exp t'] -> Exp t
+obs :: ObsLabel -> Int -> Exp t
+acc :: (Exp t -> Exp t) -> Int -> Exp t -> Exp t
+
+ife b e1 e2 = Exp (\ i -> OpE Cond [unExp b i, unExp e1 i, unExp e2 i])
+opE op args = Exp (\ i -> OpE op (map (($ i) . unExp) args))
+obs l t = Exp (\_ -> Obs l t)
+acc f t e = Exp (\i -> let v = \ j -> VarE (toVar (j-(i+1))) 
+                      in Acc (unExp (f (Exp v)) (i+1)) t (unExp e i))
 
 
 rLit :: Double -> RExp
 rLit r = opE (RLit r) []
 
-instance Num (DB R) where
+instance Num (Exp R) where
     x + y = opE Add [x,y]
     x * y = opE Mult [x,y]
     x - y = opE Sub [x,y]
@@ -106,55 +104,51 @@ instance Num (DB R) where
     signum x = ife (x !<! 0) (- 1) (ife (x !>! 0) 1 0)
     fromInteger i = rLit (fromInteger i)
 
-instance Fractional (DB R) where
+instance Fractional (Exp R) where
     fromRational r = rLit (fromRational r)
     x / y =  opE Div [x,y]
     
 
 
-class (Num (exp R), Fractional (exp R), ExpHoas' exp) => ExpHoas exp
 
-instance ExpHoas DB
-
-type Exp t = forall exp . ExpHoas exp => exp t
 
 reifyExp :: Exp t -> C.Exp
-reifyExp t = unDB t 0
+reifyExp t = unExp t 0
 
 
-rObs :: ExpHoas exp => String -> Int -> exp R
+rObs :: String -> Int -> Exp R
 rObs l i = obs (LabR l) i
 
 type RExp = Exp R
 type BExp = Exp B
 
-(!=!) :: ExpHoas exp => exp R -> exp R -> exp B
+(!=!) :: Exp R -> Exp R -> Exp B
 x !=! y = opE Equal [x, y]
 
-(!<!) :: ExpHoas exp => exp R -> exp R -> exp B
+(!<!) :: Exp R -> Exp R -> Exp B
 x !<! y = opE Less [x, y]
 
-(!<=!) :: ExpHoas exp => exp R -> exp R -> exp B
+(!<=!) :: Exp R -> Exp R -> Exp B
 x !<=! y = opE Leq [x, y]
 
 
-(!>!) :: ExpHoas exp => exp R -> exp R -> exp B
+(!>!) :: Exp R -> Exp R -> Exp B
 (!>!) = (!<!)
 
-(!>=!) :: ExpHoas exp => exp R -> exp R -> exp B
+(!>=!) :: Exp R -> Exp R -> Exp B
 (!>=!) = (!<=!)
 
 
-(!&!) :: ExpHoas exp => exp B -> exp B -> exp B
+(!&!) :: Exp B -> Exp B -> Exp B
 x !&! y = opE And [x, y]
 
-(!|!) :: ExpHoas exp => exp B -> exp B -> exp B
+(!|!) :: Exp B -> Exp B -> Exp B
 x !|! y = opE Or [x, y]
 
-bNot :: ExpHoas exp => exp B -> exp B
+bNot :: Exp B -> Exp B
 bNot x =  opE Not [x]
 
-bObs :: ExpHoas exp => String -> Int -> exp B
+bObs :: String -> Int -> Exp B
 bObs l i = obs (LabB l) i
 
 
@@ -166,45 +160,43 @@ true = opE (BLit True) []
 
 
 
-newtype CDB = CDB {unCDB :: Int -> C.Contr}
-
-class ExpHoas exp => ContrHoas exp contr | exp -> contr, contr -> exp where
-    zero :: contr
-    letc :: exp t -> (exp t -> contr) -> contr
-    scale :: exp R -> contr -> contr
-    both :: contr -> contr -> contr
-    transfer :: Party -> Party -> Asset -> contr
-    translate :: Int -> contr -> contr
-    ifWithin :: exp B -> Int -> contr -> contr -> contr
+newtype Contr = Contr {unContr :: Int -> C.Contr}
 
 
-instance ContrHoas DB CDB where
-    zero = CDB (\_-> Zero)
-    letc e c = CDB (\i -> let v = \ j -> VarE (toVar (j-(i+1))) 
-                          in Let (unDB e i) (unCDB (c (DB v)) (i+1)))
-    transfer p1 p2 a = CDB (\_-> Transfer p1 p2 a)
-    scale e c = CDB (\i -> Scale (unDB e i) (unCDB c i))
-    translate t c = CDB (\i -> Translate t (unCDB c i))
-    both c1 c2 = CDB (\i -> Both (unCDB c1 i) (unCDB c2 i))
-    ifWithin e t c1 c2 = CDB (\i -> If (unDB e i) t (unCDB c1 i) (unCDB c2 i))
+zero :: Contr
+letc :: Exp t -> (Exp t -> Contr) -> Contr
+scale :: Exp R -> Contr -> Contr
+both :: Contr -> Contr -> Contr
+transfer :: Party -> Party -> Asset -> Contr
+translate :: Int -> Contr -> Contr
+ifWithin :: Exp B -> Int -> Contr -> Contr -> Contr
+
+
+
+zero = Contr (\_-> Zero)
+letc e c = Contr (\i -> let v = \ j -> VarE (toVar (j-(i+1))) 
+                      in Let (unExp e i) (unContr (c (Exp v)) (i+1)))
+transfer p1 p2 a = Contr (\_-> Transfer p1 p2 a)
+scale e c = Contr (\i -> Scale (unExp e i) (unContr c i))
+translate t c = Contr (\i -> Translate t (unContr c i))
+both c1 c2 = Contr (\i -> Both (unContr c1 i) (unContr c2 i))
+ifWithin e t c1 c2 = Contr (\i -> If (unExp e i) t (unContr c1 i) (unContr c2 i))
     
 
-type Contr = forall exp contr . ContrHoas exp contr => contr
-
 reifyContr :: Contr -> C.Contr
-reifyContr t = unCDB t 0
+reifyContr t = unContr t 0
 
-(&) :: ContrHoas exp contr => contr -> contr -> contr
+(&) :: Contr -> Contr -> Contr
 (&) = both
 
-(!) :: ContrHoas exp contr => Int -> contr -> contr
+(!) :: Int -> Contr -> Contr
 (!) = translate
 
-(#) :: ContrHoas exp contr => exp R -> contr -> contr
+(#) :: Exp R -> Contr -> Contr
 (#) = scale
 
 
-iff :: ContrHoas exp contr => exp B -> contr -> contr -> contr
+iff :: Exp B -> Contr -> Contr -> Contr
 iff e  = ifWithin e 0
 
 
