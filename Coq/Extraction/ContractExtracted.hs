@@ -1935,18 +1935,21 @@ min_dec4 :: Int -> Int -> Sumbool
 min_dec4 =
   min_dec3
 
-liftM3 :: (a1 -> a2 -> a3 -> a4) -> (Maybe a1) -> (Maybe a2) -> (Maybe 
-          a3) -> Maybe a4
-liftM3 f x y z =
-  (>>=) x (\x' -> (>>=) y (\y' -> (>>=) z ((.) return (f x' y'))))
+type Asset = String
+
+type Party = String
+
+type BoolObs = String
+
+type RealObs = String
 
 data Var =
    V1
  | VS Var
 
 data ObsLabel =
-   LabR String
- | LabB String
+   LabR RealObs
+ | LabB BoolObs
 
 data Op =
    Add
@@ -2424,6 +2427,10 @@ isOneLit e =
      _ -> False};
    _ -> False}
 
+specialiseOpSimp :: Op -> (List Exp) -> Maybe Exp
+specialiseOpSimp op args =
+  liftM toLit ((>>=) (mapM fromLit args) (opSem op))
+
 specialiseOp :: Op -> (List Exp) -> Maybe Exp
 specialiseOp op args =
   case op of {
@@ -2441,7 +2448,7 @@ specialiseOp op args =
            False ->
             case isZeroLit e2 of {
              True -> Just e1;
-             False -> Nothing}};
+             False -> specialiseOpSimp op args}};
          (:) e l1 -> Nothing}}};
    Mult ->
     case args of {
@@ -2460,7 +2467,7 @@ specialiseOp op args =
              False ->
               case (||) (isZeroLit e1) (isZeroLit e2) of {
                True -> Just (OpE (RLit 0) []);
-               False -> Nothing}}};
+               False -> specialiseOpSimp op args}}};
          (:) e l1 -> Nothing}}};
    And ->
     case args of {
@@ -2525,7 +2532,7 @@ specialiseOp op args =
                False -> Just e3};
              Nothing -> Nothing};
            (:) e l2 -> Nothing}}}};
-   _ -> Nothing}
+   _ -> specialiseOpSimp op args}
 
 lookupEnvP :: Var -> EnvP -> Maybe Val
 lookupEnvP v rho =

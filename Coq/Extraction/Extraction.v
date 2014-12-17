@@ -63,6 +63,7 @@ Extraction Inline option_rect option_rec.
 Extract Inlined Constant bind => "(>>=)".
 Extract Inlined Constant liftM => "liftM".
 Extract Inlined Constant liftM2 => "liftM2".
+Extract Inlined Constant liftM3 => "liftM3".
 Extract Inlined Constant pure => "return".
 Extract Inlined Constant sequence => "sequence".
 Extract Inlined Constant mapM => "mapM".
@@ -70,10 +71,10 @@ Extract Inlined Constant mapM => "mapM".
 
 Extract Inductive sum => "Either" ["Left" "Right"].
 
-Extract Inlined Constant Asset => "Asset".
-Extract Inlined Constant Party => "Party".
-Extract Inlined Constant BoolObs => "String".
-Extract Inlined Constant RealObs => "String".
+Extract Constant Asset => "String".
+Extract Constant Party => "String".
+Extract Constant BoolObs => "String".
+Extract Constant RealObs => "String".
 
 Extract Inlined Constant Asset.eqb => "(==)".
 Extract Inlined Constant Party.eqb => "(==)".

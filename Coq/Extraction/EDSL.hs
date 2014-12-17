@@ -32,8 +32,11 @@ Contr,
 zero,
 transfer,
 scale,
+(#),
 both,
+(&),
 translate,
+(!),
 ifWithin,
 iff,
 letc,
@@ -45,7 +48,9 @@ ExtEnv,
 Trans,
 horizon,
 advance,
---specialise,
+specialise,
+
+mkExtEnvP,
 
 ExpHoas,
 R, B
@@ -53,8 +58,10 @@ R, B
 ) where
 
 
-import Contract hiding (Exp,Contr)
+import Contract hiding (Exp,Contr,specialise)
 import qualified Contract as C
+
+import qualified Data.Map as Map
 
 deriving instance Show Var
 deriving instance Show C.Contr
@@ -184,9 +191,31 @@ type Contr = forall exp contr . ContrHoas exp contr => contr
 reifyContr :: Contr -> C.Contr
 reifyContr t = unCDB t 0
 
+(&) :: ContrHoas exp contr => contr -> contr -> contr
+(&) = both
+
+(!) :: ContrHoas exp contr => Int -> contr -> contr
+(!) = translate
+
+(#) :: ContrHoas exp contr => exp R -> contr -> contr
+(#) = scale
+
+
 iff :: ContrHoas exp contr => exp B -> contr -> contr -> contr
 iff e  = ifWithin e 0
 
 
-advance :: C.Contr -> Env -> ExtEnv -> Maybe (C.Contr, Trans)
-advance = redFun
+advance :: C.Contr -> ExtEnv -> Maybe (C.Contr, Trans)
+advance c = redFun c []
+
+specialise :: C.Contr -> ExtEnvP -> C.Contr
+specialise c = C.specialise c []
+
+mkExtEnvP :: [(RealObs, Int,Double)] -> [(BoolObs, Int,Bool)] -> ExtEnvP
+mkExtEnvP rs bs = env
+    where real (l,i,r) = ((l,i),RVal r)
+          bool (l,i,r) = ((l,i),BVal r)
+          tabR = Map.fromList (map real rs)
+          tabB = Map.fromList (map bool bs)
+          env (LabR l) i = Map.lookup (l,i) tabR
+          env (LabB l) i = Map.lookup (l,i) tabB

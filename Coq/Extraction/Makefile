@@ -2,7 +2,7 @@ TARGET = Contract.hs
 EXTRACTED = ContractExtracted.hs
 HEADER = Header.hs
 COQ_FILE = Extraction.v
-SED_SCRIPT = '/^data Var =/,$$'p
+SED_SCRIPT = '/^type Asset = String/,$$'p
 
 default: $(TARGET)
 

@@ -24,7 +24,7 @@ module RebindableEDSL
 
 
 import EDSL
-import Prelude as P (Int,Integer,error, Num(..), Fractional(..), fail, return)
+import Prelude as P (Int,Integer,error, Num(..), Fractional(..), fail, return, Bool(..))
 
 
 max :: ExpHoas exp => exp R -> exp R -> exp R
