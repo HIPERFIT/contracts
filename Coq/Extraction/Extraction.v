@@ -3,6 +3,7 @@ Add LoadPath "..".
 Require Import Denotational.
 Require Import Reduction.
 Require Import Horizon.
+Require Import Specialise.
 
 
 
@@ -31,6 +32,7 @@ Extract Inlined Constant Z.opp => "negate".
 
 Extract Inlined Constant R => "Double".
 Extract Inlined Constant Rleb => "(<=)".
+Extract Inlined Constant Reqb => "(==)".
 Extract Inlined Constant Rltb => "(<)".
 Extract Inlined Constant Rplus => "(+)".
 Extract Inlined Constant Rminus => "(-)".
@@ -81,4 +83,5 @@ Extract Inlined Constant Party.eqb => "(==)".
 Extraction "ContractExtracted.hs" 
   Contr
   horizon
-  RedFun.
+  RedFun
+  specialise.

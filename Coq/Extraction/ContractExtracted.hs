@@ -1935,6 +1935,11 @@ min_dec4 :: Int -> Int -> Sumbool
 min_dec4 =
   min_dec3
 
+liftM3 :: (a1 -> a2 -> a3 -> a4) -> (Maybe a1) -> (Maybe a2) -> (Maybe 
+          a3) -> Maybe a4
+liftM3 f x y z =
+  (>>=) x (\x' -> (>>=) y (\y' -> (>>=) z ((.) return (f x' y'))))
+
 data Var =
    V1
  | VS Var
@@ -1978,23 +1983,21 @@ data Val =
    BVal Bool
  | RVal Double
 
-type ExtEnv = ObsLabel -> Int -> Val
+type ExtEnv' a = ObsLabel -> Int -> a
 
-adv_ext :: Int -> ExtEnv -> ExtEnv
+type ExtEnv = ExtEnv' Val
+
+adv_ext :: Int -> (ExtEnv' a1) -> ExtEnv' a1
 adv_ext d e l x =
   e l ((+) d x)
 
-reqb :: Double -> Double -> Bool
-reqb x y =
-  (&&) ((<=) x y) ((<=) y x)
-
-acc_sem :: (Int -> a1 -> Maybe a1) -> Int -> (Maybe a1) -> Maybe a1
+acc_sem :: (Int -> a1 -> a1) -> Int -> a1 -> a1
 acc_sem f n z =
   (\fO fS n -> if n==0 then fO () else fS (n-1))
     (\_ ->
     z)
     (\n' ->
-    (>>=) (acc_sem f n' z) (f n))
+    f n (acc_sem f n' z))
     n
 
 opSem :: Op -> (List Val) -> Maybe Val
@@ -2142,7 +2145,7 @@ opSem op vs =
            BVal b -> Nothing;
            RVal y ->
             case l0 of {
-             [] -> Just (BVal (reqb x y));
+             [] -> Just (BVal ((==) x y));
              (:) v1 l1 -> Nothing}}}}};
    Not ->
     case vs of {
@@ -2224,6 +2227,11 @@ lookupEnv v rho =
      [] -> Nothing;
      (:) v1 xs -> lookupEnv v0 xs}}
 
+fsem :: (Env -> ExtEnv -> Maybe a1) -> Env -> ExtEnv -> Int -> (Maybe 
+        Val) -> Maybe a1
+fsem f rho erho m x =
+  (>>=) x (\x' -> f ((:) x' rho) (adv_ext (id m) erho))
+
 esem :: Exp -> Env -> ExtEnv -> Maybe Val
 esem e rho erho =
   case e of {
@@ -2233,8 +2241,7 @@ esem e rho erho =
    VarE v -> lookupEnv v rho;
    Acc f l z ->
     let {erho' = adv_ext (negate (id l)) erho} in
-    acc_sem (\m x -> esem f ((:) x rho) (adv_ext (id m) erho')) l
-      (esem z rho erho')}
+    acc_sem (fsem (esem f) rho erho') l (esem z rho erho')}
 
 type Trans = Party -> Party -> Asset -> Double
 
@@ -2348,4 +2355,307 @@ horizon c =
    Translate l c' -> plus0 l (horizon c');
    Both c1 c2 -> max (horizon c1) (horizon c2);
    If e l c1 c2 -> plus0 l (max (horizon c1) (horizon c2))}
+
+type ExtEnvP = ExtEnv' (Maybe Val)
+
+type EnvP = List (Maybe Val)
+
+fromLit :: Exp -> Maybe Val
+fromLit e =
+  case e of {
+   OpE op args ->
+    case op of {
+     BLit b ->
+      case args of {
+       [] -> Just (BVal b);
+       (:) e0 l -> Nothing};
+     RLit r ->
+      case args of {
+       [] -> Just (RVal r);
+       (:) e0 l -> Nothing};
+     _ -> Nothing};
+   _ -> Nothing}
+
+toLit :: Val -> Exp
+toLit e =
+  case e of {
+   BVal b -> OpE (BLit b) [];
+   RVal r -> OpE (RLit r) []}
+
+default0 :: a1 -> (Maybe a1) -> a1
+default0 d x =
+  case x of {
+   Just y -> y;
+   Nothing -> d}
+
+fromBLit :: Exp -> Maybe Bool
+fromBLit e =
+  case e of {
+   OpE op args ->
+    case op of {
+     BLit b ->
+      case args of {
+       [] -> Just b;
+       (:) e0 l -> Nothing};
+     _ -> Nothing};
+   _ -> Nothing}
+
+isZeroLit :: Exp -> Bool
+isZeroLit e =
+  case e of {
+   OpE op args ->
+    case op of {
+     RLit r ->
+      case args of {
+       [] -> (==) r 0;
+       (:) e0 l -> False};
+     _ -> False};
+   _ -> False}
+
+isOneLit :: Exp -> Bool
+isOneLit e =
+  case e of {
+   OpE op args ->
+    case op of {
+     RLit r ->
+      case args of {
+       [] -> (==) r 1;
+       (:) e0 l -> False};
+     _ -> False};
+   _ -> False}
+
+specialiseOp :: Op -> (List Exp) -> Maybe Exp
+specialiseOp op args =
+  case op of {
+   Add ->
+    case args of {
+     [] -> Nothing;
+     (:) e1 l ->
+      case l of {
+       [] -> Nothing;
+       (:) e2 l0 ->
+        case l0 of {
+         [] ->
+          case isZeroLit e1 of {
+           True -> Just e2;
+           False ->
+            case isZeroLit e2 of {
+             True -> Just e1;
+             False -> Nothing}};
+         (:) e l1 -> Nothing}}};
+   Mult ->
+    case args of {
+     [] -> Nothing;
+     (:) e1 l ->
+      case l of {
+       [] -> Nothing;
+       (:) e2 l0 ->
+        case l0 of {
+         [] ->
+          case isOneLit e1 of {
+           True -> Just e2;
+           False ->
+            case isOneLit e2 of {
+             True -> Just e1;
+             False ->
+              case (||) (isZeroLit e1) (isZeroLit e2) of {
+               True -> Just (OpE (RLit 0) []);
+               False -> Nothing}}};
+         (:) e l1 -> Nothing}}};
+   And ->
+    case args of {
+     [] -> Nothing;
+     (:) e1 l ->
+      case l of {
+       [] -> Nothing;
+       (:) e2 l0 ->
+        case l0 of {
+         [] ->
+          case fromBLit e1 of {
+           Just b ->
+            case b of {
+             True -> Just e2;
+             False -> Just e1};
+           Nothing ->
+            case fromBLit e2 of {
+             Just b ->
+              case b of {
+               True -> Just e1;
+               False -> Just e2};
+             Nothing -> Nothing}};
+         (:) e l1 -> Nothing}}};
+   Or ->
+    case args of {
+     [] -> Nothing;
+     (:) e1 l ->
+      case l of {
+       [] -> Nothing;
+       (:) e2 l0 ->
+        case l0 of {
+         [] ->
+          case fromBLit e1 of {
+           Just b ->
+            case b of {
+             True -> Just e1;
+             False -> Just e2};
+           Nothing ->
+            case fromBLit e2 of {
+             Just b ->
+              case b of {
+               True -> Just e2;
+               False -> Just e1};
+             Nothing -> Nothing}};
+         (:) e l1 -> Nothing}}};
+   Cond ->
+    case args of {
+     [] -> Nothing;
+     (:) e1 l ->
+      case l of {
+       [] -> Nothing;
+       (:) e2 l0 ->
+        case l0 of {
+         [] -> Nothing;
+         (:) e3 l1 ->
+          case l1 of {
+           [] ->
+            case fromBLit e1 of {
+             Just b ->
+              case b of {
+               True -> Just e2;
+               False -> Just e3};
+             Nothing -> Nothing};
+           (:) e l2 -> Nothing}}}};
+   _ -> Nothing}
+
+lookupEnvP :: Var -> EnvP -> Maybe Val
+lookupEnvP v rho =
+  case v of {
+   V1 ->
+    case rho of {
+     [] -> Nothing;
+     (:) x l -> x};
+   VS v0 ->
+    case rho of {
+     [] -> Nothing;
+     (:) o xs -> lookupEnvP v0 xs}}
+
+specialiseFun :: ((List (Maybe Val)) -> (ExtEnv' (Maybe Val)) -> Exp) -> EnvP
+                 -> ExtEnvP -> Int -> (Maybe Val) -> Maybe Val
+specialiseFun f vars rho l r =
+  fromLit (f ((:) r vars) (adv_ext (id l) rho))
+
+specialiseExp :: Exp -> EnvP -> ExtEnvP -> Exp
+specialiseExp e vars rho =
+  case e of {
+   OpE op args ->
+    let {args' = map (\e' -> specialiseExp e' vars rho) args} in
+    default0 (OpE op args') (specialiseOp op args');
+   Obs obs t -> default0 e (liftM toLit (rho obs t));
+   VarE v -> default0 e (liftM toLit (lookupEnvP v vars));
+   Acc f l z ->
+    let {rho' = adv_ext (negate (id l)) rho} in
+    let {ze = specialiseExp z vars rho'} in
+    let {z' = fromLit ze} in
+    let {f' = specialiseFun (specialiseExp f) vars rho'} in
+    default0 (Acc f l ze) (liftM toLit (acc_sem f' l z'))}
+
+elimVarV :: Var -> Var -> Maybe Var
+elimVarV v1 v2 =
+  case v1 of {
+   V1 ->
+    case v2 of {
+     V1 -> Nothing;
+     VS v2' -> Just v2'};
+   VS v1' ->
+    case v2 of {
+     V1 -> Just V1;
+     VS v2' -> liftM (\x -> VS x) (elimVarV v1' v2')}}
+
+elimVarE :: Var -> Exp -> Maybe Exp
+elimVarE v e =
+  case e of {
+   OpE op args -> liftM (\x -> OpE op x) (sequence (map (elimVarE v) args));
+   Obs l i -> Just e;
+   VarE v' -> liftM (\x -> VarE x) (elimVarV v v');
+   Acc e1 l e2 ->
+    liftM2 (\e1' e2' -> Acc e1' l e2') (elimVarE (VS v) e1) (elimVarE v e2)}
+
+elimVarC :: Var -> Contr -> Maybe Contr
+elimVarC v c =
+  case c of {
+   Let e c' -> liftM2 (\x x0 -> Let x x0) (elimVarE v e) (elimVarC (VS v) c');
+   Scale e c' -> liftM2 (\x x0 -> Scale x x0) (elimVarE v e) (elimVarC v c');
+   Translate l c' -> liftM (\x -> Translate l x) (elimVarC v c');
+   Both c1 c2 -> liftM2 (\x x0 -> Both x x0) (elimVarC v c1) (elimVarC v c2);
+   If e l c1 c2 ->
+    liftM3 (\e' c1' c2' -> If e' l c1' c2') (elimVarE v e) (elimVarC v c1)
+      (elimVarC v c2);
+   _ -> Just c}
+
+smartLet :: Exp -> Contr -> Contr
+smartLet e c =
+  case elimVarC V1 c of {
+   Just c' -> c';
+   Nothing -> Let e c}
+
+smartScale :: Exp -> Contr -> Contr
+smartScale e c =
+  case isZeroLit e of {
+   True -> Zero;
+   False ->
+    case c of {
+     Zero -> Zero;
+     _ -> Scale e c}}
+
+smartBoth :: Contr -> Contr -> Contr
+smartBoth c1 c2 =
+  case c1 of {
+   Zero -> c2;
+   _ ->
+    case c2 of {
+     Zero -> c1;
+     _ -> Both c1 c2}}
+
+smartTranslate :: Int -> Contr -> Contr
+smartTranslate l c =
+  (\fO fS n -> if n==0 then fO () else fS (n-1))
+    (\_ ->
+    c)
+    (\n ->
+    case c of {
+     Zero -> Zero;
+     _ -> Translate l c})
+    l
+
+traverseIf :: EnvP -> ExtEnvP -> Exp -> (ExtEnvP -> Contr) -> (ExtEnvP ->
+              Contr) -> Int -> Int -> Maybe Contr
+traverseIf vars rho e c1 c2 d l =
+  case fromBLit (specialiseExp e vars rho) of {
+   Just b ->
+    case b of {
+     True -> Just (smartTranslate d (c1 rho));
+     False ->
+      (\fO fS n -> if n==0 then fO () else fS (n-1))
+        (\_ -> Just
+        (smartTranslate d (c2 rho)))
+        (\l' ->
+        traverseIf vars (adv_ext (id 1) rho) e c1 c2 (succ d) l')
+        l};
+   Nothing -> Nothing}
+
+specialise :: Contr -> EnvP -> ExtEnvP -> Contr
+specialise c vars rho =
+  case c of {
+   Let e c' ->
+    let {e' = specialiseExp e vars rho} in
+    smartLet e' (specialise c' ((:) (fromLit e') vars) rho);
+   Scale e c' ->
+    smartScale (specialiseExp e vars rho) (specialise c' vars rho);
+   Translate l c' ->
+    smartTranslate l (specialise c' vars (adv_ext (id l) rho));
+   Both c1 c2 -> smartBoth (specialise c1 vars rho) (specialise c2 vars rho);
+   If e l c1 c2 ->
+    default0 c
+      (traverseIf vars rho e (specialise c1 vars) (specialise c2 vars) 0 l);
+   _ -> c}
 
