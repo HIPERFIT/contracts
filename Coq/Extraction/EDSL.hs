@@ -60,14 +60,17 @@ R, B
 
 import Contract hiding (Exp,Contr,specialise)
 import qualified Contract as C
+import PrettyPrinting
 
 import qualified Data.Map as Map
 
-deriving instance Show Var
-deriving instance Show C.Contr
-deriving instance Show ObsLabel
-deriving instance Show Op
-deriving instance Show C.Exp
+instance Show C.Contr where
+    show = ppContr 0 []
+
+instance Show C.Exp where
+    show = ppExp 0 []
+
+
 
 toVar :: Int -> Var
 toVar 0 = V1

@@ -19,6 +19,7 @@ module RebindableEDSL
 
      module P,
      ifThenElse,
+     within,
      module EDSL
 ) where
 
@@ -70,6 +71,11 @@ newtype Wait = Wait Int
 wait :: Int -> Wait
 wait = Wait
 
+data Within exp = Within (exp B) Int
+
+within :: ExpHoas exp => exp B -> Int -> Within exp
+within = Within
+
 class IfThenElse b c where
     ifThenElse :: b -> c -> c -> c
 
@@ -78,6 +84,10 @@ instance ExpHoas exp => IfThenElse (exp B) (exp t) where
 
 instance ContrHoas exp contr => IfThenElse (exp B) contr where
     ifThenElse = iff
+
+
+instance ContrHoas exp contr => IfThenElse (Within exp) contr where
+    ifThenElse (Within b l) = ifWithin b l
 
 
 (>>) :: ContrHoas exp contr => Wait -> contr -> contr

@@ -2216,9 +2216,11 @@ opSem op vs =
                  (:) v2 l2 -> Nothing}}}}};
        RVal r -> Nothing}}}
 
-type Env = List Val
+type Env' a = List a
 
-lookupEnv :: Var -> Env -> Maybe Val
+type Env = Env' Val
+
+lookupEnv :: Var -> (Env' a1) -> Maybe a1
 lookupEnv v rho =
   case v of {
    V1 ->
@@ -2228,7 +2230,7 @@ lookupEnv v rho =
    VS v0 ->
     case rho of {
      [] -> Nothing;
-     (:) v1 xs -> lookupEnv v0 xs}}
+     (:) a xs -> lookupEnv v0 xs}}
 
 fsem :: (Env -> ExtEnv -> Maybe a1) -> Env -> ExtEnv -> Int -> (Maybe 
         Val) -> Maybe a1

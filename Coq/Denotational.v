@@ -93,10 +93,11 @@ Definition OpSem (op : Op) (vs : list Val) : option Val :=
 
 (* (Internal) environments map variables to values. *)
 
-Definition Env := list Val.
+Definition Env' A := list A.
+Definition Env := Env' Val.
 
 
-Fixpoint lookupEnv (v : Var) (rho : Env) : option Val :=
+Fixpoint lookupEnv {A} (v : Var) (rho : Env' A) : option A :=
   match v, rho with
     | V1, x::_ => Some x
     | VS v, _::xs => lookupEnv v xs
