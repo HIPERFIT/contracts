@@ -66,6 +66,8 @@ Definition isOneLit (e : Exp) : bool :=
     | _ => false
 end.
 
+Definition specialiseOpSimp (op : Op) (args : list Exp) : option Exp :=
+  liftM toLit (mapM fromLit args >>= OpSem op).
 
 Definition specialiseOp (op : Op) (args : list Exp) : option Exp :=
   match op with
@@ -99,18 +101,23 @@ Definition specialiseOp (op : Op) (args : list Exp) : option Exp :=
              end
     | Add => match args with
                | [e1;e2] => if isZeroLit e1 then Some e2
-                            else if isZeroLit e2 then Some e1 else None
+                            else if isZeroLit e2 then Some e1 
+                                 else specialiseOpSimp op args
                | _ => None
              end
     | Mult => match args with
                | [e1;e2] => if isOneLit e1 then Some e2
                             else if isOneLit e2 then Some e1
                                  else if isZeroLit e1 || isZeroLit e2 
-                                      then Some (OpE (RLit 0) []) else  None
+                                      then Some (OpE (RLit 0) []) 
+                                      else specialiseOpSimp op args
                | _ => None
              end
-    | _ =>  None
+    | _ =>  specialiseOpSimp op args
   end.
+
+
+
 
   
 Fixpoint lookupEnvP (v : Var) (rho : EnvP) : option Val :=
@@ -195,19 +202,34 @@ Proof.
   inversion H. clear H. subst. destruct op; simpl; try constructor;
                                destruct args;try inversion H3; auto.
  Qed.
- 
-Lemma specialiseOp_typed op es e G ts t : 
-|-Op op ∶ ts => t -> all2 (TypeExp G) es ts -> specialiseOp op es = Some e
-                -> G |-E e ∶ t.
-Proof.
+
   Ltac inv := match goal with
                 | [T : all2 (TypeExp _)  _ _ |- _] => inversion T; clear T;subst
                 | [_: context[match ?x with _ => _ end]|- _] => destruct x
                 | [T: Some _ = Some _|- _] => inversion T;clear T; subst
             end.
 
+ 
+Lemma specialiseOpSimp_typed op es e G ts t : 
+|-Op op ∶ ts => t -> all2 (TypeExp G) es ts -> specialiseOpSimp op es = Some e
+                -> G |-E e ∶ t.
+Proof.
+  intros O A S. unfold specialiseOpSimp in *.
+  eapply OpSem_typed_total in O. decompose [ex and] O. rewrite H0 in S.
+  simpl in S. unfold compose, pure in *. inversion S. apply toLit_typed. assumption.
+  clear O. option_inv_auto. clear H2. generalize dependent x0. induction A;constructor.
+  simpl in H1. option_inv_auto. eexists. split. eassumption. apply fromLit_typed in H.
+  rewrite H0 in H. inversion H. rewrite <- H1 in H0. inversion H0. subst. assumption.
+  simpl in H1. option_inv_auto. eauto.
+Qed.
+
+Lemma specialiseOp_typed op es e G ts t : 
+|-Op op ∶ ts => t -> all2 (TypeExp G) es ts -> specialiseOp op es = Some e
+                -> G |-E e ∶ t.
+Proof.
+
   intros O A S. inversion O;subst;clear O; simpl in *; tryfalse;
-  repeat inv; tryfalse; eauto. 
+  repeat inv; tryfalse; eauto using specialiseOpSimp_typed.
 Qed.
 
 Lemma lookupEnvP_typed G varsp v t : TypeEnvP G varsp -> G |-X v ∶ t -> |-V' lookupEnvP v varsp ∶ t.
@@ -296,6 +318,17 @@ Proof.
 Qed.
 
 
+
+
+Lemma specialiseOpSimp_sound (op : Op) es e vars rho G ts t:
+|-Op op ∶ ts => t -> all2 (TypeExp G) es ts -> TypeEnv G vars -> TypeExt rho ->
+  specialiseOpSimp op es = Some e -> E[|OpE op es|] vars rho = E[|e|] vars rho.
+Proof.
+  intros O A E X R. unfold specialiseOpSimp in R. option_inv_auto. simpl.
+  rewrite Esem_toLit. rewrite sequence_map. eapply mapM_monotone' in H1.
+  rewrite H1. assumption.  simpl. intros. auto using Esem_fromLit.
+Qed.
+
 Lemma specialiseOp_sound (op : Op) es e vars rho G ts t:
 |-Op op ∶ ts => t -> all2 (TypeExp G) es ts -> TypeEnv G vars -> TypeExt rho ->
   specialiseOp op es = Some e -> E[|OpE op es|] vars rho = E[|e|] vars rho.
@@ -308,6 +341,7 @@ Proof.
                 | [T : isOneLit _ = true |- _] => apply isOneLit_true in T
                 | [T : ?x || ?y = true |- _] => cases x;cases y;simpl in T; tryfalse
                 | [T: Some _ = Some _|- _] => inversion T;clear T; subst
+                | [T: specialiseOpSimp _ _ = Some _ |- _] => eapply specialiseOpSimp_sound in T;eauto
               end.
   Ltac tot := match goal with
                 | [T : TypeExp _ _ _ |- _] => eapply Esem_typed_total in T; eauto; decompose [ex and] T; clear T
@@ -319,7 +353,7 @@ Proof.
   intros O A E X R.
  inversion O;subst;clear O; simpl in *;tryfalse;
  repeat inv'; simpl; repeat tot; try reflexivity; try destruct b; 
- try first [reflexivity|rewrite Rplus_0_l|rewrite Rplus_0_r|rewrite Rmult_1_l|rewrite Rmult_1_r|rewrite Rmult_0_l|rewrite Rmult_0_r]; try first [reflexivity|assumption]. 
+ try first [reflexivity|rewrite Rplus_0_l|rewrite Rplus_0_r|rewrite Rmult_1_l|rewrite Rmult_1_r|rewrite Rmult_0_l|rewrite Rmult_0_r]; try first [reflexivity|assumption].
 Qed.
 
 

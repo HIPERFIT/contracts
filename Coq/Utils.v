@@ -249,6 +249,14 @@ Ltac option_inv_auto := repeat (idtac; match goal with
                      end;subst).
 
 
+
+Lemma mapM_monotone' {A B} (f g : A -> option B) (l : list A):
+  (forall x : A, f x ⊆ g x) -> mapM f l ⊆ mapM g l.
+Proof.
+  intros M. induction l; simpl; intros. assumption.
+  option_inv_auto. apply IHl in H1. rewrite H1. erewrite M by eauto. reflexivity.
+Qed.
+
 Lemma map_rewrite {A B} (f g : A -> option B) l : all (fun x => f x = g x) l -> map f l = map g l.
 Proof.
   intros. induction l. reflexivity.
