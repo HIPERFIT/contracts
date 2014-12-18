@@ -10,4 +10,5 @@ ex1 = do b <- rObs "DKK/USD" 0 > 5 && bObs "foo" 0
 
 env = mkExtEnvP [][("foo",0,True)] 
 
-spec1 = specialise (reifyContr ex1) env
+spec1 :: Contr
+spec1 = specialise ex1 env
