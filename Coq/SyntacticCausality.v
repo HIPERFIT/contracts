@@ -61,15 +61,15 @@ Hint Constructors Epc Pc.
 (* Below follows the proof that provable causality is sound (i.e. it
 implies semantic causality). *)
 
-Lemma epc_ext_until (e : Exp) d r1 r2 vars : 
-  Epc e -> 0 <= d -> ext_until d r1 r2 -> E[|e|]vars r1 = E[|e|]vars r2.
+Lemma epc_ext_until (e : Exp) d r1 r2 env : 
+  Epc e -> 0 <= d -> ext_until d r1 r2 -> E[|e|]env r1 = E[|e|]env r2.
 Proof.
-  intros R D O.   generalize dependent vars. generalize dependent r2. generalize dependent r1.
+  intros R D O.   generalize dependent env. generalize dependent r2. generalize dependent r1.
   induction R using Epc_ind'; intros; try solve [simpl; f_equal; auto].
   - simpl; unfold ext_until in O. rewrite O. reflexivity. omega.
   - do 4 (eapply all_apply in H0;eauto).
     apply map_rewrite in H0. simpl. rewrite H0. reflexivity.
-  - generalize dependent vars. generalize dependent r2. generalize dependent r1. 
+  - generalize dependent env. generalize dependent r2. generalize dependent r1. 
     induction l; intros. 
     + simpl. apply IHR2. assumption.
     + pose (adv_ext_step l (A:=Val)) as RE. simpl in *. do 2 rewrite RE.
@@ -82,7 +82,7 @@ Qed.
 (* Causality of (open) contracts *)
 
 Definition causal' (c : Contr) : Prop :=
-  forall d vars r1 r2 t1 t2,  ext_until (Z.of_nat d) r1 r2 -> C[|c|]vars r1 = Some t1 -> C[|c|] vars r2 = Some t2
+  forall d env r1 r2 t1 t2,  ext_until (Z.of_nat d) r1 r2 -> C[|c|]env r1 = Some t1 -> C[|c|] env r2 = Some t2
                         -> t1 d = t2 d.
 
 
@@ -110,10 +110,10 @@ Proof.
     generalize dependent t1. generalize dependent t2. 
     induction l; intros; simpl in *.
     + rewrite epc_ext_until with (r2:=r2) (d:=Z.of_nat d) in * by (eauto;omega).
-      remember (E[|b|] vars r2) as bl. destruct bl;tryfalse. destruct v;tryfalse. 
+      remember (E[|b|] env r2) as bl. destruct bl;tryfalse. destruct v;tryfalse. 
       destruct b0; [eapply IHPc1|eapply IHPc2]; eassumption. 
     +rewrite epc_ext_until with (r2:=r2) (d:=Z.of_nat d) in * by (eauto;omega). 
-     remember (E[|b|] vars r2) as bl. destruct bl;tryfalse. destruct v;tryfalse.
+     remember (E[|b|] env r2) as bl. destruct bl;tryfalse. destruct v;tryfalse.
      destruct b0.  eapply IHPc1; eassumption. 
      option_inv_auto. pose (IHl _ _ _ H5 _ H6) as IH.
      unfold delay_trace in *. remember (leb 1 d) as L. destruct L;try reflexivity. eapply IH.

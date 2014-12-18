@@ -1,5 +1,5 @@
 Require Import Denotational.
-Require Import DenotationalTyped.
+Require Export DenotationalTyped.
 Require Import Tactics.
 Require Import Equivalence.
 
@@ -120,33 +120,33 @@ Definition specialiseOp (op : Op) (args : list Exp) : option Exp :=
 
 
   
-Fixpoint lookupEnvP (v : Var) (rho : EnvP) : option Val :=
-  match v, rho with
+Fixpoint lookupEnvP (v : Var) (env : EnvP) : option Val :=
+  match v, env with
     | V1, x::_ => x
     | VS v, _::xs => lookupEnvP v xs
     | _,_ => None
   end.
 
-Definition specialiseFun f  (vars : EnvP) (rho : ExtEnvP) := 
-  fun l r => fromLit(f (r :: vars) (adv_ext (Z.of_nat l) rho)).
+Definition specialiseFun f  (env : EnvP) (ext : ExtEnvP) := 
+  fun l r => fromLit(f (r :: env) (adv_ext (Z.of_nat l) ext)).
 
-Fixpoint specialiseExp (e : Exp) (vars : EnvP) (rho : ExtEnvP)  : Exp :=
+Fixpoint specialiseExp (e : Exp) (env : EnvP) (ext : ExtEnvP)  : Exp :=
     match e with
-      | OpE op args => let args' := map (fun e' => specialiseExp e' vars rho) args
+      | OpE op args => let args' := map (fun e' => specialiseExp e' env ext) args
                        in default (OpE op args') (specialiseOp op args')
-      | Obs obs t => default e (liftM toLit (rho obs t))
-      | VarE v => default e (liftM toLit (lookupEnvP v vars))
-      | Acc f l z => let rho' := adv_ext (-Z.of_nat l) rho in
-                     let ze := (specialiseExp z vars rho') in
-                     let fe := (specialiseExp z (None :: vars) rho) in
+      | Obs obs t => default e (liftM toLit (ext obs t))
+      | VarE v => default e (liftM toLit (lookupEnvP v env))
+      | Acc f l z => let ext' := adv_ext (-Z.of_nat l) ext in
+                     let ze := (specialiseExp z env ext') in
+                     let fe := (specialiseExp z (None :: env) ext) in
                      let z' := fromLit ze in
-                     let f' := specialiseFun (specialiseExp f) vars rho'
+                     let f' := specialiseFun (specialiseExp f) env ext'
                      in default (Acc f l ze) (liftM toLit (Acc_sem f' l z'))
     end.
 
 (* Definition of instantiation of external and internal environments *)
 
-Definition ext_inst (rhop : ExtEnvP) (rho : ExtEnv) : Prop := forall l t v, rhop l t = Some v -> rho l t = v.
+Definition ext_inst (extp : ExtEnvP) (ext : ExtEnv) : Prop := forall l t v, extp l t = Some v -> ext l t = v.
 
 Definition env_inst : EnvP -> Env -> Prop := all2 (fun p v => forall v', p = Some v' -> v' = v).
 
@@ -159,32 +159,32 @@ Proof.
   - destruct I;tryfalse. eapply IHv; eauto.
 Qed.
 
-Lemma Esem_toLit v vars rho :  E[|toLit v|] vars rho = Some v.
+Lemma Esem_toLit v env ext :  E[|toLit v|] env ext = Some v.
 Proof.
   destruct v; reflexivity.
 Qed.
 
 
-Lemma Esem_fromLit e vars rho v : fromLit e = Some v -> E[|e|] vars rho = Some v.
+Lemma Esem_fromLit e env ext v : fromLit e = Some v -> E[|e|] env ext = Some v.
 Proof.
   simpl. intros. destruct e;tryfalse.
   destruct op; simpl in H; tryfalse; destruct args; tryfalse; auto.
 Qed.
 
 
-Definition TypeExtP (rhop : ExtEnvP) := forall z l t, |-O l ∶ t -> |-V' (rhop l z)  ∶ t.
-Definition TypeEnvP (g : TyEnv) (rhop : EnvP) : Prop := all2 TypeVal' rhop g.
+Definition TypeExtP (extp : ExtEnvP) := forall z l t, |-O l ∶ t -> |-V' (extp l z)  ∶ t.
+Definition TypeEnvP (g : TyEnv) (envp : EnvP) : Prop := all2 TypeVal' envp g.
 
 Hint Unfold TypeEnvP.
 
-Lemma ext_inst_typed rho rhop : ext_inst rhop rho -> TypeExt rho -> TypeExtP rhop.
+Lemma ext_inst_typed ext extp : ext_inst extp ext -> TypeExt ext -> TypeExtP extp.
 Proof.
   unfold TypeExt, TypeExtP. intros I T z l t O. 
-  cases (rhop l z) as R;constructor.
+  cases (extp l z) as R;constructor.
   apply I in R. rewrite <- R. auto.
 Qed.
 
-Lemma env_inst_typed rho rhop G : env_inst rhop rho -> TypeEnv G rho -> TypeEnvP G rhop.
+Lemma env_inst_typed env envp G : env_inst envp env -> TypeEnv G env -> TypeEnvP G envp.
 Proof.
   intros I T. generalize dependent G. induction I;intros; inversion T; econstructor.
   destruct x. assert (Some v = Some v) as V by reflexivity. apply H in V. rewrite V. 
@@ -232,12 +232,12 @@ Proof.
   repeat inv; tryfalse; eauto using specialiseOpSimp_typed.
 Qed.
 
-Lemma lookupEnvP_typed G varsp v t : TypeEnvP G varsp -> G |-X v ∶ t -> |-V' lookupEnvP v varsp ∶ t.
+Lemma lookupEnvP_typed G envp v t : TypeEnvP G envp -> G |-X v ∶ t -> |-V' lookupEnvP v envp ∶ t.
 Proof.
-  intros E V. generalize dependent varsp. generalize dependent G. 
+  intros E V. generalize dependent envp. generalize dependent G. 
   induction v;intros.
-  - simpl. destruct varsp. auto. inversion E. subst. inversion V. subst. assumption.
-  - simpl. destruct varsp. constructor. inversion V. subst. inversion E. subst. eauto.
+  - simpl. destruct envp. auto. inversion E. subst. inversion V. subst. assumption.
+  - simpl. destruct envp. constructor. inversion V. subst. inversion E. subst. eauto.
 Qed.
 
 Lemma adv_extp_type: forall (e : ExtEnvP) (d : Z), TypeExtP e -> TypeExtP (adv_ext d e).
@@ -247,8 +247,8 @@ Qed.
 
 Hint Resolve adv_extp_type.
   
-Lemma constFoldAcc_typed rho f l z t : 
-  TypeExtP rho
+Lemma constFoldAcc_typed ext f l z t : 
+  TypeExtP ext
   -> (forall i x, |-V' x ∶ t -> |-V' f i x ∶ t)
   -> (|-V' z ∶ t)
   -> |-V' Acc_sem f l z ∶ t.
@@ -270,23 +270,23 @@ Tactic Notation "destruct_toLit" ident (d')
      end.
 
 
-Lemma specialiseExp_typed G e t rhop varsp : 
-  G |-E e ∶ t -> TypeEnvP G varsp -> TypeExtP rhop
-      -> G |-E specialiseExp e varsp rhop ∶ t.
+Lemma specialiseExp_typed G e t extp envp : 
+  G |-E e ∶ t -> TypeEnvP G envp -> TypeExtP extp
+      -> G |-E specialiseExp e envp extp ∶ t.
 Proof.
-  intros E V R. generalize dependent varsp. generalize dependent rhop. 
+  intros E V R. generalize dependent envp. generalize dependent extp. 
   induction E using TypeExp_ind'; intros.
   - simpl. 
         do 4 (eapply all2_apply in H1; try eassumption).
     apply all2_map_all2 in H1. rewrite map_id in H1.
-    cases (specialiseOp op (map (fun e' : Exp => specialiseExp e' varsp rhop) es)) as S.
+    cases (specialiseOp op (map (fun e' : Exp => specialiseExp e' envp extp) es)) as S.
     + simpl.  eapply specialiseOp_typed in S; eassumption. 
     + simpl. econstructor; eassumption.
-  - simpl. cases (rhop o z) as O.
+  - simpl. cases (extp o z) as O.
     + simpl. apply toLit_typed. unfold TypeExtP in *. apply R with (z:=z) in H. rewrite O in H.
       inversion H. assumption.
     + simpl. auto.
-  - simpl. cases (lookupEnvP v varsp) as L.
+  - simpl. cases (lookupEnvP v envp) as L.
     + simpl. apply toLit_typed. eapply lookupEnvP_typed in H;eauto. rewrite L in H. inversion H.
       assumption.
     + simpl. auto.
@@ -320,18 +320,18 @@ Qed.
 
 
 
-Lemma specialiseOpSimp_sound (op : Op) es e vars rho G ts t:
-|-Op op ∶ ts => t -> all2 (TypeExp G) es ts -> TypeEnv G vars -> TypeExt rho ->
-  specialiseOpSimp op es = Some e -> E[|OpE op es|] vars rho = E[|e|] vars rho.
+Lemma specialiseOpSimp_sound (op : Op) es e env ext G ts t:
+|-Op op ∶ ts => t -> all2 (TypeExp G) es ts -> TypeEnv G env -> TypeExt ext ->
+  specialiseOpSimp op es = Some e -> E[|OpE op es|] env ext = E[|e|] env ext.
 Proof.
   intros O A E X R. unfold specialiseOpSimp in R. option_inv_auto. simpl.
   rewrite Esem_toLit. rewrite sequence_map. eapply mapM_monotone' in H1.
   rewrite H1. assumption.  simpl. intros. auto using Esem_fromLit.
 Qed.
 
-Lemma specialiseOp_sound (op : Op) es e vars rho G ts t:
-|-Op op ∶ ts => t -> all2 (TypeExp G) es ts -> TypeEnv G vars -> TypeExt rho ->
-  specialiseOp op es = Some e -> E[|OpE op es|] vars rho = E[|e|] vars rho.
+Lemma specialiseOp_sound (op : Op) es e env ext G ts t:
+|-Op op ∶ ts => t -> all2 (TypeExp G) es ts -> TypeEnv G env -> TypeExt ext ->
+  specialiseOp op es = Some e -> E[|OpE op es|] env ext = E[|e|] env ext.
 Proof.
   Ltac inv' := match goal with
                 | [T : all2 (TypeExp _)  _ _ |- _] => inversion T; clear T;subst
@@ -357,7 +357,7 @@ Proof.
 Qed.
 
 
-Lemma ext_inst_adv rhop rho z : ext_inst rhop rho -> ext_inst (adv_ext z rhop) (adv_ext z rho).
+Lemma ext_inst_adv extp ext z : ext_inst extp ext -> ext_inst (adv_ext z extp) (adv_ext z ext).
 Proof.
   unfold ext_inst, adv_ext. intros. auto.
 Qed.
@@ -365,53 +365,53 @@ Qed.
 Hint Resolve env_inst_typed ext_inst_typed specialiseExp_typed ext_inst_adv.
 
 
-Lemma lookupEnvP_sound varsp vars v x : 
-  env_inst varsp vars -> lookupEnvP v varsp = Some x -> lookupEnv v vars = Some x.
+Lemma lookupEnvP_sound envp env v x : 
+  env_inst envp env -> lookupEnvP v envp = Some x -> lookupEnv v env = Some x.
 Proof.
-  intros I L. generalize dependent x. generalize dependent varsp. generalize dependent vars. 
-  induction v;intros; simpl in *; destruct varsp;tryfalse; inversion I; subst. 
+  intros I L. generalize dependent x. generalize dependent envp. generalize dependent env. 
+  induction v;intros; simpl in *; destruct envp;tryfalse; inversion I; subst. 
   - erewrite <- H1; reflexivity.
   - eapply IHv;eauto.
 Qed.
 
-Theorem specialiseExp_sound G e t rhop rho varsp vars : 
-  G |-E e ∶ t -> TypeExt rho -> TypeEnv G vars ->
-      ext_inst rhop rho -> env_inst varsp vars -> 
-      E[|specialiseExp e varsp rhop|] vars rho  = E[|e|] vars rho.
+Theorem specialiseExp_sound G e t extp ext envp env : 
+  G |-E e ∶ t -> TypeExt ext -> TypeEnv G env ->
+      ext_inst extp ext -> env_inst envp env -> 
+      E[|specialiseExp e envp extp|] env ext  = E[|e|] env ext.
 Proof.
-  intros T R V I J. generalize dependent rho. generalize dependent rhop. 
-  generalize dependent vars. generalize dependent varsp.
+  intros T R V I J. generalize dependent ext. generalize dependent extp. 
+  generalize dependent env. generalize dependent envp.
   induction T using TypeExp_ind';intros.
   - simpl. 
     apply all2_all in H1. do 8 (eapply all_apply in H1;eauto). apply map_rewrite in H1.
-    cases (specialiseOp op (map (fun e' : Exp => specialiseExp e' varsp rhop) es)) as S.
+    cases (specialiseOp op (map (fun e' : Exp => specialiseExp e' envp extp) es)) as S.
     + eapply specialiseOp_sound in S;eauto. simpl in *. rewrite <- S. 
       rewrite map_map. rewrite H1. reflexivity.
       rewrite <- map_id.  eapply all2_map; eauto.
     + simpl. rewrite map_map. rewrite H1. reflexivity.
-  - simpl. cases (rhop o z) as O; simpl. apply I in O. rewrite O.
+  - simpl. cases (extp o z) as O; simpl. apply I in O. rewrite O.
     apply Esem_toLit. reflexivity.
-  - simpl. cases (lookupEnvP v varsp) as L.
+  - simpl. cases (lookupEnvP v envp) as L.
     + simpl. rewrite Esem_toLit. erewrite lookupEnvP_sound;eauto.
     + reflexivity.
-  - generalize dependent rho. generalize dependent rhop. 
-    generalize dependent vars. generalize dependent varsp. induction n;intros.
+  - generalize dependent ext. generalize dependent extp. 
+    generalize dependent env. generalize dependent envp. induction n;intros.
     + simpl. destruct_toLit S.
       * eapply Esem_fromLit in S. rewrite IHT2 in S; eauto. 
         simpl. rewrite Esem_toLit. auto.
       * simpl. auto.
     + assert (g |-E Acc e1 n e2 ∶ t) as A by auto.
-      eapply Esem_typed_total with (erho:= adv_ext (-1) rho) in A; eauto.
-      assert (g |-E specialiseExp (Acc e1 n e2) varsp (adv_ext (-1) rhop) ∶ t) as As 
+      eapply Esem_typed_total with (ext:= adv_ext (-1) ext) in A; eauto.
+      assert (g |-E specialiseExp (Acc e1 n e2) envp (adv_ext (-1) extp) ∶ t) as As 
                                                                                  by (apply specialiseExp_typed;eauto).
-      eapply Esem_typed_total with (erho := adv_ext (-1) rho) in As;eauto.
+      eapply Esem_typed_total with (ext := adv_ext (-1) ext) in As;eauto.
       simpl in *. destruct_toLit S.
       * simpl. rewrite Esem_toLit.         
         unfold Fsem at 1. simpl. simpl in IHn. repeat rewrite adv_ext_step'. 
-        erewrite <- IHn with (rhop:=adv_ext (-1) rhop) (varsp := varsp); eauto.
+        erewrite <- IHn with (extp:=adv_ext (-1) extp) (envp := envp); eauto.
         destruct_toLit S'.
         simpl. rewrite Esem_toLit. simpl. 
-        eapply Esem_fromLit with (vars := v0 :: vars) in S. rewrite <- S. 
+        eapply Esem_fromLit with (env := v0 :: env) in S. rewrite <- S. 
         eapply IHT1;eauto. constructor;eauto. 
         decompose [ex and] As.  simpl in H0. rewrite Esem_toLit in H0. inversion H0. assumption.
         constructor;auto.
@@ -424,8 +424,8 @@ Proof.
 
         
         simpl. unfold specialiseFun in S. decompose [ex and] A. 
-        eapply Esem_fromLit with (vars := x :: vars) (rho :=(adv_ext (Z.pos (Pos.of_succ_nat n))
-        (adv_ext (- Z.of_nat n) (adv_ext (-1) rho)))) in S. 
+        eapply Esem_fromLit with (env := x :: env) (ext :=(adv_ext (Z.pos (Pos.of_succ_nat n))
+        (adv_ext (- Z.of_nat n) (adv_ext (-1) ext)))) in S. 
         rewrite <- S. rewrite IHT1;eauto. rewrite IHT2;eauto. rewrite H0. 
         simpl. reflexivity. constructor;auto. 
         intros. unfold specialiseFun in S'. 
@@ -473,10 +473,10 @@ Proof.
   - simpl. rewrite IHl. apply F.
 Qed.
 
-Lemma elimVarE_sound v vs1 vs2 rho e e': elimVarE v e = Some e' -> elimVarEnv v vs1 vs2 -> 
-                                       E[|e|]vs1 rho = E[|e'|]vs2 rho.
+Lemma elimVarE_sound v vs1 vs2 ext e e': elimVarE v e = Some e' -> elimVarEnv v vs1 vs2 -> 
+                                       E[|e|]vs1 ext = E[|e'|]vs2 ext.
 Proof.
-  intros O U. generalize dependent rho. generalize dependent vs1. generalize dependent vs2.
+  intros O U. generalize dependent ext. generalize dependent vs1. generalize dependent vs2.
   generalize dependent v. generalize dependent e'.
   induction e using Exp_ind';intros;simpl in *. 
   - option_inv_auto. simpl. apply bind_equals;auto.
@@ -490,7 +490,7 @@ Proof.
     + destruct v;tryfalse. simpl in *. inversion H0. reflexivity.
     + destruct v0; simpl in *. inversion H0. reflexivity.
       option_inv_auto. simpl. apply IHU. assumption.
-  - option_inv_auto. simpl. generalize dependent rho. 
+  - option_inv_auto. simpl. generalize dependent ext. 
     induction d;intros.
     + simpl in *. eapply IHe2;eauto.
     + rewrite adv_ext_step. simpl. erewrite IHd.
@@ -528,15 +528,15 @@ Fixpoint elimVarC (v : Var) (c : Contr) : option Contr :=
     | If e l c1 c2 => liftM3 (fun e' c1' c2' => If e' l c1' c2') (elimVarE v e) (elimVarC v c1) (elimVarC v c2)
   end.
 
-Lemma elimVarC_sound v vs1 vs2 rho c c' : elimVarC v c = Some c' -> elimVarEnv v vs1 vs2 -> 
-                                         C[|c|]vs1 rho = C[|c'|]vs2 rho.
+Lemma elimVarC_sound v vs1 vs2 ext c c' : elimVarC v c = Some c' -> elimVarEnv v vs1 vs2 -> 
+                                         C[|c|]vs1 ext = C[|c'|]vs2 ext.
 Proof.
-  intros O U. generalize dependent rho. generalize dependent vs1. generalize dependent vs2.
+  intros O U. generalize dependent ext. generalize dependent vs1. generalize dependent vs2.
   generalize dependent v. generalize dependent c'.
   induction c;intros; simpl in *;try first [option_inv' O|inversion O];simpl;
   try solve [reflexivity|eauto using bind_equals, elimVarE_sound|f_equal;eauto using bind_equals, elimVarE_sound].
   
-  generalize dependent rho. induction n;intros;simpl;erewrite elimVarE_sound;eauto;erewrite IHc1;eauto.
+  generalize dependent ext. induction n;intros;simpl;erewrite elimVarE_sound;eauto;erewrite IHc1;eauto.
   - erewrite IHc2;eauto.
   - erewrite IHn;eauto.
 Qed. 
@@ -565,8 +565,8 @@ Definition smartLet (e : Exp) (c : Contr) : Contr :=
 
 (* The smart let binding is equivalent to the ordinary let binding. *)
 
-Lemma smartLet_sound e c vs rho t g : 
-  g |-E e ∶ t -> TypeEnv g vs -> TypeExt rho -> C[|smartLet e c|]vs rho = C[|Let e c|]vs rho.
+Lemma smartLet_sound e c vs ext t g : 
+  g |-E e ∶ t -> TypeEnv g vs -> TypeExt ext -> C[|smartLet e c|]vs ext = C[|Let e c|]vs ext.
 Proof.
   intros T G R. unfold smartLet. cases (elimVarC V1 c); try reflexivity.
   simpl.
@@ -597,8 +597,8 @@ Definition smartScale e c : Contr :=
          | c' => Scale e c'
        end.
 
-Lemma smartScale_sound e c vs rho g: 
-  g |-C Scale e c -> TypeEnv g vs -> TypeExt rho -> C[|smartScale e c|]vs rho = C[|Scale e c|]vs rho.
+Lemma smartScale_sound e c vs ext g: 
+  g |-C Scale e c -> TypeEnv g vs -> TypeExt ext -> C[|smartScale e c|]vs ext = C[|Scale e c|]vs ext.
 Proof.
   intros T G R. inversion T. subst.
   unfold smartScale. cases (isZeroLit e) as E. apply isZeroLit_true in E.
@@ -634,8 +634,8 @@ Definition smartBoth c1 c2 : Contr :=
   end.
 
 
-Lemma smartBoth_sound c1 c2 vs rho g: 
-  g |-C Both c1 c2 -> TypeEnv g vs -> TypeExt rho -> C[|smartBoth c1 c2|]vs rho = C[|Both c1 c2|]vs rho.
+Lemma smartBoth_sound c1 c2 vs ext g: 
+  g |-C Both c1 c2 -> TypeEnv g vs -> TypeExt ext -> C[|smartBoth c1 c2|]vs ext = C[|Both c1 c2|]vs ext.
 Proof.
   intros T G R. inversion T. subst.
   eapply Csem_typed_total in H2;eauto. destruct H2 as [t1 C1].
@@ -671,8 +671,8 @@ Definition smartTranslate l c : Contr :=
            end
 end.
 
-Lemma smartTranslate_sound l c vs rho: 
-  C[|smartTranslate l c|]vs rho = C[|Translate l c|]vs rho.
+Lemma smartTranslate_sound l c vs ext: 
+  C[|smartTranslate l c|]vs ext = C[|Translate l c|]vs ext.
 Proof.
   destruct l.
   - simpl. erewrite liftM_ext. rewrite liftM_id. rewrite adv_ext_0. reflexivity.
@@ -697,28 +697,28 @@ Proof.
 Qed.
    
 
-Fixpoint traverseIf (vars:EnvP) (rho : ExtEnvP) (e: Exp) (c1 c2 : ExtEnvP -> Contr) (d : nat) (l : nat) : option Contr :=
-  match fromBLit (specialiseExp e vars rho) with
-      | Some true => Some (smartTranslate d (c1 rho))
+Fixpoint traverseIf (env:EnvP) (ext : ExtEnvP) (e: Exp) (c1 c2 : ExtEnvP -> Contr) (d : nat) (l : nat) : option Contr :=
+  match fromBLit (specialiseExp e env ext) with
+      | Some true => Some (smartTranslate d (c1 ext))
       | Some false => match l with
-                        | O => Some (smartTranslate d (c2 rho))
-                        | S l' => traverseIf vars (adv_ext 1 rho) e c1 c2 (S d) l'
+                        | O => Some (smartTranslate d (c2 ext))
+                        | S l' => traverseIf env (adv_ext 1 ext) e c1 c2 (S d) l'
                         end
       | _ => None
   end.
 
 
 
-Fixpoint specialise (c : Contr) (vars : EnvP) (rho : ExtEnvP) : Contr :=
+Fixpoint specialise (c : Contr) (env : EnvP) (ext : ExtEnvP) : Contr :=
   match c with
     | Zero => c
     | Transfer _ _ _ => c
-    | Let e c' => let e' := specialiseExp e vars rho in
-                  smartLet e' (specialise c' (fromLit e' :: vars) rho)
-    | Scale e c' => smartScale (specialiseExp e vars rho) (specialise c' vars rho)
-    | Translate l c' => smartTranslate l (specialise c' vars (adv_ext (Z.of_nat l) rho))
-    | Both c1 c2 => smartBoth (specialise c1 vars rho) (specialise c2 vars rho)
-    | If e l c1 c2 => default c (traverseIf vars rho e (specialise c1 vars) (specialise c2 vars) 0 l)
+    | Let e c' => let e' := specialiseExp e env ext in
+                  smartLet e' (specialise c' (fromLit e' :: env) ext)
+    | Scale e c' => smartScale (specialiseExp e env ext) (specialise c' env ext)
+    | Translate l c' => smartTranslate l (specialise c' env (adv_ext (Z.of_nat l) ext))
+    | Both c1 c2 => smartBoth (specialise c1 env ext) (specialise c2 env ext)
+    | If e l c1 c2 => default c (traverseIf env ext e (specialise c1 env) (specialise c2 env) 0 l)
   end.
 
 Hint Resolve smartTranslate_typed smartBoth_typed smartScale_typed 
@@ -726,18 +726,18 @@ Hint Resolve smartTranslate_typed smartBoth_typed smartScale_typed
 
 
 
-Theorem specialise_typed g vars rho  c : 
-  g |-C c -> TypeEnvP g vars -> TypeExtP rho -> g |-C specialise c vars rho.
+Theorem specialise_typed g env ext  c : 
+  g |-C c -> TypeEnvP g env -> TypeExtP ext -> g |-C specialise c env ext.
 Proof.
-  intros T E R. generalize dependent vars. generalize dependent rho. generalize dependent g. 
+  intros T E R. generalize dependent env. generalize dependent ext. generalize dependent g. 
   induction c;intros; inversion T;subst;simpl; eauto 9 with SmartTyped.
   (* all cases except If are caught by eauto *)
   match goal with [|-context[default _ ?x]] => cases x as S end;try auto.
-  generalize dependent c. generalize dependent rho. generalize 0.
+  generalize dependent c. generalize dependent ext. generalize 0.
   induction n;intros.
-  - simpl in *. cases (fromBLit (specialiseExp e vars rho)) as B;tryfalse. 
+  - simpl in *. cases (fromBLit (specialiseExp e env ext)) as B;tryfalse. 
     destruct b; inversion S; auto with SmartTyped.
-  - simpl in *. cases (fromBLit (specialiseExp e vars rho)) as B;tryfalse.
+  - simpl in *. cases (fromBLit (specialiseExp e env ext)) as B;tryfalse.
     destruct b; inversion S; auto with SmartTyped. apply IHn in S;eauto.
 Qed.
 
@@ -746,19 +746,25 @@ Hint Resolve  Esem_fromLit smartTranslate_typed smartBoth_typed smartScale_typed
      smartLet_typed specialiseExp_typed specialise_typed fromLit_typed smartTranslate_sound 
      smartBoth_sound smartScale_sound  smartLet_sound specialiseExp_sound   : SmartSound.
 
-Lemma Esem_fromBLit e r vs rho : fromBLit e = Some r -> E[|e|]vs rho = Some (BVal r).
+Lemma Esem_fromBLit e r vs ext : fromBLit e = Some r -> E[|e|]vs ext = Some (BVal r).
 Proof.
   intros. apply fromBLit_Some in H. subst. reflexivity.
 Qed.
 
-Theorem specialise_sound g vars rho varsp rhop  c : 
-  g |-C c -> TypeEnv g vars -> TypeExt rho -> 
-      ext_inst rhop rho ->
-      env_inst varsp vars ->
-      C[|specialise c varsp rhop|] vars rho = C[|c|] vars rho.
+Definition pequiv g envp extp c1 c2 := forall env ext, 
+                                        TypeEnv g env -> TypeExt ext -> 
+                                        ext_inst extp ext ->
+                                        env_inst envp env ->
+                                        C[|c1|] env ext = C[|c2|] env ext.
+
+Notation "c1 '≡[' g ',' envp ',' extp ']' c2" := (pequiv g envp extp c1 c2) (at level 50).
+
+Theorem specialise_sound g envp extp  c : 
+  g |-C c -> specialise c envp extp ≡[g,envp,extp] c.
 Proof.
-  intros T E R I J. generalize dependent vars. generalize dependent rho.
-  generalize dependent varsp. generalize dependent rhop. generalize dependent g. 
+  unfold pequiv.
+  intros T env ext E R I J. generalize dependent env. generalize dependent ext.
+  generalize dependent envp. generalize dependent extp. generalize dependent g. 
   induction c;intros; inversion T;subst;simpl; eauto.
   - erewrite smartLet_sound by eauto 9 with SmartSound. simpl. 
     erewrite specialiseExp_sound by eauto. pose H2 as HT. eapply Esem_typed_total in HT;eauto.
@@ -773,20 +779,20 @@ Proof.
     erewrite IHc2 by eauto. reflexivity.
 
   - match goal with [|-context[default _ ?x]] => cases x as S end;try auto.
-    generalize dependent c. generalize dependent rho. generalize dependent rhop. 
-    assert (forall (n0 : nat) (rhop : ExtEnvP) (rho : ExtEnv),
-              TypeExt (adv_ext (Z.of_nat n0) rho) ->
-              ext_inst rhop (adv_ext (Z.of_nat n0) rho) ->
+    generalize dependent c. generalize dependent ext. generalize dependent extp. 
+    assert (forall (n0 : nat) (extp : ExtEnvP) (ext : ExtEnv),
+              TypeExt (adv_ext (Z.of_nat n0) ext) ->
+              ext_inst extp (adv_ext (Z.of_nat n0) ext) ->
               forall c : Contr,
-                traverseIf varsp rhop e (specialise c1 varsp) (specialise c2 varsp) n0 n =
+                traverseIf envp extp e (specialise c1 envp) (specialise c2 envp) n0 n =
                 Some c ->
-                C[|c|] vars rho =
-                liftM (delay_trace n0) (within_sem C[|c1|] C[|c2|] e n vars (adv_ext (Z.of_nat n0) rho))) as G.
+                C[|c|] env ext =
+                liftM (delay_trace n0) (within_sem C[|c1|] C[|c2|] e n env (adv_ext (Z.of_nat n0) ext))) as G.
     
     induction n;intros;
     simpl in *; pose H3 as HT; eapply Esem_typed_total in HT;eauto;
     decompose [ex and] HT; inversion H7; subst; rewrite H4;
-    cases (fromBLit (specialiseExp e varsp rhop)) as B;tryfalse;
+    cases (fromBLit (specialiseExp e envp extp)) as B;tryfalse;
     eapply Esem_fromBLit in B; erewrite specialiseExp_sound in B by eauto;
     rewrite B in H4; inversion H4; subst;
     destruct b; inversion H1; try rewrite smartTranslate_sound; simpl; f_equal; eauto.

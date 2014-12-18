@@ -52,24 +52,21 @@ Proof.
 Qed.
 
 
-(* Lemma horizon_empty c g vars rho i t : g |-C c -> TypeEnv g vars -> TypeExt rho -> horizon c  <= i ->  *)
-(*                                            C[|c|] vars rho = Some t -> t i = empty_trans. *)
-
-Theorem horizon_sound c vars rho i t : horizon c  <= i ->
-                                     C[|c|] vars rho = Some t -> t i = empty_trans.
+Theorem horizon_sound c env ext i t : horizon c  <= i ->
+                                     C[|c|] env ext = Some t -> t i = empty_trans.
 
 Proof.
-  intros HO T. generalize dependent vars. generalize dependent rho. generalize dependent t.
+  intros HO T. generalize dependent env. generalize dependent ext. generalize dependent t.
   generalize dependent i.
   induction c; simpl in *;intros.
   - inversion T. reflexivity.
-  - destruct (E[|e|] vars rho);tryfalse. simpl in T. eapply IHc. assumption.  eapply T.
+  - destruct (E[|e|] env ext);tryfalse. simpl in T. eapply IHc. assumption.  eapply T.
   - destruct i. inversion HO. inversion T. reflexivity.
-  - remember (E[|e|] vars rho >>= toReal) as r. remember (C[|c|] vars rho) as C.
+  - remember (E[|e|] env ext >>= toReal) as r. remember (C[|c|] env ext) as C.
     destruct r;destruct C; tryfalse. simpl in T. unfold pure, compose in *. inversion T.
     symmetry in HeqC. eapply IHc with (i:=i) in HeqC ; auto. unfold scale_trace, compose.
     rewrite HeqC. apply scale_empty_trans. 
-  - remember (C[|c|] vars (adv_ext (Z.of_nat n) rho)) as C. destruct C;tryfalse.
+  - remember (C[|c|] env (adv_ext (Z.of_nat n) ext)) as C. destruct C;tryfalse.
     simpl in T. unfold pure,compose in T. inversion T. clear T. unfold delay_trace.
     remember (horizon c) as h. destruct h.  
     destruct (leb n i). eapply IHc. omega. eauto. reflexivity.
@@ -78,17 +75,17 @@ Proof.
     unfold delay_trace. assert (leb n i = true) as L. apply leb_correct. omega. rewrite L.
     destruct H'; eauto. eauto.
   - rewrite NPeano.Nat.max_lub_iff in HO. destruct HO as [H1 H2].
-    remember (C[|c1|] vars rho) as C1. remember (C[|c2|] vars rho) as C2.
+    remember (C[|c1|] env ext) as C1. remember (C[|c2|] env ext) as C2.
     destruct C1; destruct C2; tryfalse.
     simpl in T. unfold pure, compose in T. inversion T.
     unfold add_trace. erewrite IHc1;eauto. erewrite IHc2;eauto.
-  - generalize dependent rho. generalize dependent i. generalize dependent t. induction n;intros.
-    + simpl in HO. simpl in T. destruct (E[|e|] vars rho);tryfalse. destruct v;tryfalse.
+  - generalize dependent ext. generalize dependent i. generalize dependent t. induction n;intros.
+    + simpl in HO. simpl in T. destruct (E[|e|] env ext);tryfalse. destruct v;tryfalse.
       destruct b. eapply IHc1; eauto. eapply plus0_max_l; eauto.
       eapply IHc2; eauto. eapply plus0_max_r; eauto.
-    + simpl in HO. simpl in T. destruct (E[|e|] vars rho);tryfalse. destruct v;tryfalse.
+    + simpl in HO. simpl in T. destruct (E[|e|] env ext);tryfalse. destruct v;tryfalse.
       destruct b. eapply IHc1; eauto. eapply plus0_max_l; eauto.
-      remember (within_sem C[|c1|] C[|c2|] e n vars (adv_ext 1 rho)) as C. destruct C;tryfalse.
+      remember (within_sem C[|c1|] C[|c2|] e n env (adv_ext 1 ext)) as C. destruct C;tryfalse.
       simpl in T. unfold pure, compose in T. inversion T. clear T.
       symmetry in HeqC. eapply IHn in HeqC. unfold delay_trace. destruct (leb 1 i).
       apply HeqC. reflexivity. apply plus0_le. assumption.

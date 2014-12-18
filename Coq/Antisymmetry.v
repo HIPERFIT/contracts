@@ -6,7 +6,7 @@ Require Import Tactics.
 Definition antisym (t : Trans) : Prop := forall p1 p2 c, t p1 p2 c = - t p2 p1 c.
 Definition antisym_trace (t : Trace) : Prop := forall i, antisym (t i).
 Definition antisym_trace' (t : Env -> ExtEnv -> option Trace) : Prop := 
-  forall vars rho t', t vars rho = Some t' -> antisym_trace t'.
+  forall env ext t', t env ext = Some t' -> antisym_trace t'.
 
 
 Hint Resolve Ropp_0 Ropp_involutive.
@@ -82,7 +82,7 @@ Lemma within_trace_antisym t1 t2 b n : antisym_trace' t1 -> antisym_trace' t2 ->
                                        antisym_trace' (within_sem t1 t2 b n).
 Proof.
   intros T1 T2. intros. induction n; unfold antisym_trace'; intros; simpl in *;
-  destruct (E[|b|]vars rho); try destruct v; try destruct b0; eauto;tryfalse.
+  destruct (E[|b|]env ext); try destruct v; try destruct b0; eauto;tryfalse.
   apply liftM_some in H. decompose [ex and] H. subst. apply delay_trace_antisym.
   eauto.
  Qed.

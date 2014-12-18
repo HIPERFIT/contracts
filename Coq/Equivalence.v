@@ -11,12 +11,12 @@ Require Import DenotationalTyped.
 
 Definition equiv (g : TyEnv) (c1 c2 : Contr) : Prop
   := g |-C c1 /\ g |-C c2 /\ 
-    (forall (vars : Env) (rho : ExtEnv), 
-      TypeExt rho -> TypeEnv g vars -> C[|c1|]vars rho = C[|c2|]vars rho).
+    (forall (env : Env) (ext : ExtEnv), 
+      TypeExt ext -> TypeEnv g env -> C[|c1|]env ext = C[|c2|]env ext).
 Notation "c1 '≡[' g ']' c2" := (equiv g c1 c2) (at level 50).
 
 
-Lemma equiv_typed g c1 c2 : g |-C c1 -> g |-C c2 -> (forall t1 t2 vars rho, TypeExt rho -> TypeEnv g vars -> C[|c1|]vars rho = Some t1 -> C[|c2|]vars rho = Some t2 -> t1 = t2) -> c1 ≡[g] c2.
+Lemma equiv_typed g c1 c2 : g |-C c1 -> g |-C c2 -> (forall t1 t2 env ext, TypeExt ext -> TypeEnv g env -> C[|c1|]env ext = Some t1 -> C[|c2|]env ext = Some t2 -> t1 = t2) -> c1 ≡[g] c2.
 Proof. 
   intros T1 T2 E. unfold equiv. repeat split;auto. intros. 
   eapply Csem_typed_total in T1;eauto. destruct T1 as [t1 T1].
@@ -37,12 +37,12 @@ Theorem transl_ifwithin g e d t c1 c2 : g |-C c1 -> g |-C c2 -> g |-E e ∶ BOOL
   If (adv_exp (Z.of_nat d) e) t (Translate d c1) (Translate d c2) ≡[g]
   Translate d (If e t c1 c2).
 Proof.
-  unfold equiv. intros. repeat split; eauto. intros vars rho R V.
-  generalize dependent rho. induction t; intros. 
-  - eapply Esem_typed_total with (erho:=(adv_ext (Z.of_nat d) rho)) in H1;eauto.
+  unfold equiv. intros. repeat split; eauto. intros env ext R V.
+  generalize dependent ext. induction t; intros. 
+  - eapply Esem_typed_total with (ext:=(adv_ext (Z.of_nat d) ext)) in H1;eauto.
     decompose [ex and] H1. simpl in *. rewrite adv_exp_ext, H3 in *. 
     destruct x; try destruct b; reflexivity.
-  - pose H1 as H1'. eapply Esem_typed_total with (erho:=(adv_ext (Z.of_nat d) rho)) in H1';eauto.
+  - pose H1 as H1'. eapply Esem_typed_total with (ext:=(adv_ext (Z.of_nat d) ext)) in H1';eauto.
     decompose [ex and] H1'. simpl in *. rewrite adv_exp_ext, H3. destruct x; try reflexivity. destruct b. reflexivity.
     rewrite IHt;eauto. rewrite adv_ext_swap. repeat rewrite liftM_liftM. apply liftM_ext. 
     intros. unfold compose. apply delay_trace_swap. 

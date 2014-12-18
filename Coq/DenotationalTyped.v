@@ -27,7 +27,7 @@ Hint Constructors TypeVal TypeVal'.
 
 (* Typing of external environments *)
 
-Definition TypeExt (rho : ExtEnv) := forall z l t, |-O l ∶ t -> |-V (rho l z)  ∶ t.
+Definition TypeExt (ext : ExtEnv) := forall z l t, |-O l ∶ t -> |-V (ext l z)  ∶ t.
 
 Lemma adv_ext_type e d : TypeExt e -> TypeExt (adv_ext d e).
 Proof.
@@ -38,7 +38,7 @@ Hint Resolve adv_ext_type.
 
 (* Typing of environments *)
 
-Definition TypeEnv (g : TyEnv) (rho : Env) : Prop := all2 TypeVal rho g.
+Definition TypeEnv (g : TyEnv) (env : Env) : Prop := all2 TypeVal env g.
 
 Hint Unfold TypeEnv.
 
@@ -65,15 +65,15 @@ Qed.
 (* The denotational semantics of expressions is total and produces
 values of the correct type. *)
 
-Theorem Esem_typed_total g e t (rho : Env) (erho : ExtEnv) : 
-  g |-E e ∶ t -> TypeEnv g rho -> TypeExt erho -> (exists v, E[|e|] rho erho = Some v /\ |-V v ∶ t).
+Theorem Esem_typed_total g e t (env : Env) (ext : ExtEnv) : 
+  g |-E e ∶ t -> TypeEnv g env -> TypeExt ext -> (exists v, E[|e|] env ext = Some v /\ |-V v ∶ t).
 Proof.
-  intros E R V'. generalize dependent rho. generalize dependent erho.
+  intros E R V'. generalize dependent env. generalize dependent ext.
   dependent induction E using TypeExp_ind'; intros.
   + simpl. rewrite sequence_map. eapply OpSem_typed_total. apply H.
     do 4 (eapply all2_apply in H1;eauto). 
   + simpl. eauto.
-  + simpl. generalize dependent rho. 
+  + simpl. generalize dependent env. 
     generalize dependent g. induction v; intros.
     - inversion H. subst. inversion R. subst. simpl. eauto.
     - simpl. inversion H. subst. inversion R. subst. eapply IHv. 
@@ -92,37 +92,37 @@ Hint Unfold empty_trace empty_trans const_trace empty_trans
 (* The denotational semantics of contracts is total. *)
 
 
-Theorem Csem_typed_total c g (rho: Env) (erho : ExtEnv) : 
- g |-C c -> TypeEnv g rho -> TypeExt erho -> total_trace (C[|c|] rho erho).
+Theorem Csem_typed_total c g (env: Env) (ext : ExtEnv) : 
+ g |-C c -> TypeEnv g env -> TypeExt ext -> total_trace (C[|c|] env ext).
 Proof.
-  intros C T R. generalize dependent rho. generalize dependent erho. generalize dependent g.
+  intros C T R. generalize dependent env. generalize dependent ext. generalize dependent g.
   unfold total_trace. induction c.
   + simpl. repeat autounfold. eauto.
   + simpl. repeat autounfold. intros. inversion C; subst. clear C. 
     eapply Esem_typed_total in H2; eauto. decompose [ex and] H2. rewrite H0.
-    assert (TypeEnv (t :: g) (x :: rho)) as T'. constructor; auto.
-    destruct (IHc (t :: g) H3 erho R (x :: rho) T'). simpl. rewrite H. eauto.
+    assert (TypeEnv (t :: g) (x :: env)) as T'. constructor; auto.
+    destruct (IHc (t :: g) H3 ext R (x :: env) T'). simpl. rewrite H. eauto.
   + simpl. repeat autounfold. intros. eauto.
   + simpl. repeat autounfold. intros. unfold liftM2, bind.
-    inversion C. subst. destruct (IHc g H3 erho R rho T). 
+    inversion C. subst. destruct (IHc g H3 ext R env T). 
     eapply Esem_typed_total in H2; eauto. decompose [and ex] H2.
     rewrite H1. inversion H4. simpl. rewrite  H.
     unfold pure, compose. eauto. 
   + intros. simpl. unfold delay_trace. inversion C; subst. 
-    assert (TypeExt (adv_ext (Z.of_nat n) erho)) as R' by auto.
-    destruct (IHc g H1 (adv_ext (Z.of_nat n) erho) R' rho T).
+    assert (TypeExt (adv_ext (Z.of_nat n) ext)) as R' by auto.
+    destruct (IHc g H1 (adv_ext (Z.of_nat n) ext) R' env T).
     rewrite H. simpl. autounfold; eauto.
   + intros. simpl. unfold add_trace, add_trans, liftM2, bind. inversion C; subst.
-    destruct (IHc1 g H2 erho R rho T). rewrite H.
-    destruct (IHc2 g H3 erho R rho T). rewrite H0.
+    destruct (IHc1 g H2 ext R env T). rewrite H.
+    destruct (IHc2 g H3 ext R env T). rewrite H0.
     unfold pure, compose. eauto.
   + simpl. induction n; intros;inversion C; subst.
     - simpl. eapply  Esem_typed_total in H3; eauto. decompose [and ex] H3.
       rewrite H0. inversion H1. destruct b; eauto. 
     - simpl. eapply  Esem_typed_total in H3; eauto. decompose [and ex] H3.
       rewrite H0. inversion H1. destruct b; eauto. 
-      assert (TypeExt (adv_ext 1 erho)) as R' by auto.
+      assert (TypeExt (adv_ext 1 ext)) as R' by auto.
       assert (g |-C If e n c1 c2) as C' by (inversion C; constructor;auto).
-      destruct (IHn g C' (adv_ext 1 erho) R' rho T).
+      destruct (IHn g C' (adv_ext 1 ext) R' env T).
       rewrite H2. simpl. autounfold. eauto.
 Qed.

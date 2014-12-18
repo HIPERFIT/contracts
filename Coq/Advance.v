@@ -25,18 +25,18 @@ Ltac rewr_assumption := idtac; match goal with
                         end.
 
 
-Lemma adv_exp_ext (vars : Env) d (e : Exp) rho : 
-  E[|adv_exp d e|] vars rho = E[|e|] vars (adv_ext d rho).
+Lemma adv_exp_ext (env : Env) d (e : Exp) ext : 
+  E[|adv_exp d e|] env ext = E[|e|] env (adv_ext d ext).
 Proof.
-  generalize dependent rho.   generalize dependent vars. 
+  generalize dependent ext.   generalize dependent env. 
   induction e using Exp_ind';intros; 
   try solve [simpl; repeat rewr_assumption; reflexivity].
   rewrite adv_exp_ope. simpl. rewrite map_map.
-  eapply all_apply with (p:= vars) in H.
-  eapply all_apply with (p:= rho) in H.
+  eapply all_apply with (p:= env) in H.
+  eapply all_apply with (p:= ext) in H.
   apply map_rewrite in H. rewrite H. reflexivity.
 
-  generalize dependent rho.   generalize dependent vars. 
+  generalize dependent ext.   generalize dependent env. 
   simpl. unfold Fsem in *. induction d0; intros.
   - simpl. apply IHe2.
   - repeat rewrite adv_ext_step. simpl. rewrite IHd0. 

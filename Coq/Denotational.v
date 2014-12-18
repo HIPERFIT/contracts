@@ -97,8 +97,8 @@ Definition Env' A := list A.
 Definition Env := Env' Val.
 
 
-Fixpoint lookupEnv {A} (v : Var) (rho : Env' A) : option A :=
-  match v, rho with
+Fixpoint lookupEnv {A} (v : Var) (env : Env' A) : option A :=
+  match v, env with
     | V1, x::_ => Some x
     | VS v, _::xs => lookupEnv v xs
     | _,_ => None
@@ -108,29 +108,29 @@ Fixpoint lookupEnv {A} (v : Var) (rho : Env' A) : option A :=
 
 Reserved Notation "'E[|' e '|]'" (at level 9).
 
-Definition Fsem {A} (f : Env -> ExtEnv -> option A) (rho : Env) (erho : ExtEnv) 
-  := (fun m x => x >>= fun x' =>  f (x' :: rho) (adv_ext (Z.of_nat m) erho)).
+Definition Fsem {A} (f : Env -> ExtEnv -> option A) (env : Env) (ext : ExtEnv) 
+  := (fun m x => x >>= fun x' =>  f (x' :: env) (adv_ext (Z.of_nat m) ext)).
 
-Fixpoint Esem (e : Exp) (rho : Env) (erho : ExtEnv) : option Val :=
+Fixpoint Esem (e : Exp) (env : Env) (ext : ExtEnv) : option Val :=
     match e with
-      | OpE op args => sequence (map (fun e => E[|e|] rho erho) args) >>= OpSem op
-      | Obs l i => Some (erho l i)
-      | VarE v => lookupEnv v rho
-      | Acc f l z => let erho' := adv_ext (- Z.of_nat l) erho
-                     in Acc_sem (Fsem E[|f|] rho erho') l (E[|z|] rho erho')
+      | OpE op args => sequence (map (fun e => E[|e|] env ext) args) >>= OpSem op
+      | Obs l i => Some (ext l i)
+      | VarE v => lookupEnv v env
+      | Acc f l z => let ext' := adv_ext (- Z.of_nat l) ext
+                     in Acc_sem (Fsem E[|f|] env ext') l (E[|z|] env ext')
     end
       where "'E[|' e '|]'" := (Esem e ). 
 
 
-Lemma adv_ext_step {A} n (erho : ExtEnv' A) : 
-  ((adv_ext (- Z.of_nat (S n)) erho) = (adv_ext (- Z.of_nat n) (adv_ext (-1) erho))).
+Lemma adv_ext_step {A} n (ext : ExtEnv' A) : 
+  ((adv_ext (- Z.of_nat (S n)) ext) = (adv_ext (- Z.of_nat n) (adv_ext (-1) ext))).
 Proof.
   rewrite adv_ext_iter. f_equal. rewrite Nat2Z.inj_succ. omega.
 Qed.
 
 Axiom Zneg_of_succ_nat : forall n, Z.neg (Pos.of_succ_nat n) = (- Z.of_nat (S n))%Z.
 
-Lemma adv_ext_step' {A} n (erho : ExtEnv' A) : ((adv_ext (Z.neg (Pos.of_succ_nat n)) erho) = (adv_ext (- Z.of_nat n) (adv_ext (-1) erho))).
+Lemma adv_ext_step' {A} n (ext : ExtEnv' A) : ((adv_ext (Z.neg (Pos.of_succ_nat n)) ext) = (adv_ext (- Z.of_nat n) (adv_ext (-1) ext))).
 Proof.
   rewrite Zneg_of_succ_nat. apply adv_ext_step.
 Qed.
@@ -280,12 +280,12 @@ Qed.
 (* The following function is needed to define the semantics of [IfWithin]. *)
 
 Fixpoint within_sem (c1 c2 : Env -> ExtEnv -> option Trace) 
-         (e : Exp) (i : nat)  (vars : Env) (rc : ExtEnv) : option Trace 
-  := match E[|e|] vars rc with
-       | Some (BVal true) => c1 vars rc
+         (e : Exp) (i : nat)  (env : Env) (rc : ExtEnv) : option Trace 
+  := match E[|e|] env rc with
+       | Some (BVal true) => c1 env rc
        | Some (BVal false) => match i with
-                         | O => c2 vars rc
-                         | S j => liftM (delay_trace 1) (within_sem c1 c2 e j vars (adv_ext 1 rc))
+                         | O => c2 env rc
+                         | S j => liftM (delay_trace 1) (within_sem c1 c2 e j env (adv_ext 1 rc))
                        end
        | _ => None
      end.
@@ -301,14 +301,14 @@ Definition toReal (v : Val) : option R :=
     | BVal _ => None
   end.
 
-Fixpoint Csem (c : Contr) (vars : Env) (rho : ExtEnv) : option Trace :=
+Fixpoint Csem (c : Contr) (env : Env) (ext : ExtEnv) : option Trace :=
     match c with
       | Zero => Some empty_trace
-      | Let e c => E[|e|] vars rho >>= fun val => C[|c|] (val :: vars) rho
+      | Let e c => E[|e|] env ext >>= fun val => C[|c|] (val :: env) ext
       | Transfer p1 p2 c => Some (singleton_trace (singleton_trans p1 p2 c 1))
-      | Scale e c' => liftM2 scale_trace (E[|e|] vars rho >>= toReal) (C[|c'|] vars rho) 
-      | Translate d c' => liftM (delay_trace d) (C[|c'|]vars (adv_ext (Z.of_nat d) rho))
-      | Both c1 c2 => liftM2 add_trace (C[|c1|]vars rho) (C[|c2|]vars rho)
-      | If e d c1 c2 => within_sem C[|c1|] C[|c2|] e d vars rho
+      | Scale e c' => liftM2 scale_trace (E[|e|] env ext >>= toReal) (C[|c'|] env ext) 
+      | Translate d c' => liftM (delay_trace d) (C[|c'|]env (adv_ext (Z.of_nat d) ext))
+      | Both c1 c2 => liftM2 add_trace (C[|c1|]env ext) (C[|c2|]env ext)
+      | If e d c1 c2 => within_sem C[|c1|] C[|c2|] e d env ext
     end
       where "'C[|' e '|]'" := (Csem e).
