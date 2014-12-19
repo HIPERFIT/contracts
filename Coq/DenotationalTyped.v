@@ -82,6 +82,12 @@ Proof.
     simpl. apply IHE1; auto. apply IHE2; auto.
 Qed.
 
+Corollary Esem_typed g e t (env : Env) (ext : ExtEnv) v : 
+  g |-E e ∶ t -> TypeEnv g env -> TypeExt ext ->  E[|e|] env ext = Some v -> |-V v ∶ t.
+Proof.
+  intros T T1 T2 S. eapply Esem_typed_total in T; eauto. decompose [ex and] T.
+  rewrite H0 in S. inversion S. subst. assumption.
+Qed.
 
 Definition total_trace (t : option Trace) := exists v, t = Some v.
 

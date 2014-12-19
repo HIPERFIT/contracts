@@ -756,6 +756,7 @@ Definition pequiv g envp extp c1 c2 := forall env ext,
                                         ext_inst extp ext ->
                                         env_inst envp env ->
                                         C[|c1|] env ext = C[|c2|] env ext.
+Hint Unfold pequiv.
 
 Notation "c1 '≡[' g ',' envp ',' extp ']' c2" := (pequiv g envp extp c1 c2) (at level 50).
 
