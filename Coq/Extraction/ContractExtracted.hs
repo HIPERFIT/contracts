@@ -2221,32 +2221,32 @@ type Env' a = List a
 type Env = Env' Val
 
 lookupEnv :: Var -> (Env' a1) -> Maybe a1
-lookupEnv v rho =
+lookupEnv v env =
   case v of {
    V1 ->
-    case rho of {
+    case env of {
      [] -> Nothing;
      (:) x l -> Just x};
    VS v0 ->
-    case rho of {
+    case env of {
      [] -> Nothing;
      (:) a xs -> lookupEnv v0 xs}}
 
 fsem :: (Env -> ExtEnv -> Maybe a1) -> Env -> ExtEnv -> Int -> (Maybe 
         Val) -> Maybe a1
-fsem f rho erho m x =
-  (>>=) x (\x' -> f ((:) x' rho) (adv_ext (id m) erho))
+fsem f env ext m x =
+  (>>=) x (\x' -> f ((:) x' env) (adv_ext (id m) ext))
 
 esem :: Exp -> Env -> ExtEnv -> Maybe Val
-esem e rho erho =
+esem e env ext =
   case e of {
    OpE op args ->
-    (>>=) (sequence (map (\e0 -> esem e0 rho erho) args)) (opSem op);
-   Obs l i -> Just (erho l i);
-   VarE v -> lookupEnv v rho;
+    (>>=) (sequence (map (\e0 -> esem e0 env ext) args)) (opSem op);
+   Obs l i -> Just (ext l i);
+   VarE v -> lookupEnv v env;
    Acc f l z ->
-    let {erho' = adv_ext (negate (id l)) erho} in
-    acc_sem (fsem (esem f) rho erho') l (esem z rho erho')}
+    let {ext' = adv_ext (negate (id l)) ext} in
+    acc_sem (fsem (esem f) env ext') l (esem z env ext')}
 
 type Trans = Party -> Party -> Asset -> Double
 
@@ -2283,22 +2283,22 @@ adv_exp d e =
    Acc f n z -> Acc (adv_exp d f) n (adv_exp d z)}
 
 redFun :: Contr -> Env -> ExtEnv -> Maybe ((,) Contr Trans)
-redFun c vars rho =
+redFun c env ext =
   case c of {
    Zero -> Just ((,) Zero empty_trans);
    Let e c0 ->
-    (>>=) (esem e vars rho) (\val ->
+    (>>=) (esem e env ext) (\val ->
       liftM (\res ->
         case res of {
          (,) c' t -> (,) (Let (adv_exp (negate 1) e) c') t})
-        (redFun c0 ((:) val vars) rho));
+        (redFun c0 ((:) val env) ext));
    Transfer c0 p1 p2 -> Just ((,) Zero (singleton_trans c0 p1 p2 1));
    Scale e c0 ->
-    case redFun c0 vars rho of {
+    case redFun c0 env ext of {
      Just p ->
       case p of {
        (,) c' t ->
-        case esem e vars rho of {
+        case esem e env ext of {
          Just v0 ->
           case v0 of {
            BVal b -> Nothing;
@@ -2309,32 +2309,32 @@ redFun c vars rho =
    Translate l c0 ->
     (\fO fS n -> if n==0 then fO () else fS (n-1))
       (\_ ->
-      redFun c0 vars rho)
+      redFun c0 env ext)
       (\l' -> Just ((,) (Translate l' c0)
       empty_trans))
       l;
    Both c1 c2 ->
-    case redFun c1 vars rho of {
+    case redFun c1 env ext of {
      Just p ->
       case p of {
        (,) c1' t1 ->
-        case redFun c2 vars rho of {
+        case redFun c2 env ext of {
          Just p0 ->
           case p0 of {
            (,) c2' t2 -> Just ((,) (Both c1' c2') (add_trans t1 t2))};
          Nothing -> Nothing}};
      Nothing -> Nothing};
    If b l c1 c2 ->
-    case esem b vars rho of {
+    case esem b env ext of {
      Just v ->
       case v of {
        BVal b0 ->
         case b0 of {
-         True -> redFun c1 vars rho;
+         True -> redFun c1 env ext;
          False ->
           (\fO fS n -> if n==0 then fO () else fS (n-1))
             (\_ ->
-            redFun c2 vars rho)
+            redFun c2 env ext)
             (\l' -> Just ((,) (If b l' c1 c2)
             empty_trans))
             l};
@@ -2537,35 +2537,35 @@ specialiseOp op args =
    _ -> specialiseOpSimp op args}
 
 lookupEnvP :: Var -> EnvP -> Maybe Val
-lookupEnvP v rho =
+lookupEnvP v env =
   case v of {
    V1 ->
-    case rho of {
+    case env of {
      [] -> Nothing;
      (:) x l -> x};
    VS v0 ->
-    case rho of {
+    case env of {
      [] -> Nothing;
      (:) o xs -> lookupEnvP v0 xs}}
 
 specialiseFun :: ((List (Maybe Val)) -> (ExtEnv' (Maybe Val)) -> Exp) -> EnvP
                  -> ExtEnvP -> Int -> (Maybe Val) -> Maybe Val
-specialiseFun f vars rho l r =
-  fromLit (f ((:) r vars) (adv_ext (id l) rho))
+specialiseFun f env ext l r =
+  fromLit (f ((:) r env) (adv_ext (id l) ext))
 
 specialiseExp :: Exp -> EnvP -> ExtEnvP -> Exp
-specialiseExp e vars rho =
+specialiseExp e env ext =
   case e of {
    OpE op args ->
-    let {args' = map (\e' -> specialiseExp e' vars rho) args} in
+    let {args' = map (\e' -> specialiseExp e' env ext) args} in
     default0 (OpE op args') (specialiseOp op args');
-   Obs obs t -> default0 e (liftM toLit (rho obs t));
-   VarE v -> default0 e (liftM toLit (lookupEnvP v vars));
+   Obs obs t -> default0 e (liftM toLit (ext obs t));
+   VarE v -> default0 e (liftM toLit (lookupEnvP v env));
    Acc f l z ->
-    let {rho' = adv_ext (negate (id l)) rho} in
-    let {ze = specialiseExp z vars rho'} in
+    let {ext' = adv_ext (negate (id l)) ext} in
+    let {ze = specialiseExp z env ext'} in
     let {z' = fromLit ze} in
-    let {f' = specialiseFun (specialiseExp f) vars rho'} in
+    let {f' = specialiseFun (specialiseExp f) env ext'} in
     default0 (Acc f l ze) (liftM toLit (acc_sem f' l z'))}
 
 elimVarV :: Var -> Var -> Maybe Var
@@ -2638,33 +2638,32 @@ smartTranslate l c =
 
 traverseIf :: EnvP -> ExtEnvP -> Exp -> (ExtEnvP -> Contr) -> (ExtEnvP ->
               Contr) -> Int -> Int -> Maybe Contr
-traverseIf vars rho e c1 c2 d l =
-  case fromBLit (specialiseExp e vars rho) of {
+traverseIf env ext e c1 c2 d l =
+  case fromBLit (specialiseExp e env ext) of {
    Just b ->
     case b of {
-     True -> Just (smartTranslate d (c1 rho));
+     True -> Just (smartTranslate d (c1 ext));
      False ->
       (\fO fS n -> if n==0 then fO () else fS (n-1))
         (\_ -> Just
-        (smartTranslate d (c2 rho)))
+        (smartTranslate d (c2 ext)))
         (\l' ->
-        traverseIf vars (adv_ext (id 1) rho) e c1 c2 (succ d) l')
+        traverseIf env (adv_ext (id 1) ext) e c1 c2 (succ d) l')
         l};
    Nothing -> Nothing}
 
 specialise :: Contr -> EnvP -> ExtEnvP -> Contr
-specialise c vars rho =
+specialise c env ext =
   case c of {
    Let e c' ->
-    let {e' = specialiseExp e vars rho} in
-    smartLet e' (specialise c' ((:) (fromLit e') vars) rho);
-   Scale e c' ->
-    smartScale (specialiseExp e vars rho) (specialise c' vars rho);
+    let {e' = specialiseExp e env ext} in
+    smartLet e' (specialise c' ((:) (fromLit e') env) ext);
+   Scale e c' -> smartScale (specialiseExp e env ext) (specialise c' env ext);
    Translate l c' ->
-    smartTranslate l (specialise c' vars (adv_ext (id l) rho));
-   Both c1 c2 -> smartBoth (specialise c1 vars rho) (specialise c2 vars rho);
+    smartTranslate l (specialise c' env (adv_ext (id l) ext));
+   Both c1 c2 -> smartBoth (specialise c1 env ext) (specialise c2 env ext);
    If e l c1 c2 ->
     default0 c
-      (traverseIf vars rho e (specialise c1 vars) (specialise c2 vars) 0 l);
+      (traverseIf env ext e (specialise c1 env) (specialise c2 env) 0 l);
    _ -> c}
 

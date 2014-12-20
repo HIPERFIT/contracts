@@ -19,6 +19,7 @@ Definition ExtEnv' A := ObsLabel -> Z -> A.
 Definition ExtEnv := ExtEnv' Val.
 
 
+Open Scope Z.
 
 (* Move external environments into the future. *)
 
@@ -45,6 +46,11 @@ Proof.
   unfold adv_ext; f_equal; omega.
 Qed.
 
+Lemma adv_ext_opp {A} d d' (e : ExtEnv' A) : d' + d = 0 -> adv_ext d (adv_ext d' e) = e.
+Proof.
+  intros. rewrite adv_ext_iter. rewrite H. apply adv_ext_0.
+Qed.
+
 
 Lemma adv_ext_swap {A} d d' (e : ExtEnv' A) : 
   adv_ext d (adv_ext d' e) = adv_ext d' (adv_ext d e).
@@ -57,7 +63,7 @@ Qed.
 
 Fixpoint Acc_sem {A} (f : nat -> A -> A) (n : nat) (z : A) : A :=
   match n with
-    | 0 => z
+    | O => z
     | S n' => f n (Acc_sem f n' z)
   end.
 
@@ -245,6 +251,11 @@ Lemma delay_trace_0 t : delay_trace 0 t = t.
 Proof.
   apply functional_extensionality.
   unfold delay_trace. simpl. intros. f_equal. omega.
+Qed.
+
+Lemma delay_trace_S n i x: delay_trace (S n) x (S i) = delay_trace n x i.
+Proof.
+  unfold delay_trace,compose. cases (leb (S n) (S i)); simpl in Eq; rewrite Eq; reflexivity.
 Qed.
 
 

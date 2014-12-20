@@ -26,6 +26,8 @@ Inductive Red : Contr -> Env -> ExtEnv -> Contr -> Trans -> Prop :=
 
 Hint Constructors Red.
 
+Open Scope nat.
+
 Theorem red_sound1 c c' env ext tr t  : Red c env ext c' t ->  C[|c|] env ext = Some tr -> tr 0 = t.
 Proof.
   intro R. generalize dependent tr. induction R; simpl; intros tr T. 

@@ -64,6 +64,13 @@ Class Partial t := {
 
 Infix "⊆" := lep (at level 60).
 
+Definition default {A} (d : A) (x : option A) : A :=
+  match x with
+    | Some y => y
+    | None => d
+  end.
+
+
 Instance none_Partial A : Partial (option A) := {
   lep t1 t2  := forall z , t1 = Some z -> t2 = Some z
   }.

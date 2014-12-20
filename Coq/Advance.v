@@ -49,6 +49,14 @@ Proof.
     omega.
 Qed.
 
+Open Scope Z.
+
+Lemma adv_exp_ext_opp (env : Env) (d d' : Z) (e : Exp) (ext : ExtEnv):
+  d' + d = 0 -> E[|adv_exp d e|] env (adv_ext d' ext) = E[|e|] env ext.
+Proof.
+  intro H. rewrite adv_exp_ext. rewrite adv_ext_opp; auto.
+Qed.
+
 
 Lemma adv_exp_type g d e t : g |-E e ∶ t -> g |-E adv_exp d e ∶ t.
 Proof.

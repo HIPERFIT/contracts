@@ -35,11 +35,6 @@ Proof.
   inversion H; subst; reflexivity.
 Qed.
  
-Definition default {A} (d : A) (x : option A) : A :=
-  match x with
-    | Some y => y
-    | None => d
-  end.
 
 Definition fromBLit (e : Exp) : option bool :=
   match e with
@@ -806,4 +801,26 @@ Proof.
       intros. unfold compose. rewrite delay_trace_iter. reflexivity.
     + intros. simpl. erewrite G;eauto;rewrite adv_ext_0;auto. erewrite liftM_ext by (apply delay_trace_0).
       rewrite liftM_id. reflexivity. 
+Qed.
+
+
+Lemma fromRLit_fromLit e r : fromRLit e = Some r -> fromLit e = Some (RVal r).
+Proof.
+  intros. destruct e;tryfalse. destruct op;tryfalse. destruct args;tryfalse. simpl in *.
+  inversion H. reflexivity.
+Qed.
+
+
+Lemma fromBLit_fromLit e r : fromBLit e = Some r -> fromLit e = Some (BVal r).
+Proof.
+  intros. destruct e;tryfalse. destruct op;tryfalse. destruct args;tryfalse. simpl in *.
+  inversion H. reflexivity.
+Qed.
+
+Lemma specialise_fromLit e env envp ext extp v g t : 
+  g |-E e ∶ t -> TypeEnv g env -> TypeExt ext ->
+  ext_inst extp ext -> env_inst envp env -> 
+  fromLit (specialiseExp e envp extp) = Some v -> E[|e|] env ext = Some v.
+Proof.
+  intros. erewrite <- specialiseExp_sound by eauto. apply Esem_fromLit. assumption.
 Qed.
