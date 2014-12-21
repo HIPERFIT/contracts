@@ -4,7 +4,7 @@
 
 module PrettyPrinting where
 
-import Contract
+import Contract hiding (map)
 import Data.Maybe
 
 instance Show ObsLabel where

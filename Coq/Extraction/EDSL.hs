@@ -42,8 +42,8 @@ letc,
 
 -- * Operations on contracts
 ObsLabel (..),
-ExtEnv,
-Trans,
+ExtEnvP,
+FMap,
 horizon,
 advance,
 specialise,
@@ -56,7 +56,7 @@ R, B
 ) where
 
 
-import Contract hiding (Exp,Contr,specialise,horizon)
+import Contract hiding (Exp,Contr,specialise,horizon,map)
 import qualified Contract as C
 import PrettyPrinting
 import Data.Maybe
@@ -212,8 +212,8 @@ iff e  = ifWithin e 0
 horizon :: Contr -> Int
 horizon c = C.horizon (fromHoas c)
 
-advance :: Contr -> ExtEnv -> (Contr, Trans)
-advance c env = let (c',t) = fromJust (redFun (fromHoas c) [] env)
+advance :: Contr -> ExtEnvP -> (Contr, FMap)
+advance c env = let (c',t) = fromJust (redfun (fromHoas c) [] env)
                 in (toHoas c', t)
 
 specialise :: Contr -> ExtEnvP -> Contr

@@ -25,33 +25,28 @@ eq_rec_r :: a1 -> a2 -> a1 -> a2
 eq_rec_r x h y =
   eq_rec x h y
 
-data Comparison =
-   Eq
- | Lt
- | Gt
-
-compOpp :: Comparison -> Comparison
+compOpp :: Ordering -> Ordering
 compOpp r =
   case r of {
-   Eq -> Eq;
-   Lt -> Gt;
-   Gt -> Lt}
+   EQ -> EQ;
+   LT -> GT;
+   GT -> LT}
 
 data CompareSpecT =
    CompEqT
  | CompLtT
  | CompGtT
 
-compareSpec2Type :: Comparison -> CompareSpecT
+compareSpec2Type :: Ordering -> CompareSpecT
 compareSpec2Type c =
   case c of {
-   Eq -> CompEqT;
-   Lt -> CompLtT;
-   Gt -> CompGtT}
+   EQ -> CompEqT;
+   LT -> CompLtT;
+   GT -> CompGtT}
 
 type CompSpecT a = CompareSpecT
 
-compSpec2Type :: a1 -> a1 -> Comparison -> CompSpecT a1
+compSpec2Type :: a1 -> a1 -> Ordering -> CompSpecT a1
 compSpec2Type x y c =
   compareSpec2Type c
 
@@ -337,38 +332,38 @@ size p =
    unused p0 -> succ (size p0);
    1 -> 1}
 
-compare_cont :: Int -> Int -> Comparison -> Comparison
+compare_cont :: Int -> Int -> Ordering -> Ordering
 compare_cont x y r =
   case x of {
    unused p ->
     case y of {
      unused q -> compare_cont p q r;
-     unused q -> compare_cont p q Gt;
-     1 -> Gt};
+     unused q -> compare_cont p q GT;
+     1 -> GT};
    unused p ->
     case y of {
-     unused q -> compare_cont p q Lt;
+     unused q -> compare_cont p q LT;
      unused q -> compare_cont p q r;
-     1 -> Gt};
+     1 -> GT};
    1 ->
     case y of {
      1 -> r;
-     _ -> Lt}}
+     _ -> LT}}
 
-compare :: Int -> Int -> Comparison
+compare :: Int -> Int -> Ordering
 compare x y =
-  compare_cont x y Eq
+  compare_cont x y EQ
 
 min :: Int -> Int -> Int
 min p p' =
   case compare p p' of {
-   Gt -> p';
+   GT -> p';
    _ -> p}
 
 max :: Int -> Int -> Int
 max p p' =
   case compare p p' of {
-   Gt -> p;
+   GT -> p;
    _ -> p'}
 
 eqb :: Int -> Int -> Bool
@@ -390,13 +385,13 @@ eqb p q =
 leb :: Int -> Int -> Bool
 leb x y =
   case compare x y of {
-   Gt -> False;
+   GT -> False;
    _ -> True}
 
 ltb :: Int -> Int -> Bool
 ltb x y =
   case compare x y of {
-   Lt -> True;
+   LT -> True;
    _ -> False}
 
 sqrtrem_step :: (Int -> Int) -> (Int -> Int) -> ((,) Int Mask) -> (,) 
@@ -443,9 +438,9 @@ gcdn n a b =
       case b of {
        unused b' ->
         case compare a' b' of {
-         Eq -> a;
-         Lt -> gcdn n0 (sub b' a') a;
-         Gt -> gcdn n0 (sub a' b') b};
+         EQ -> a;
+         LT -> gcdn n0 (sub b' a') a;
+         GT -> gcdn n0 (sub a' b') b};
        unused b0 -> gcdn n0 a b0;
        1 -> 1};
      unused a0 ->
@@ -471,13 +466,13 @@ ggcdn n a b =
       case b of {
        unused b' ->
         case compare a' b' of {
-         Eq -> (,) a ((,) 1 1);
-         Lt ->
+         EQ -> (,) a ((,) 1 1);
+         LT ->
           case ggcdn n0 (sub b' a') a of {
            (,) g p ->
             case p of {
              (,) ba aa -> (,) g ((,) aa (add aa (unused ba)))}};
-         Gt ->
+         GT ->
           case ggcdn n0 (sub a' b') b of {
            (,) g p ->
             case p of {
@@ -760,18 +755,18 @@ eqb_spec :: Int -> Int -> Reflect
 eqb_spec x y =
   iff_reflect (eqb x y)
 
-switch_Eq :: Comparison -> Comparison -> Comparison
+switch_Eq :: Ordering -> Ordering -> Ordering
 switch_Eq c c' =
   case c' of {
-   Eq -> c;
+   EQ -> c;
    x -> x}
 
-mask2cmp :: Mask -> Comparison
+mask2cmp :: Mask -> Ordering
 mask2cmp p =
   case p of {
-   IsNul -> Eq;
-   IsPos p0 -> Gt;
-   IsNeg -> Lt}
+   IsNul -> EQ;
+   IsPos p0 -> GT;
+   IsNeg -> LT}
 
 leb_spec0 :: Int -> Int -> Reflect
 leb_spec0 x y =
@@ -911,16 +906,16 @@ mul0 n m =
      N0 -> N0;
      Npos q -> Npos (mul p q)}}
 
-compare0 :: N -> N -> Comparison
+compare0 :: N -> N -> Ordering
 compare0 n m =
   case n of {
    N0 ->
     case m of {
-     N0 -> Eq;
-     Npos m' -> Lt};
+     N0 -> EQ;
+     Npos m' -> LT};
    Npos n' ->
     case m of {
-     N0 -> Gt;
+     N0 -> GT;
      Npos m' -> compare n' m'}}
 
 eqb0 :: N -> N -> Bool
@@ -938,25 +933,25 @@ eqb0 n m =
 leb0 :: N -> N -> Bool
 leb0 x y =
   case compare0 x y of {
-   Gt -> False;
+   GT -> False;
    _ -> True}
 
 ltb0 :: N -> N -> Bool
 ltb0 x y =
   case compare0 x y of {
-   Lt -> True;
+   LT -> True;
    _ -> False}
 
 min0 :: N -> N -> N
 min0 n n' =
   case compare0 n n' of {
-   Gt -> n';
+   GT -> n';
    _ -> n}
 
 max0 :: N -> N -> N
 max0 n n' =
   case compare0 n n' of {
-   Gt -> n;
+   GT -> n;
    _ -> n'}
 
 div0 :: N -> N
@@ -1245,13 +1240,13 @@ recursion =
 sqrt_up :: N -> N
 sqrt_up a =
   case compare0 N0 a of {
-   Lt -> succ0 (sqrt0 (pred0 a));
+   LT -> succ0 (sqrt0 (pred0 a));
    _ -> N0}
 
 log2_up :: N -> N
 log2_up a =
   case compare0 (Npos 1) a of {
-   Lt -> succ0 (log2 (pred0 a));
+   LT -> succ0 (log2 (pred0 a));
    _ -> N0}
 
 lcm :: N -> N -> N
@@ -1420,22 +1415,22 @@ square1 x =
    id p -> id (square p);
    negate p -> id (square p)}
 
-compare1 :: Int -> Int -> Comparison
+compare1 :: Int -> Int -> Ordering
 compare1 x y =
   case x of {
    0 ->
     case y of {
-     0 -> Eq;
-     id y' -> Lt;
-     negate y' -> Gt};
+     0 -> EQ;
+     id y' -> LT;
+     negate y' -> GT};
    id x' ->
     case y of {
      id y' -> compare x' y';
-     _ -> Gt};
+     _ -> GT};
    negate x' ->
     case y of {
      negate y' -> compOpp (compare x' y');
-     _ -> Lt}}
+     _ -> LT}}
 
 sgn :: Int -> Int
 sgn z =
@@ -1447,25 +1442,25 @@ sgn z =
 geb :: Int -> Int -> Bool
 geb x y =
   case compare1 x y of {
-   Lt -> False;
+   LT -> False;
    _ -> True}
 
 gtb :: Int -> Int -> Bool
 gtb x y =
   case compare1 x y of {
-   Gt -> True;
+   GT -> True;
    _ -> False}
 
 max1 :: Int -> Int -> Int
 max1 n m =
   case compare1 n m of {
-   Lt -> m;
+   LT -> m;
    _ -> n}
 
 min1 :: Int -> Int -> Int
 min1 n m =
   case compare1 n m of {
-   Gt -> m;
+   GT -> m;
    _ -> n}
 
 abs :: Int -> Int
@@ -1832,13 +1827,13 @@ ltb_spec2 x y =
 sqrt_up0 :: Int -> Int
 sqrt_up0 a =
   case compare1 0 a of {
-   Lt -> succ1 (sqrt1 (pred1 a));
+   LT -> succ1 (sqrt1 (pred1 a));
    _ -> 0}
 
 log2_up0 :: Int -> Int
 log2_up0 a =
   case compare1 (id 1) a of {
-   Lt -> succ1 (log0 (pred1 a));
+   LT -> succ1 (log0 (pred1 a));
    _ -> 0}
 
 div4 :: Int -> Int -> Int
@@ -1987,8 +1982,6 @@ data Val =
  | RVal Double
 
 type ExtEnv' a = ObsLabel -> Int -> a
-
-type ExtEnv = ExtEnv' Val
 
 adv_ext :: Int -> (ExtEnv' a1) -> ExtEnv' a1
 adv_ext d e l x =
@@ -2218,8 +2211,6 @@ opSem op vs =
 
 type Env' a = List a
 
-type Env = Env' Val
-
 lookupEnv :: Var -> (Env' a1) -> Maybe a1
 lookupEnv v env =
   case v of {
@@ -2232,134 +2223,13 @@ lookupEnv v env =
      [] -> Nothing;
      (:) a xs -> lookupEnv v0 xs}}
 
-fsem :: (Env -> ExtEnv -> Maybe a1) -> Env -> ExtEnv -> Int -> (Maybe 
-        Val) -> Maybe a1
-fsem f env ext m x =
-  (>>=) x (\x' -> f ((:) x' env) (adv_ext (id m) ext))
-
-esem :: Exp -> Env -> ExtEnv -> Maybe Val
-esem e env ext =
-  case e of {
-   OpE op args ->
-    (>>=) (sequence (map (\e0 -> esem e0 env ext) args)) (opSem op);
-   Obs l i -> Just (ext l i);
-   VarE v -> lookupEnv v env;
-   Acc f l z ->
-    let {ext' = adv_ext (negate (id l)) ext} in
-    acc_sem (fsem (esem f) env ext') l (esem z env ext')}
-
-type Trans = Party -> Party -> Asset -> Double
-
-empty_trans :: Trans
-empty_trans p1 p2 c =
-  0
-
-singleton_trans :: Party -> Party -> Asset -> Double -> Trans
-singleton_trans p1 p2 a r p1' p2' a' =
-  case (==) p1 p2 of {
-   True -> 0;
-   False ->
-    case (&&) ((&&) ((==) p1 p1') ((==) p2 p2')) ((==) a a') of {
-     True -> r;
-     False ->
-      case (&&) ((&&) ((==) p1 p2') ((==) p2 p1')) ((==) a a') of {
-       True -> negate r;
-       False -> 0}}}
-
-add_trans :: Trans -> Trans -> Trans
-add_trans t1 t2 p1 p2 c =
-  (+) (t1 p1 p2 c) (t2 p1 p2 c)
-
-scale_trans :: Double -> Trans -> Trans
-scale_trans s t p1 p2 c =
-  (*) (t p1 p2 c) s
-
 adv_exp :: Int -> Exp -> Exp
 adv_exp d e =
   case e of {
-   OpE op args -> OpE op (map (adv_exp d) args);
+   OpE op args -> OpE op (P.map (adv_exp d) args);
    Obs l i -> Obs l ((+) d i);
    VarE a -> VarE a;
    Acc f n z -> Acc (adv_exp d f) n (adv_exp d z)}
-
-redFun :: Contr -> Env -> ExtEnv -> Maybe ((,) Contr Trans)
-redFun c env ext =
-  case c of {
-   Zero -> Just ((,) Zero empty_trans);
-   Let e c0 ->
-    (>>=) (esem e env ext) (\val ->
-      liftM (\res ->
-        case res of {
-         (,) c' t -> (,) (Let (adv_exp (negate 1) e) c') t})
-        (redFun c0 ((:) val env) ext));
-   Transfer c0 p1 p2 -> Just ((,) Zero (singleton_trans c0 p1 p2 1));
-   Scale e c0 ->
-    case redFun c0 env ext of {
-     Just p ->
-      case p of {
-       (,) c' t ->
-        case esem e env ext of {
-         Just v0 ->
-          case v0 of {
-           BVal b -> Nothing;
-           RVal v -> Just ((,) (Scale (adv_exp (negate 1) e) c')
-            (scale_trans v t))};
-         Nothing -> Nothing}};
-     Nothing -> Nothing};
-   Translate l c0 ->
-    (\fO fS n -> if n==0 then fO () else fS (n-1))
-      (\_ ->
-      redFun c0 env ext)
-      (\l' -> Just ((,) (Translate l' c0)
-      empty_trans))
-      l;
-   Both c1 c2 ->
-    case redFun c1 env ext of {
-     Just p ->
-      case p of {
-       (,) c1' t1 ->
-        case redFun c2 env ext of {
-         Just p0 ->
-          case p0 of {
-           (,) c2' t2 -> Just ((,) (Both c1' c2') (add_trans t1 t2))};
-         Nothing -> Nothing}};
-     Nothing -> Nothing};
-   If b l c1 c2 ->
-    case esem b env ext of {
-     Just v ->
-      case v of {
-       BVal b0 ->
-        case b0 of {
-         True -> redFun c1 env ext;
-         False ->
-          (\fO fS n -> if n==0 then fO () else fS (n-1))
-            (\_ ->
-            redFun c2 env ext)
-            (\l' -> Just ((,) (If b l' c1 c2)
-            empty_trans))
-            l};
-       RVal r -> Nothing};
-     Nothing -> Nothing}}
-
-plus0 :: Int -> Int -> Int
-plus0 n m =
-  (\fO fS n -> if n==0 then fO () else fS (n-1))
-    (\_ ->
-    0)
-    (\n0 ->
-    (+) n m)
-    m
-
-horizon :: Contr -> Int
-horizon c =
-  case c of {
-   Zero -> 0;
-   Let e c' -> horizon c';
-   Transfer p p0 a -> succ 0;
-   Scale e c' -> horizon c';
-   Translate l c' -> plus0 l (horizon c');
-   Both c1 c2 -> max (horizon c1) (horizon c2);
-   If e l c1 c2 -> plus0 l (max (horizon c1) (horizon c2))}
 
 type ExtEnvP = ExtEnv' (Maybe Val)
 
@@ -2387,12 +2257,6 @@ toLit e =
    BVal b -> OpE (BLit b) [];
    RVal r -> OpE (RLit r) []}
 
-default0 :: a1 -> (Maybe a1) -> a1
-default0 d x =
-  case x of {
-   Just y -> y;
-   Nothing -> d}
-
 fromBLit :: Exp -> Maybe Bool
 fromBLit e =
   case e of {
@@ -2401,6 +2265,18 @@ fromBLit e =
      BLit b ->
       case args of {
        [] -> Just b;
+       (:) e0 l -> Nothing};
+     _ -> Nothing};
+   _ -> Nothing}
+
+fromRLit :: Exp -> Maybe Double
+fromRLit e =
+  case e of {
+   OpE op args ->
+    case op of {
+     RLit r ->
+      case args of {
+       [] -> Just r;
        (:) e0 l -> Nothing};
      _ -> Nothing};
    _ -> Nothing}
@@ -2557,16 +2433,16 @@ specialiseExp :: Exp -> EnvP -> ExtEnvP -> Exp
 specialiseExp e env ext =
   case e of {
    OpE op args ->
-    let {args' = map (\e' -> specialiseExp e' env ext) args} in
-    default0 (OpE op args') (specialiseOp op args');
-   Obs obs t -> default0 e (liftM toLit (ext obs t));
-   VarE v -> default0 e (liftM toLit (lookupEnvP v env));
+    let {args' = P.map (\e' -> specialiseExp e' env ext) args} in
+    fromMaybe (OpE op args') (specialiseOp op args');
+   Obs obs t -> fromMaybe e (liftM toLit (ext obs t));
+   VarE v -> fromMaybe e (liftM toLit (lookupEnvP v env));
    Acc f l z ->
     let {ext' = adv_ext (negate (id l)) ext} in
     let {ze = specialiseExp z env ext'} in
     let {z' = fromLit ze} in
     let {f' = specialiseFun (specialiseExp f) env ext'} in
-    default0 (Acc f l ze) (liftM toLit (acc_sem f' l z'))}
+    fromMaybe (Acc f l ze) (liftM toLit (acc_sem f' l z'))}
 
 elimVarV :: Var -> Var -> Maybe Var
 elimVarV v1 v2 =
@@ -2583,7 +2459,7 @@ elimVarV v1 v2 =
 elimVarE :: Var -> Exp -> Maybe Exp
 elimVarE v e =
   case e of {
-   OpE op args -> liftM (\x -> OpE op x) (sequence (map (elimVarE v) args));
+   OpE op args -> liftM (\x -> OpE op x) (sequence (P.map (elimVarE v) args));
    Obs l i -> Just e;
    VarE v' -> liftM (\x -> VarE x) (elimVarV v v');
    Acc e1 l e2 ->
@@ -2663,7 +2539,146 @@ specialise c env ext =
     smartTranslate l (specialise c' env (adv_ext (id l) ext));
    Both c1 c2 -> smartBoth (specialise c1 env ext) (specialise c2 env ext);
    If e l c1 c2 ->
-    default0 c
+    fromMaybe c
       (traverseIf env ext e (specialise c1 env) (specialise c2 env) 0 l);
    _ -> c}
+
+type Key = (,) ((,) Party Party) Asset
+
+key_eqb :: Key -> Key -> Bool
+key_eqb k1 k2 =
+  case k1 of {
+   (,) p a1 ->
+    case p of {
+     (,) p1 p1' ->
+      case k2 of {
+       (,) p0 a2 ->
+        case p0 of {
+         (,) p2 p2' -> (&&) ((&&) ((==) p1 p2) ((==) p1' p2')) ((==) a1 a2)}}}}
+
+singleton :: Key -> Double -> FMap
+singleton k r =
+  Map.insert k r Map.empty
+
+type SMap = FMap
+
+add1 :: Party -> Party -> Asset -> Double -> FMap -> FMap
+add1 p1 p2 a v m =
+  case compare p1 p2 of {
+   EQ -> m;
+   LT -> Map.insert ((,) ((,) p1 p2) a) v m;
+   GT -> Map.insert ((,) ((,) p2 p1) a) (negate v) m}
+
+empty :: FMap
+empty =
+  Map.empty
+
+find :: Party -> Party -> Asset -> FMap -> Double
+find p1 p2 a m =
+  case compare p1 p2 of {
+   EQ -> 0;
+   LT -> fromMaybe 0 (Map.lookup ((,) ((,) p1 p2) a) m);
+   GT ->
+    case Map.lookup ((,) ((,) p2 p1) a) m of {
+     Just r -> negate r;
+     Nothing -> 0}}
+
+map :: (Double -> Double) -> FMap -> FMap
+map =
+  Map.map
+
+union_with :: (Double -> Double -> Double) -> FMap -> FMap -> FMap
+union_with f =
+  unionWith (\x y ->
+    let {r = f x y} in
+    case (==) r 0 of {
+     True -> Nothing;
+     False -> Just r})
+
+singleton0 :: Party -> Party -> Asset -> Double -> FMap
+singleton0 p1 p2 a r =
+  case compare p1 p2 of {
+   EQ -> Map.empty;
+   LT -> singleton ((,) ((,) p1 p2) a) r;
+   GT -> singleton ((,) ((,) p2 p1) a) (negate r)}
+
+is_empty :: FMap -> Bool
+is_empty =
+  Map.null
+
+scale_trans' :: (Maybe Double) -> SMap -> Maybe SMap
+scale_trans' v t =
+  case v of {
+   Just v0 -> Just
+    (case (==) v0 0 of {
+      True -> empty;
+      False -> map (\x -> (*) v0 x) t});
+   Nothing ->
+    case is_empty t of {
+     True -> Just empty;
+     False -> Nothing}}
+
+redfun :: Contr -> EnvP -> ExtEnvP -> Maybe ((,) Contr SMap)
+redfun c env ext =
+  case c of {
+   Zero -> Just ((,) Zero empty);
+   Let e c0 ->
+    let {e' = specialiseExp e env ext} in
+    liftM (\ct ->
+      case ct of {
+       (,) c' t -> (,) (smartLet (adv_exp (negate 1) e') c') t})
+      (redfun c0 ((:) (fromLit e') env) ext);
+   Transfer c0 p1 p2 -> Just ((,) Zero (singleton0 c0 p1 p2 1));
+   Scale e c0 ->
+    let {e' = specialiseExp e env ext} in
+    (>>=) (redfun c0 env ext) (\ct ->
+      case ct of {
+       (,) c' t ->
+        liftM (\t' -> (,) (smartScale (adv_exp (negate 1) e') c') t')
+          (scale_trans' (fromRLit e') t)});
+   Translate n c0 ->
+    (\fO fS n -> if n==0 then fO () else fS (n-1))
+      (\_ ->
+      redfun c0 env ext)
+      (\n' -> Just ((,) (Translate n' c0)
+      empty))
+      n;
+   Both c1 c2 ->
+    liftM2 (\ct1 ct2 ->
+      case ct1 of {
+       (,) c1' t1 ->
+        case ct2 of {
+         (,) c2' t2 -> (,) (smartBoth c1' c2') (union_with (+) t1 t2)}})
+      (redfun c1 env ext) (redfun c2 env ext);
+   If b n c1 c2 ->
+    (>>=) (fromBLit (specialiseExp b env ext)) (\b' ->
+      case b' of {
+       True -> redfun c1 env ext;
+       False ->
+        (\fO fS n -> if n==0 then fO () else fS (n-1))
+          (\_ ->
+          redfun c2 env ext)
+          (\n' -> Just ((,) (If b n' c1 c2)
+          empty))
+          n})}
+
+plus0 :: Int -> Int -> Int
+plus0 n m =
+  (\fO fS n -> if n==0 then fO () else fS (n-1))
+    (\_ ->
+    0)
+    (\n0 ->
+    (+) n m)
+    m
+
+horizon :: Contr -> Int
+horizon c =
+  case c of {
+   Zero -> 0;
+   Let e c' -> horizon c';
+   Transfer p p0 a -> succ 0;
+   Scale e c' -> horizon c';
+   Translate l c' -> plus0 l (horizon c');
+   Both c1 c2 -> max (horizon c1) (horizon c2);
+   If e l c1 c2 -> plus0 l (max (horizon c1) (horizon c2))}
 

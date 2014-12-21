@@ -1,7 +1,7 @@
 Add LoadPath "..".
 
 Require Import Denotational.
-Require Import Reduction.
+Require Import PartialReduction.
 Require Import Horizon.
 Require Import Specialise.
 
@@ -17,7 +17,7 @@ Extract Inlined Constant andb => "(&&)".
 
 Extract Inlined Constant compose => "(.)".
 Extract Inductive list => "List" [ "[]" "(:)" ].
-Extract Inlined Constant map => "map".
+Extract Inlined Constant map => "P.map".
 
 Extract Inductive nat => "Int" ["0" "succ"] "(\fO fS n -> if n==0 then fO () else fS (n-1))".
 Extract Inductive Z => "Int" ["0" "id" "negate"].
@@ -67,6 +67,8 @@ Extract Inlined Constant liftM3 => "liftM3".
 Extract Inlined Constant pure => "return".
 Extract Inlined Constant sequence => "sequence".
 Extract Inlined Constant mapM => "mapM".
+Extract Inlined Constant default => "fromMaybe".
+
 
 
 Extract Inductive sum => "Either" ["Left" "Right"].
@@ -79,10 +81,21 @@ Extract Constant RealObs => "String".
 Extract Inlined Constant Asset.eqb => "(==)".
 Extract Inlined Constant Party.eqb => "(==)".
 
+Extract Inlined Constant FMap.FMap => "FMap".
+Extract Inlined Constant FMap.empty => "Map.empty".
+Extract Inlined Constant FMap.add => "Map.insert".
+Extract Inlined Constant FMap.find => "Map.lookup".
+Extract Inlined Constant FMap.is_empty => "Map.null".
+Extract Inlined Constant FMap.map => "Map.map".
+Extract Inlined Constant FMap.union_with => "unionWith".
 
+Extract Inlined Constant compare => "compare".
+
+Extract Inductive comparison => "Ordering" [ "EQ" "LT" "GT"].
 
 Extraction "ContractExtracted.hs" 
+  lookupEnv
   Contr
   horizon
-  RedFun
+  redfun
   specialise.

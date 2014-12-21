@@ -3,6 +3,8 @@ Require Import Denotational.
 Require Import Advance.
 Require Import Tactics.
 Require Import FunctionalExtensionality.
+Require Export FinMap.
+
 
 (********** Reduction semantics **********)
 
@@ -115,8 +117,6 @@ Proof.
     rewrite H1 in S2. inversion S2. reflexivity.
   - spec. eapply IHR;eauto. destruct n; simpl in S1; rewrite H in S1; assumption.
     Qed.
-
-Require Import FinMap.
 
 Import SMap.
 

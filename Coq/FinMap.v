@@ -120,12 +120,13 @@ Qed.
 
 End FMap.
 
+Parameter compare : Party -> Party -> comparison.
+Axiom compare_eq : forall p1 p2, compare p1 p2 = Eq <-> p1 = p2.
+Axiom compare_lt_gt : forall p1 p2, compare p1 p2 = Lt <-> compare p2 p1 = Gt.
+
+
 Module SMap.
   Definition SMap := FMap.FMap.
-  Parameter compare : Party -> Party -> comparison.
-  Axiom compare_eq : forall p1 p2, compare p1 p2 = Eq <-> p1 = p2.
-  Axiom compare_lt_gt : forall p1 p2, compare p1 p2 = Lt <-> compare p2 p1 = Gt.
-
 
   Definition add p1 p2 a v m := match compare p1 p2 with
                                 | Lt => FMap.add (p1,p2,a) v m
