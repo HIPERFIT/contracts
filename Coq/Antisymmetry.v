@@ -26,13 +26,15 @@ Qed.
 Lemma singleton_trans_antisym p1 p2 c r : antisym (singleton_trans p1 p2 c r).
 Proof.
   unfold antisym, singleton_trans.
-  intros. remember (Party.eqb p1 p2) as E0. 
+  intros. remember (Party.eqb p1 p2) as E0.
   destruct E0. auto.
   remember (Party.eqb p1 p0 && Party.eqb p2 p3 && Asset.eqb c c0) as E1. destruct E1.
-  symmetry in HeqE1. repeat rewrite Bool.andb_true_iff in *. repeat rewrite eq_str_iff in *.
-  decompose [and] HeqE1. remember (Party.eqb p1 p3 && Party.eqb p2 p0) as E2. destruct E2. 
-  symmetry in HeqE2. repeat rewrite Bool.andb_true_iff in *. repeat rewrite eq_str_iff in *.
-  destruct HeqE2. rewrite Party.eqb_eq in *. assert (p1 = p2) by (subst; auto). 
+  symmetry in HeqE1. repeat rewrite Bool.andb_true_iff in *. repeat rewrite Party.eqb_eq in *.
+  rewrite Asset.eqb_eq in *.
+  decompose [and] HeqE1. remember (Party.eqb p1 p3 && Party.eqb p2 p0 && Asset.eqb c c0) as E2. destruct E2.
+  symmetry in HeqE2. repeat rewrite Bool.andb_true_iff in *. repeat rewrite Party.eqb_eq in *.
+  rewrite Asset.eqb_eq in *.
+  decompose [and] HeqE2.  assert (p1 = p2) by (subst; auto).
   rewrite <- Party.eqb_eq in H4. tryfalse.
   simpl. auto. destruct (Party.eqb p1 p3 && Party.eqb p2 p0 && Asset.eqb c c0); auto.
 Qed.

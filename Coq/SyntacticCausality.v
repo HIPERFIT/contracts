@@ -7,6 +7,7 @@ causality that conservatively approximates the semantic notion. In
 short a contract is syntactically causal if observables and external
 choices are never queried at a positive offset. *)
 
+Open Scope Z.
 
 Inductive Epc : Exp -> Prop:=
 | epc_obs : forall o i, i <= 0 -> Epc (Obs o i)

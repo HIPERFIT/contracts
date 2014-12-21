@@ -155,9 +155,8 @@ Definition Trans := Party -> Party -> Asset -> R.
 Open Scope R.
 Definition empty_trans : Trans := fun p1 p2 c => 0.
 Definition singleton_trans (p1 p2 : Party) (a : Asset) r : Trans
-  := fun p1' p2' a' => if Party.eqb p1 p2
-                       then 0
-                       else if Party.eqb p1 p1' && Party.eqb p2 p2' && Asset.eqb a a'
+  := if Party.eqb p1 p2 then (fun p1' p2' a' => 0) else
+       fun p1' p2' a' => if Party.eqb p1 p1' && Party.eqb p2 p2' && Asset.eqb a a'
                             then r
                             else if Party.eqb p1 p2' && Party.eqb p2 p1' && Asset.eqb a a'
                                  then -r

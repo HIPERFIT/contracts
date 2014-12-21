@@ -367,4 +367,9 @@ Proof.
   -  subst. pose (Rle_refl y) as R. rewrite <- Rleb_iff in R.
      rewrite R. reflexivity.
 Qed.
+Lemma Reqb_iff_false x y : Reqb x y = false <-> x <> y.
+Proof.
+  split;intros. intro C. rewrite <- Reqb_iff in C. tryfalse.
+  cases (Reqb x y) as E. rewrite -> Reqb_iff in E. tryfalse. reflexivity.
+Qed.
   
