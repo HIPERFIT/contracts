@@ -7,6 +7,11 @@ Infix "∘" := compose (at level 40, left associativity).
 
 Import ListNotations.
 
+Fixpoint zipWith {A B C} (f : A -> B -> C) (xs : list A) (ys : list B) : list C :=
+match xs, ys with
+    | (x::xs'), (y::ys') => f x y :: zipWith f xs' ys'
+    | _, _ => []
+end.
 
 Inductive all {A} (P : A -> Prop) : list A -> Prop :=
 | forall_nil : all P nil

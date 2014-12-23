@@ -2,6 +2,7 @@ Require Import Typing.
 Require Import ContextualCausality.
 Require Import Tactics.
 Require Import Utils.
+Require Import Environments.
 
 (* A type system with time-indexed types. This system subsumes both
 the type system and the contextual causality system. *)
@@ -14,15 +15,24 @@ Inductive TiTy := TimedType (ty : Ty) (ti : Z).
 
 Infix "^" := TimedType.
 
+(* Selector functions to extract the time and the type of a timed
+type. *)
+
 Definition time t := match t with TimedType _ ti => ti end.
 Definition type t := match t with TimedType ty _ => ty end.
+
+(* Convenience function to add time to a timed type. *)
 
 Definition add_time d t := match t with TimedType ty ti => TimedType ty (ti + Z.of_nat d) end.
 Definition sub_time d t := match t with TimedType ty ti => TimedType ty (ti - Z.of_nat d) end.
 
-(* Definition of the inference rules for contextual causality. *)
+(* A time timed time environment maps variables to timed types.  *)
 
-Definition TiTyEnv := list TiTy.
+Definition TiTyEnv := Env' TiTy.
+
+
+(* Definition of the timed type inference rules for variables,
+operators, expressions and contracts. *)
 
 Inductive TiTyV : TiTyEnv -> TiTy -> Var -> Prop :=
 | causal_V1 t t' g  : type t = type t' -> time t <= time t' -> TiTyV (t :: g) t' V1
@@ -56,6 +66,10 @@ Inductive TiTyC : TiTyEnv -> Z -> Contr -> Prop :=
                              -> TiTyC ts t (If e d c1 c2)
 .
 
+Hint Constructors TiTyV TiTyE TiTyC.
+
+(* We now show that timed typing implies both well-typing and
+contextual causality. *)
 
 Lemma TiTyV_type ts t v : TiTyV ts t v -> map type ts |-X v ∶ type t.
 Proof. 
@@ -70,6 +84,8 @@ Lemma type_sub_time d t :  type (sub_time d t) = type t.
 Proof.
   destruct t. reflexivity.
 Qed.
+
+(* Timed typing on expressions implies well-typing. *)
 
 Lemma TiTyE_type ts t e : TiTyE ts t e -> map type ts |-E e ∶ type t.
 Proof.
@@ -89,6 +105,8 @@ Qed.
 
 Hint Resolve TiTyE_type.
 
+(* Timed typing implies well-typing. *)
+
 Theorem TiTyC_type ts t e : TiTyC ts t e -> map type ts |-C e.
 Proof.
   intros T. induction T; econstructor;simpl in *;eauto.
@@ -99,7 +117,6 @@ Proof.
   - rewrite map_map in IHT2. erewrite map_ext. eassumption. intro. simpl.
     rewrite type_sub_time. reflexivity.
 Qed.
-
 
 
 Lemma TiTyV_time ts t v : TiTyV ts t v -> CausalV (map time ts) (time t) v.
@@ -115,6 +132,8 @@ Lemma time_sub_time d t :  time (sub_time d t) = time t - Z.of_nat d.
 Proof.
   destruct t. reflexivity.
 Qed.
+
+(* Timed typing on expressions implies contextual causality. *)
 
 Lemma TiTyE_time ts t e : TiTyE ts t e -> CausalE (map time ts) (time t) e.
 Proof.
@@ -134,6 +153,8 @@ Qed.
 
 Hint Resolve TiTyE_type.
 
+(* Timed typing implies contextual causality. *)
+
 Theorem TiTyC_time ts t c : TiTyC ts t c -> CausalC (map time ts) t c.
 Proof.
   intros T. induction T; econstructor;simpl in *;eauto.
@@ -144,4 +165,82 @@ Proof.
   - apply TiTyE_time in H. simpl in H. apply H.
   - rewrite map_map in *. erewrite map_ext. eassumption. intro. simpl.
     rewrite time_sub_time. reflexivity.
+Qed.
+
+(* Below we show that the conjunction of well typing and contextual
+causality implies timed typing. *)
+
+Infix "^^" := (zipWith TimedType) (at level 1).
+
+Fixpoint repeat {A} (n : nat) (x : A) : list A :=
+  match n with
+    | O => nil
+    | S m => x :: repeat m x
+  end.
+
+
+Lemma map_type tys tis : length tys = length tis -> map type tys ^^ tis = tys.
+Proof.
+  generalize dependent tis. induction tys;intros. reflexivity.
+  destruct tis;tryfalse. simpl. f_equal. auto.
+Qed.
+
+Lemma map_time tys tis : length tys = length tis -> map time tys ^^ tis = tis.
+Proof.
+  generalize dependent tys. induction tis;intros. destruct tys; reflexivity.
+  destruct tys;tryfalse. simpl. f_equal. auto.
+Qed.
+
+
+Lemma map_type_repeat tys t : map type tys ^^ (repeat (length tys) t) = tys.
+Proof.
+  induction tys. reflexivity. simpl. f_equal. auto.
+Qed.
+
+Lemma map_add_time n tys tis : map (add_time n) tys ^^ tis = tys ^^ (map (fun t => t + Z.of_nat n) tis).
+Proof.
+  generalize dependent tis. induction tys;intros. reflexivity.
+  destruct tis. reflexivity.
+  simpl. rewrite IHtys. reflexivity.
+Qed.
+
+Lemma map_sub_time n tys tis : map (sub_time n) tys ^^ tis = tys ^^ (map (fun t => t - Z.of_nat n) tis).
+Proof.
+  generalize dependent tis. induction tys;intros. reflexivity.
+  destruct tis. reflexivity.
+  simpl. rewrite IHtys. reflexivity.
+Qed.
+
+
+Lemma type_TiTyE tis tys ti ty e : tys |-E e ∶ ty -> CausalE tis ti e -> TiTyE tys^^tis (ty^ti) e.
+Proof.
+  intros Ty Ti. generalize dependent tis. generalize dependent ti. 
+  induction Ty using TypeExp_ind';intros;inversion Ti;subst;clear Ti.
+  - apply causal_op with (ts' := ts ^^ (repeat (length ts) ti)). unfold TiTyOp. split. 
+    clear H. clear H0. clear H1. induction ts;simpl; constructor. reflexivity. apply IHts.
+    rewrite map_type_repeat. simpl. assumption.
+    clear H. induction H0;simpl;constructor;inversion H1;inversion H5;subst;auto.
+  - eauto.
+  - econstructor. generalize dependent tis. generalize dependent ti. 
+    induction H;intros;inversion H3; clear H3;subst;simpl; econstructor; eauto.
+  - apply causal_acc with (t' := t ^ t'). reflexivity. simpl. rewrite map_add_time. eauto.
+    specialize (IHTy1 ti (t' :: tis)). eauto.
+Qed.
+
+Hint Resolve type_TiTyE.
+
+Theorem type_TiTyC tis tys ti  c : tys |-C c -> CausalC tis ti c -> TiTyC tys^^tis ti c.
+Proof.
+  intros Ty Ti. generalize dependent tis. generalize dependent ti. 
+  induction Ty;intros;inversion Ti;subst;clear Ti;eauto.
+  - specialize (IHTy ti (t' :: tis)).  eauto.
+  - econstructor. rewrite map_sub_time. eauto.
+  - econstructor; eauto. rewrite map_sub_time. eauto.
+Qed.
+
+Theorem TiTyC_decompose tis tys ti c : length tys = length tis ->
+                                       (TiTyC tys^^tis ti c <-> tys |-C c /\ CausalC tis ti c).
+Proof.
+  intro L. split; intros. split. apply TiTyC_type in H. rewrite map_type in H;auto. 
+  apply TiTyC_time in H. rewrite map_time in H; auto. destruct H. apply type_TiTyC;auto.
 Qed.
