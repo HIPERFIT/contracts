@@ -1,23 +1,26 @@
+(********** Translating Expressions in Time **********)
+
+(* This module defines the operation [translateExp] on expressions,
+which corresponds to the [Translate] constructs on contracts. In
+contrast to [Translate], however, [translateExp] works on [Z] instead of
+only on [nat]. *)
+
 Require Import Denotational.
 Require Import Tactics.
-Require Import List.
-Import ListNotations.
-Require Import FunctionalExtensionality.
 Require Import Typing.
+Require Import FunctionalExtensionality.
 
-(* advancing contracts and expressions *)
-
-Fixpoint adv_exp (d : Z) (e : Exp) : Exp :=
+Fixpoint translateExp (d : Z) (e : Exp) : Exp :=
   match e with
-    | OpE op args => OpE op (map (adv_exp d) args)
+    | OpE op args => OpE op (map (translateExp d) args)
     | Obs l i => Obs l (d + i)
     | VarE a => VarE a
-    | Acc f n z => Acc (adv_exp d f) n (adv_exp d z)
+    | Acc f n z => Acc (translateExp d f) n (translateExp d z)
   end.
 
 
 
-Lemma adv_exp_ope d op args : adv_exp d (OpE op args) = OpE op (map (adv_exp d) args).
+Lemma translateExp_ope d op args : translateExp d (OpE op args) = OpE op (map (translateExp d) args).
 reflexivity. Qed.
 
 Ltac rewr_assumption := idtac; match goal with
@@ -25,13 +28,13 @@ Ltac rewr_assumption := idtac; match goal with
                         end.
 
 
-Lemma adv_exp_ext (env : Env) d (e : Exp) ext : 
-  E[|adv_exp d e|] env ext = E[|e|] env (adv_ext d ext).
+Lemma translateExp_ext (env : Env) d (e : Exp) ext : 
+  E[|translateExp d e|] env ext = E[|e|] env (adv_ext d ext).
 Proof.
   generalize dependent ext.   generalize dependent env. 
   induction e using Exp_ind';intros; 
   try solve [simpl; repeat rewr_assumption; reflexivity].
-  rewrite adv_exp_ope. simpl. rewrite map_map.
+  rewrite translateExp_ope. simpl. rewrite map_map.
   eapply all_apply with (p:= env) in H.
   eapply all_apply with (p:= ext) in H.
   apply map_rewrite in H. rewrite H. reflexivity.
@@ -51,14 +54,14 @@ Qed.
 
 Open Scope Z.
 
-Lemma adv_exp_ext_opp (env : Env) (d d' : Z) (e : Exp) (ext : ExtEnv):
-  d' + d = 0 -> E[|adv_exp d e|] env (adv_ext d' ext) = E[|e|] env ext.
+Lemma translateExp_ext_opp (env : Env) (d d' : Z) (e : Exp) (ext : ExtEnv):
+  d' + d = 0 -> E[|translateExp d e|] env (adv_ext d' ext) = E[|e|] env ext.
 Proof.
-  intro H. rewrite adv_exp_ext. rewrite adv_ext_opp; auto.
+  intro H. rewrite translateExp_ext. rewrite adv_ext_opp; auto.
 Qed.
 
 
-Lemma adv_exp_type g d e t : g |-E e ∶ t -> g |-E adv_exp d e ∶ t.
+Lemma translateExp_type g d e t : g |-E e ∶ t -> g |-E translateExp d e ∶ t.
 Proof.
   intro T. generalize dependent g.  generalize dependent t. 
   induction e using Exp_ind'; intros; simpl; inversion T; subst; try auto.

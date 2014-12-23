@@ -1,6 +1,6 @@
 Require Export Specialise.
 Require Import Denotational.
-Require Import Advance.
+Require Import TranslateExp.
 Require Import Tactics.
 Require Import FunctionalExtensionality.
 Require Export FinMap.
@@ -18,12 +18,12 @@ Inductive Red : Contr -> EnvP -> ExtEnvP -> Contr -> Trans -> Prop :=
 | red_zero env ext t c :t = empty_trans -> c = Zero -> Red Zero env ext c t
 | red_let e e' env ext c c' c'' t : e' = specialiseExp e env ext ->
                                      Red c (fromLit e'::env) ext c' t ->
-                                     c'' = (smartLet (adv_exp (-1) e') c') ->
+                                     c'' = (smartLet (translateExp (-1) e') c') ->
                                     Red (Let e c) env ext c'' t
 | red_transf c c' t' p1 p2 env ext : c' = Zero -> t' = (singleton_trans c p1 p2 1) -> Red (Transfer c p1 p2) env ext c' t'
 | red_scale e e' env ext c c' c'' t t' : e' = specialiseExp e env ext -> 
                                    ScaleTrans (fromRLit e') t t' -> Red c env ext c' t ->
-                                   c'' = (smartScale (adv_exp (-1) e') c') ->
+                                   c'' = (smartScale (translateExp (-1) e') c') ->
                                    Red (Scale e c) env ext c'' t'
 | red_trans0 c env ext c' t : Red c env ext c' t -> Red (Translate 0 c) env ext c' t
 | red_transS c env ext n c' t' : t' = empty_trans -> c' = Translate n c -> Red (Translate (S n) c) env ext c' t'
@@ -80,7 +80,7 @@ Theorem red_typed c c' envp extp t g:
 Proof.
   intros T1 T2 T R. generalize dependent g.
   induction R;intros;inversion T;subst;
-  eauto 10 using smartLet_typed, smartBoth_typed, smartScale_typed, adv_exp_type,specialiseExp_typed, fromLit_typed.
+  eauto 10 using smartLet_typed, smartBoth_typed, smartScale_typed, translateExp_type,specialiseExp_typed, fromLit_typed.
 Qed.
 
 Theorem red_sound2 c c' env ext envp extp t t1 t2 i g: 
@@ -99,10 +99,10 @@ Proof.
     eauto using Esem_typed.  
     constructor. intros. spec. inversion H0. reflexivity. auto. 
     erewrite smartLet_sound in S2;eauto. simpl in S2. option_inv_auto.
-    rewrite adv_exp_ext_opp in H2 by reflexivity.
+    rewrite translateExp_ext_opp in H2 by reflexivity.
     erewrite specialiseExp_sound in H2;eauto. rewrite H2 in H0. inversion H0. subst. auto.
   - option_inv_auto. spec. erewrite smartScale_sound in S2 by eauto 10 using red_typed.
-    simpl in S2. option_inv_auto. rewrite adv_exp_ext_opp in H8 by reflexivity.
+    simpl in S2. option_inv_auto. rewrite translateExp_ext_opp in H8 by reflexivity.
     erewrite specialiseExp_sound in H8;eauto. 
     unfold scale_trace, compose. erewrite IHR by eauto. f_equal. 
     rewrite H8 in H3. inversion H3. subst. rewrite H9 in H4. inversion H4. reflexivity.
@@ -133,13 +133,13 @@ Fixpoint redfun (c : Contr) (env : EnvP) (ext : ExtEnvP) : option (Contr * SMap)
   match c with
     | Zero => Some (Zero, SMap.empty)
     | Let e c => let e' := specialiseExp e env ext in
-                 liftM (fun ct : Contr * SMap => let (c', t) := ct in (smartLet (adv_exp (-1) e') c', t)) 
+                 liftM (fun ct : Contr * SMap => let (c', t) := ct in (smartLet (translateExp (-1) e') c', t)) 
                        (redfun c (fromLit e'::env) ext)
     | Transfer c p1 p2 => Some (Zero, SMap.singleton c p1 p2 1)
     | Scale e c => let e' := specialiseExp e env ext
                    in redfun c env ext  >>= 
                       (fun ct => let (c', t) := ct in 
-                                 liftM (fun t' => (smartScale (adv_exp (-1) e') c', t'))
+                                 liftM (fun t' => (smartScale (translateExp (-1) e') c', t'))
                                        (scale_trans' (fromRLit e') t))
     | Translate n c => match n with
                          | O => redfun c env ext

@@ -5,14 +5,11 @@ Require Export Utils.
 Require Export Equalities.
 
 
-(* The types of assets and parties are keep abstract. They should at
+(* The types of assets and parties are kept abstract. They should at
 least be decicable, though. *)
 
 Parameter Asset : Set.
 Parameter Party : Set.
-
-Parameter BoolObs : Set.
-Parameter RealObs : Set.
 
 Module Asset.
   Parameter eqb : Asset -> Asset -> bool.
@@ -34,6 +31,12 @@ Module Party.
   Qed.
     
 End Party.
+
+(* We also keep the types for Boolean and real observable labels
+abstract. *)
+
+Parameter BoolObs : Set.
+Parameter RealObs : Set.
 
 
 (* The type of variables. *)
@@ -88,6 +91,7 @@ fix F (e : Exp) : P e :=
   | Acc f3 d e0 => f2 f3 (F f3) d e0 (F e0)
   end.
 
+(* This type defines the syntax of the contract language *)
 
 Inductive Contr : Type :=
  | Zero : Contr
@@ -97,10 +101,3 @@ Inductive Contr : Type :=
  | Translate : nat -> Contr -> Contr
  | Both : Contr -> Contr -> Contr
  | If : Exp -> nat -> Contr -> Contr -> Contr.
-
-
-Definition translate (l : nat) : Contr -> Contr := 
-  match l with
-    | O => (fun x => x)
-    | _ => Translate l
-  end.

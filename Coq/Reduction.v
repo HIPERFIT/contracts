@@ -1,5 +1,5 @@
 Require Export Denotational.
-Require Import Advance.
+Require Import TranslateExp.
 Require Import Tactics.
 Require Import FunctionalExtensionality.
 
@@ -10,10 +10,10 @@ Require Import FunctionalExtensionality.
 Inductive Red : Contr -> Env -> ExtEnv -> Contr -> Trans -> Prop :=
 | red_zero env ext : Red Zero env ext Zero empty_trans
 | red_let e env ext c c' t v :  E[| e |] env ext = Some v -> Red c (v::env) ext c' t ->
-               Red (Let e c) env ext (Let (adv_exp (-1) e) c') t
+               Red (Let e c) env ext (Let (translateExp (-1) e) c') t
 | red_transf c p1 p2 env ext : Red (Transfer c p1 p2) env ext Zero (singleton_trans c p1 p2 1)
 | red_scale e env ext c c' t v :  E[| e |] env ext = Some (RVal v) -> Red c env ext c' t ->
-               Red (Scale e c) env ext (Scale (adv_exp (-1) e) c') (scale_trans v t)
+               Red (Scale e c) env ext (Scale (translateExp (-1) e) c') (scale_trans v t)
 | red_trans0 c env ext c' t : Red c env ext c' t -> Red (Translate 0 c) env ext c' t
 | red_transS c env ext n : Red (Translate (S n) c) env ext (Translate n c) empty_trans
 | red_both c1 c1' c2 c2' env ext t1 t2 : Red c1 env ext c1' t1 -> Red c2 env ext c2' t2 -> 
@@ -51,10 +51,10 @@ Theorem red_sound2 c c' i env ext t t1 t2 :
 Proof.
   intros R T1 T2. generalize dependent t1. generalize dependent t2. induction R; simpl;intros.
   - inversion T1. inversion T2. reflexivity.
-  - rewrite adv_exp_ext in T2. rewrite adv_ext_iter in T2. simpl in T2. rewrite adv_ext_0 in T2.
+  - rewrite translateExp_ext in T2. rewrite adv_ext_iter in T2. simpl in T2. rewrite adv_ext_0 in T2.
     rewrite H in *. simpl in *. apply IHR; auto.
   - inversion T1. inversion T2. subst. reflexivity.
-  - rewrite adv_exp_ext in T2. rewrite adv_ext_iter in T2. simpl in T2. rewrite adv_ext_0 in T2.
+  - rewrite translateExp_ext in T2. rewrite adv_ext_iter in T2. simpl in T2. rewrite adv_ext_0 in T2.
     rewrite H in *. simpl in *. option_inv' T1. option_inv' T2. unfold pure,compose in *.
     eapply IHR in H4;eauto. inversion H3. inversion H5. unfold scale_trace, compose in *. rewrite H4. 
     reflexivity.
@@ -105,11 +105,11 @@ Fixpoint RedFun (c : Contr) (env : Env) (ext : ExtEnv) : option (Contr * Trans) 
   match c with
     | Zero => Some (Zero, empty_trans)
     | Let e c => E[|e|]env ext >>= fun val => liftM (fun res : (Contr * Trans) => 
-                                                        let (c', t) := res in (Let (adv_exp (-1) e) c', t)) 
+                                                        let (c', t) := res in (Let (translateExp (-1) e) c', t)) 
                                                      (RedFun c (val::env) ext)
     | Transfer c p1 p2 => Some (Zero, singleton_trans c p1 p2 1)
     | Scale e c => match RedFun c env ext, E[|e|]env ext with
-                       | Some (c', t), Some (RVal v) => Some (Scale (adv_exp (-1) e) c', scale_trans v t)
+                       | Some (c', t), Some (RVal v) => Some (Scale (translateExp (-1) e) c', scale_trans v t)
                        | _, _ => None
                    end
     | Translate l c => match l with

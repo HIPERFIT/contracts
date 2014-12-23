@@ -1,13 +1,15 @@
 Require Import Causality.
-Require Import Advance.
+Require Import TranslateExp.
 Require Import Tactics.
 
-(* Syntactic causality. We define a simple syntactic notion of
+(* Simple causality. We define a simple syntactic notion of
 causality that conservatively approximates the semantic notion. In
 short a contract is syntactically causal if observables and external
 choices are never queried at a positive offset. *)
 
 Open Scope Z.
+
+(* Causality predicate on expressions *)
 
 Inductive Epc : Exp -> Prop:=
 | epc_obs : forall o i, i <= 0 -> Epc (Obs o i)
@@ -45,7 +47,7 @@ fix F (e : Exp) (e0 : Epc e) {struct e0} : P e :=
   | epc_acc f3 l z e1 e2 => f2 f3 l z e1 (F f3 e1) e2 (F z e2)
   end.
 
-
+(* Causality predicate on contracts. *)
 
 Inductive Pc : Contr -> Prop :=
 | pc_transl : forall d c, Pc c -> Pc (Translate d c)
@@ -59,7 +61,7 @@ Inductive Pc : Contr -> Prop :=
 
 Hint Constructors Epc Pc.
 
-(* Below follows the proof that provable causality is sound (i.e. it
+(* Below follows the proof that simple causality is sound (i.e. it
 implies semantic causality). *)
 
 Lemma epc_ext_until (e : Exp) d r1 r2 env : 
@@ -86,6 +88,7 @@ Definition causal' (c : Contr) : Prop :=
   forall d env r1 r2 t1 t2,  ext_until (Z.of_nat d) r1 r2 -> C[|c|]env r1 = Some t1 -> C[|c|] env r2 = Some t2
                         -> t1 d = t2 d.
 
+(* The lemma below proves causality of open contracts. *)
 
 Lemma pc_causal' c : Pc c -> causal' c.
 Proof.
@@ -122,11 +125,15 @@ Proof.
      apply ext_until_adv_1. apply inj_le in HeqL. assumption. assumption.
 Qed.
 
+(* Soundness of simple causality. *)
+
 Theorem pc_causal c : Pc c -> causal c.
 Proof.
   unfold causal. intros. eapply pc_causal';eauto.
 Qed.
 
+(* Below we give a decision procedure for simple causality and prove
+it sound and complete. *)
 
 Open Scope bool.
 

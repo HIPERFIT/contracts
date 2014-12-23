@@ -1,5 +1,5 @@
 Require Export Denotational.
-Require Import Advance.
+Require Import TranslateExp.
 Require Import FunctionalExtensionality.
 Require Import Tactics.
 
@@ -31,19 +31,19 @@ Proof.
   rewrite E. rewrite minus_diag. reflexivity.
 Qed.
 
-Hint Resolve adv_exp_type.
+Hint Resolve translateExp_type.
 
 Theorem transl_ifwithin g e d t c1 c2 : g |-C c1 -> g |-C c2 -> g |-E e ∶ BOOL ->
-  If (adv_exp (Z.of_nat d) e) t (Translate d c1) (Translate d c2) ≡[g]
+  If (translateExp (Z.of_nat d) e) t (Translate d c1) (Translate d c2) ≡[g]
   Translate d (If e t c1 c2).
 Proof.
   unfold equiv. intros. repeat split; eauto. intros env ext R V.
   generalize dependent ext. induction t; intros. 
   - eapply Esem_typed_total with (ext:=(adv_ext (Z.of_nat d) ext)) in H1;eauto.
-    decompose [ex and] H1. simpl in *. rewrite adv_exp_ext, H3 in *. 
+    decompose [ex and] H1. simpl in *. rewrite translateExp_ext, H3 in *. 
     destruct x; try destruct b; reflexivity.
   - pose H1 as H1'. eapply Esem_typed_total with (ext:=(adv_ext (Z.of_nat d) ext)) in H1';eauto.
-    decompose [ex and] H1'. simpl in *. rewrite adv_exp_ext, H3. destruct x; try reflexivity. destruct b. reflexivity.
+    decompose [ex and] H1'. simpl in *. rewrite translateExp_ext, H3. destruct x; try reflexivity. destruct b. reflexivity.
     rewrite IHt;eauto. rewrite adv_ext_swap. repeat rewrite liftM_liftM. apply liftM_ext. 
     intros. unfold compose. apply delay_trace_swap. 
 Qed.
