@@ -134,7 +134,10 @@ Proof.
   rewrite adv_ext_iter. f_equal. rewrite Nat2Z.inj_succ. omega.
 Qed.
 
-Axiom Zneg_of_succ_nat : forall n, Z.neg (Pos.of_succ_nat n) = (- Z.of_nat (S n))%Z.
+Lemma Zneg_of_succ_nat : forall n, Z.neg (Pos.of_succ_nat n) = (- Z.of_nat (S n))%Z.
+Proof.
+  intros. rewrite <- Pos2Z.opp_pos. rewrite Zpos_P_of_succ_nat. rewrite Nat2Z.inj_succ. reflexivity.
+Qed.
 
 Lemma adv_ext_step' {A} n (ext : ExtEnv' A) : ((adv_ext (Z.neg (Pos.of_succ_nat n)) ext) = (adv_ext (- Z.of_nat n) (adv_ext (-1) ext))).
 Proof.
