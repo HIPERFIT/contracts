@@ -16,7 +16,7 @@ Parameter RealObs : Set.
 
 Module Asset.
   Parameter eqb : Asset -> Asset -> bool.
-  Parameter eqb_eq : forall x y, eqb x y = true <-> x = y.
+  Axiom eqb_eq : forall x y, eqb x y = true <-> x = y.
 
   Lemma eqb_refl p:  eqb p p = true.
   Proof.
@@ -27,7 +27,7 @@ End Asset.
 
 Module Party.
   Parameter eqb : Party -> Party -> bool.
-  Parameter eqb_eq : forall x y, eqb x y = true <-> x = y.
+  Axiom eqb_eq : forall x y, eqb x y = true <-> x = y.
   Lemma eqb_refl p:  eqb p p = true.
   Proof.
     assert (p = p) as E by reflexivity. rewrite <- eqb_eq in E. auto.

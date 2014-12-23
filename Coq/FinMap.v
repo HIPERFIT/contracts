@@ -47,19 +47,19 @@ Parameter union_with : (R -> R -> option R) -> FMap -> FMap -> FMap.
 Definition singleton k  r : FMap := add k r empty.
 
 
-Parameter extensionality : forall m1 m2, (forall k, find k m1 = find k m2) -> m1 = m2.
+Axiom extensionality : forall m1 m2, (forall k, find k m1 = find k m2) -> m1 = m2.
 
-Parameter empty_find : forall k, find k empty = None.
+Axiom empty_find : forall k, find k empty = None.
 
-Parameter empty_is_empty : forall m, is_empty m = true <-> m = empty.
+Axiom empty_is_empty : forall m, is_empty m = true <-> m = empty.
 
-Parameter add_find_new : forall k v m, find k (add k v m) = Some v.
+Axiom add_find_new : forall k v m, find k (add k v m) = Some v.
 
-Parameter add_find_old : forall k k' v' m, k <> k' -> find k (add k' v' m) = find k m.
+Axiom add_find_old : forall k k' v' m, k <> k' -> find k (add k' v' m) = find k m.
 
-Parameter map_find : forall k m f,  find k (map f m) = liftM f (find k m).
+Axiom map_find : forall k m f,  find k (map f m) = liftM f (find k m).
 
-Parameter union_find : forall k m1 m2 f,  
+Axiom union_find : forall k m1 m2 f,  
                          find k (union_with f m1 m2) = match find k m1, find k m2 with
                                                           | Some v1, Some v2 => f v1 v2
                                                           | Some v1, None => Some v1
