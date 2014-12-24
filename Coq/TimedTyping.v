@@ -191,6 +191,10 @@ Proof.
   destruct tys;tryfalse. simpl. f_equal. auto.
 Qed.
 
+Lemma map_type_time ts : (map type ts) ^^ (map time ts) = ts.
+Proof.
+  induction ts;simpl;f_equal;try destruct a;eauto.
+Qed.
 
 Lemma map_type_repeat tys t : map type tys ^^ (repeat (length tys) t) = tys.
 Proof.
@@ -238,9 +242,62 @@ Proof.
   - econstructor; eauto. rewrite map_sub_time. eauto.
 Qed.
 
-Theorem TiTyC_decompose tis tys ti c : length tys = length tis ->
+
+Theorem TiTyE_decompose ts t e : TiTyE ts t e <-> map type ts |-E e ∶ type t /\ CausalE (map time ts) (time t) e.
+Proof.
+  split; intros. split; eauto using TiTyE_type, TiTyE_time. destruct H. 
+  eapply type_TiTyE in H;eauto. rewrite map_type_time in H. destruct t;simpl in H. assumption.
+Qed.
+
+
+Theorem TiTyC_decompose ts ti c : TiTyC ts ti c <-> map type ts |-C c /\ CausalC (map time ts) ti c.
+Proof.
+  split; intros. split; eauto using TiTyC_type, TiTyC_time. destruct H. 
+  eapply type_TiTyC in H;eauto. rewrite map_type_time in H. assumption.
+Qed.
+
+Theorem TiTyC_decompose' tis tys ti c : length tys = length tis ->
                                        (TiTyC tys^^tis ti c <-> tys |-C c /\ CausalC tis ti c).
 Proof.
   intro L. split; intros. split. apply TiTyC_type in H. rewrite map_type in H;auto. 
   apply TiTyC_time in H. rewrite map_time in H; auto. destruct H. apply type_TiTyC;auto.
 Qed.
+
+Definition subtype (t1 t2 : TiTy) := type t1 = type t2 /\ time t1 <= time t2.
+
+Infix "<|" := subtype (at level 1).
+
+Hint Unfold subtype.
+
+Lemma subtype_type t1 t2 : t1 <| t2 -> type t1 = type t2.
+Proof.
+  intros. unfold subtype in *. tauto.
+Qed.
+Lemma subtype_time t1 t2 : t1 <| t2 -> time t1 <= time t2.
+Proof.
+  intros. unfold subtype in *. tauto.
+Qed.
+
+Hint Resolve subtype_time subtype_type.
+
+Lemma all_subtype_type ts1 ts2 : all2 subtype ts1 ts2 -> map type ts1 = map type ts2.
+Proof.
+  intro H. induction H; simpl; f_equal; eauto.
+Qed.
+
+Lemma all_subtype_time ts1 ts2 : all2 subtype ts1 ts2 -> all2 Z.le (map time ts1) (map time ts2).
+Proof.
+  intro H. induction H; simpl; f_equal; eauto.
+Qed.
+
+Hint Resolve all_subtype_time all_subtype_type.
+
+Lemma TiTyE_open t t' ts ts' (e : Exp) : all2 subtype ts' ts -> t <| t' -> TiTyE ts t e -> TiTyE ts' t' e.
+Proof.
+  intros Ss S T. rewrite TiTyE_decompose in *. destruct T. destruct S as [S1 S2].
+  split. rewrite <- S1. erewrite all_subtype_type by eassumption. assumption.
+  eapply CausalE_open;eauto.
+Qed.
+
+
+
