@@ -53,10 +53,10 @@ Qed.
 
 Inductive TiTyE : TiTyEnv -> TiTy -> Exp -> Prop:= 
  | causal_op t ts ts' op args : TiTyOp op ts' t -> all2 (TiTyE ts) ts' args -> TiTyE ts t (OpE op args)
- | causal_obs l t' t ts : Some t' <= time t -> |-O l ∶ type t ->  TiTyE ts t (Obs l t')
+ | causal_obs l t' t ts : Time t' <= time t -> |-O l ∶ type t ->  TiTyE ts t (Obs l t')
  | causal_var t ts v : TiTyV ts t v -> TiTyE ts t (VarE v)
  | causal_acc t ts e1 e2 n : TiTyE (map (add_time n) ts) (add_time n t) e2
-                             -> TiTyE (type t ^ None :: ts) t e1
+                             -> TiTyE (type t ^ TimeBot :: ts) t e1
                              -> TiTyE ts t (Acc e1 n e2)
   .
 
@@ -69,8 +69,8 @@ Inductive TiTyC : TiTyEnv -> TimeB -> Contr -> Prop :=
 | causal_let ts t t' e c : TiTyE ts t' e -> TiTyC (t' :: ts) t c -> TiTyC ts t (Let e c)
 | causal_scale ts ti e c : TiTyE ts (REAL ^ ti) e -> TiTyC ts ti c -> TiTyC ts ti (Scale e c)
 | causal_both ts t c1 c2 : TiTyC ts t c1 -> TiTyC ts t c2 -> TiTyC ts t (Both c1 c2)
-| causal_transfer t ts p1 p2 a : t <= Some 0 -> TiTyC ts t (Transfer p1 p2 a)
-| causal_if ts t d e c1 c2 : TiTyE ts (BOOL ^ Some 0) e -> TiTyC ts t c1
+| causal_transfer t ts p1 p2 a : t <= Time 0 -> TiTyC ts t (Transfer p1 p2 a)
+| causal_if ts t d e c1 c2 : TiTyE ts (BOOL ^ Time 0) e -> TiTyC ts t c1
                              -> TiTyC (map (sub_time d) ts) (tsub' d t) c2
                              -> TiTyC ts t (If e d c1 c2)
 .
@@ -237,7 +237,7 @@ Proof.
   - econstructor. generalize dependent tis. generalize dependent ti. 
     induction H;intros;inversion H3; clear H3;subst;simpl; econstructor; eauto.
   - apply causal_acc. simpl. rewrite map_add_time. eauto.
-    specialize (IHTy1 ti (None :: tis)). eauto.
+    specialize (IHTy1 ti (TimeBot :: tis)). eauto.
 Qed.
 
 Theorem type_TiTyC tis tys ti  c : tys |-C c -> CausalC tis ti c -> TiTyC tys^^tis ti c.
@@ -370,11 +370,11 @@ Proof.
   destruct op; split; intro H; repeat (destruct args;try destruct t; simpl in *; try solve [inversion H;eauto]).
 Qed.
 
-Definition tmax (t1 t2 : option Z) : option Z :=
+Definition tmax (t1 t2 : TimeB) : TimeB :=
   match t1,t2 with
-    | None, _ => t2
-    | _, None => t1
-    | Some t1', Some t2' => Some (Z.max t1' t2')
+    | TimeBot, _ => t2
+    | _, TimeBot => t1
+    | Time t1', Time t2' => Time (Z.max t1' t2')
   end.
 
 
@@ -392,7 +392,7 @@ Proof.
 Qed.
 
 (* Define as left fold instead (and then prove that it is equal to the right fold). *)
-Definition tmaxs (ts : list (option Z)) : option Z :=fold_right tmax None ts.
+Definition tmaxs (ts : list TimeB) : TimeB :=fold_right tmax TimeBot ts.
 
 Lemma tmaxs_cons x xs : tmaxs (x :: xs) = tmax x (tmaxs xs).
 Proof.
@@ -405,9 +405,9 @@ Fixpoint inferE (env : TiTyEnv) (e:Exp) : option TiTy :=
                               (fun args' => liftM (fun ty => ty ^ tmaxs (map time args')) 
                                                   (inferOp op (map type args')))
     | VarE v => lookupEnv v env
-    | Obs l i => Some (inferObs l ^ Some i)
+    | Obs l i => Some (inferObs l ^ Time i)
     | Acc f d z => inferE (map (add_time d) env) z >>= 
-                  (fun t => inferE (type t ^ None :: env) f >>= 
+                  (fun t => inferE (type t ^ TimeBot :: env) f >>= 
                   (fun t' => if tyeqb (type t) (type t') 
                              then Some (type t ^ tmax (tsub' d (time t)) (time t')) 
                              else None))

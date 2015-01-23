@@ -12,19 +12,19 @@ Open Scope Z.
 
 (* Definition of the inference rules for contextual causality. *)
 
-Definition TimeB := option Z.
+Inductive TimeB := Time (t:Z) | TimeBot.
 
 Definition TimeEnv := list TimeB.
 
 Inductive tle : TimeB -> TimeB -> Prop:=
-| tle_bot t : tle None t
-| tle_notbot t1 t2 : t1 <= t2 -> tle (Some t1) (Some t2).
+| tle_bot t : tle TimeBot t
+| tle_notbot t1 t2 : t1 <= t2 -> tle (Time t1) (Time t2).
 
 Notation "n <= m" := (tle n m) : time.
 
 Inductive tlt : TimeB -> TimeB -> Prop:=
-| tlt_bot t : tlt None (Some t)
-| tlt_notbot t1 t2 : t1 < t2 -> tlt (Some t1) (Some t2).
+| tlt_bot t : tlt TimeBot (Time t)
+| tlt_notbot t1 t2 : t1 < t2 -> tlt (Time t1) (Time t2).
 
 Notation "n < m" := (tlt n m) : time.
 
@@ -32,8 +32,8 @@ Hint Constructors tle tlt.
 
 Definition tleb (t1 t2 : TimeB) : bool :=
   match t1,t2 with
-    | Some t1', Some t2' => t1' <=? t2'
-    | None, _ => true
+    | Time t1', Time t2' => t1' <=? t2'
+    | TimeBot, _ => true
     | _,_ => false
   end.
 
@@ -56,7 +56,11 @@ Inductive CausalV : TimeEnv -> TimeB -> Var -> Prop :=
 | causal_V1 t t' g  : t <= t' -> CausalV (t :: g) t' V1
 | causal_VS g v t t' : CausalV g t v -> CausalV (t' :: g) t (VS v).
 
-Definition tadd d : TimeB -> TimeB := liftM (fun t' => t' + d).
+Definition tadd (d : Z) (t : TimeB) : TimeB := 
+  match t with
+      | TimeBot => TimeBot
+      | Time t' => Time (t' + d)
+  end.
 Definition tsub d : TimeB -> TimeB := tadd (-d).
 
 
@@ -67,10 +71,10 @@ Hint Unfold tsub tadd' tsub'.
 
 Inductive CausalE : TimeEnv -> TimeB -> Exp -> Prop:= 
  | causal_op t ts op args : all (CausalE ts t) args -> CausalE ts t (OpE op args)
- | causal_obs l t' t ts : Some t' <= t -> CausalE ts t (Obs l t')
+ | causal_obs l t' t ts : Time t' <= t -> CausalE ts t (Obs l t')
  | causal_var t ts v : CausalV ts t v -> CausalE ts t (VarE v)
  | causal_acc t ts e1 e2 n : CausalE (map (tadd' n) ts) (tadd' n t) e2
-                                -> CausalE (None :: ts) t e1
+                                -> CausalE (TimeBot :: ts) t e1
                                 -> CausalE ts t (Acc e1 n e2)
   .
 
@@ -83,8 +87,8 @@ Inductive CausalC : TimeEnv -> TimeB -> Contr -> Prop :=
 | causal_let ts t t' e c : CausalE ts t' e -> CausalC (t' :: ts) t c -> CausalC ts t (Let e c)
 | causal_scale ts t e c : CausalE ts t e -> CausalC ts t c -> CausalC ts t (Scale e c)
 | causal_both ts t c1 c2 : CausalC ts t c1 -> CausalC ts t c2 -> CausalC ts t (Both c1 c2)
-| causal_transfer t ts p1 p2 a : t <= Some 0 -> CausalC ts t (Transfer p1 p2 a)
-| causal_if ts t d e c1 c2 : CausalE ts (Some 0) e -> CausalC ts t c1
+| causal_transfer t ts p1 p2 a : t <= Time 0 -> CausalC ts t (Transfer p1 p2 a)
+| causal_if ts t d e c1 c2 : CausalE ts (Time 0) e -> CausalC ts t c1
                              -> CausalC (map (tsub' d) ts) (tsub' d t) c2
                              -> CausalC ts t (If e d c1 c2)
 .
@@ -127,17 +131,17 @@ eauto 10 using tle_tadd_rev. Qed.
 
 Lemma tadd_swap d e t : tadd d (tadd e t) = tadd e (tadd d t).
 Proof. 
-  destruct t; simpl;autounfold;f_equal. omega.
+  destruct t; simpl; f_equal. omega. reflexivity.
 Qed.
 
 Lemma tadd_tadd d e t : tadd d (tadd e t) = tadd (d + e) t.
 Proof. 
-  destruct t; simpl;autounfold;f_equal. omega.
+  destruct t; simpl;f_equal. omega. reflexivity.
 Qed.
 
 Lemma tadd_0 t : tadd 0 t = t.
 Proof. 
-  destruct t; simpl; autounfold;f_equal;omega.
+  destruct t; simpl; f_equal. omega. reflexivity.
 Qed.
 
 Lemma tadd'_0 t : tadd' 0 t = t.
@@ -225,15 +229,15 @@ Qed.
 
 Definition ext_until' t (ext1 ext2 : ExtEnv) :=
   match t with
-    | Some t' => ext_until t' ext1 ext2
-    | None => True
+    | Time t' => ext_until t' ext1 ext2
+    | TimeBot => True
   end.
 
-Lemma ext_until'_none e1 e2 : ext_until' None e1 e2.
+Lemma ext_until'_bot e1 e2 : ext_until' TimeBot e1 e2.
 simpl. trivial.
 Qed.
 
-Hint Immediate ext_until'_none.
+Hint Immediate ext_until'_bot.
 
 Definition causalE ts t e := forall env1 env2 ext1 ext2, env_until t ts env1 env2 -> ext_until' t ext1 ext2
                                                         -> E[|e|] env1 ext1 = E[|e|]env2 ext2.
@@ -285,7 +289,7 @@ Qed.
 Lemma prec_of_nat t n : t - 1 - Z.of_nat n = t - Z.pos (Pos.of_succ_nat n).
 Proof. rewrite Zpos_P_of_succ_nat. omega. Qed.
 
-Lemma CausalC_empty ts t c tr i env ext : CausalC ts (Some t) c -> C[|c|]env ext = Some tr -> (Z.of_nat i < t)%Z
+Lemma CausalC_empty ts t c tr i env ext : CausalC ts (Time t) c -> C[|c|]env ext = Some tr -> (Z.of_nat i < t)%Z
                                            -> tr i = empty_trans.
 Proof.
   generalize dependent env. generalize dependent ext. generalize dependent tr. 
@@ -327,7 +331,7 @@ Proof.
         intros. eapply IH1; eauto. omega. apply H0.
 Qed.
 
-Lemma CausalC_empty' ts t c tr i env ext : CausalC ts t c -> C[|c|]env ext = Some tr -> Some (Z.of_nat i) < t
+Lemma CausalC_empty' ts t c tr i env ext : CausalC ts t c -> C[|c|]env ext = Some tr -> Time (Z.of_nat i) < t
                                            -> tr i = empty_trans.
 Proof.
   intros. destruct t; inversion H1. eapply CausalC_empty;eauto.
@@ -339,9 +343,9 @@ Proof.
 Qed.
 
 Lemma CausalC_sound' ts t t1 t2 i env1 env2 r1 r2 c : 
-  CausalC ts t c -> env_until (Some (Z.of_nat i)) ts env1 env2 ->
+  CausalC ts t c -> env_until (Time (Z.of_nat i)) ts env1 env2 ->
   ext_until (Z.of_nat i) r1 r2 -> C[|c|]env1 r1 = Some t1 -> C[|c|] env2 r2 = Some t2 ->
-  t <= Some (Z.of_nat i) -> t1 i = t2 i.
+  t <= Time (Z.of_nat i) -> t1 i = t2 i.
 Proof.
   intros C V X C1 C2 I. 
   generalize dependent ts. generalize dependent t. generalize dependent r1. generalize dependent r2.
@@ -370,7 +374,7 @@ Proof.
     eassumption.
     intros. eauto using tle_tsub'_rev. 
     rewrite Nat2Z.inj_sub by assumption. 
-    assert (tsub' n (Some (Z.of_nat i)) = Some (Z.of_nat i - Z.of_nat n)) as E by reflexivity.
+    assert (tsub' n (Time (Z.of_nat i)) = Time (Z.of_nat i - Z.of_nat n)) as E by reflexivity.
     rewrite <- E. eauto using env_until_monotone, tle_tsub'_rev.
   - simpl in *. option_inv_auto. unfold add_trace. f_equal; [eapply IHc1|eapply IHc2]; eauto.
   - simpl in *. apply CausalE_sound in H4. unfold causalE in *.
@@ -381,8 +385,8 @@ Proof.
          forall r1 : ExtEnv,
          C[|c1|] env1 r1 = Some t1 ->
          ext_until (Z.of_nat i) r1 r2 ->
-         env_until (Some (Z.of_nat i)) ts env1 env2 -> t1 i = t2 i) as IH1.
-    intros. remember (t <=? Some (Z.of_nat i0)) as L. symmetry in HeqL. destruct L.
+         env_until (Time (Z.of_nat i)) ts env1 env2 -> t1 i = t2 i) as IH1.
+    intros. remember (t <=? Time (Z.of_nat i0)) as L. symmetry in HeqL. destruct L.
     rewrite tleb_tle in HeqL. eapply IHc1;eauto. rewrite tleb_tgt in HeqL.
     eapply CausalC_empty' in H; eauto. eapply CausalC_empty' in H0; eauto. 
     rewrite H. rewrite H0. reflexivity. 
@@ -408,7 +412,7 @@ Proof.
           apply X. rewrite Nat2Z.inj_sub by assumption. 
           assert (Z.of_nat 1 = 1) as E by reflexivity. rewrite E. omega. 
         * rewrite Nat2Z.inj_sub by assumption. simpl. 
-          assert (Some (Z.of_nat i - 1) = tsub' 1 (Some (Z.of_nat i))) as E by reflexivity.
+          assert (Time (Z.of_nat i - 1) = tsub' 1 (Time (Z.of_nat i))) as E by reflexivity.
           rewrite E. eapply tle_tsub'. assumption.
         * apply env_until_monotone with (f:=tsub' 1) in V. 
           rewrite Nat2Z.inj_sub by assumption. apply V.
@@ -433,7 +437,7 @@ Qed.
 Theorem CausalC_sound t c : CausalC nil t c  -> causal c.
 Proof.
   intros C. unfold causal. intros. 
-  remember (t <=? Some (Z.of_nat d)) as L. symmetry in HeqL. destruct L.
+  remember (t <=? Time (Z.of_nat d)) as L. symmetry in HeqL. destruct L.
   - rewrite tleb_tle in HeqL. eapply CausalC_sound'; eauto. constructor.
   - rewrite tleb_tgt in HeqL.
     eapply CausalC_empty' in H0; eauto. eapply CausalC_empty' in H1; eauto. 
