@@ -30,12 +30,13 @@ Definition sub_time d (t : TiTy) := match t with TimedType ty ti => TimedType ty
 
 Definition TiTyEnv := Env' TiTy.
 
+Open Scope time.
 
 (* Definition of the timed type inference rules for variables,
 operators, expressions and contracts. *)
 
 Inductive TiTyV : TiTyEnv -> TiTy -> Var -> Prop :=
-| causal_V1 t t' g  : type t = type t' -> tle (time t) (time t') -> TiTyV (t :: g) t' V1
+| causal_V1 t t' g  : type t = type t' -> time t <= time t' -> TiTyV (t :: g) t' V1
 | causal_VS g v t t' : TiTyV g t v -> TiTyV (t' :: g) t (VS v).
 
 Definition TiTyOp (op : Op) (ts : list TiTy) (t:TiTy) : Prop
@@ -52,7 +53,7 @@ Qed.
 
 Inductive TiTyE : TiTyEnv -> TiTy -> Exp -> Prop:= 
  | causal_op t ts ts' op args : TiTyOp op ts' t -> all2 (TiTyE ts) ts' args -> TiTyE ts t (OpE op args)
- | causal_obs l t' t ts : tle (Some t') (time t) -> |-O l ∶ type t ->  TiTyE ts t (Obs l t')
+ | causal_obs l t' t ts : Some t' <= time t -> |-O l ∶ type t ->  TiTyE ts t (Obs l t')
  | causal_var t ts v : TiTyV ts t v -> TiTyE ts t (VarE v)
  | causal_acc t ts e1 e2 n : TiTyE (map (add_time n) ts) (add_time n t) e2
                              -> TiTyE (type t ^ None :: ts) t e1
@@ -68,7 +69,7 @@ Inductive TiTyC : TiTyEnv -> TimeB -> Contr -> Prop :=
 | causal_let ts t t' e c : TiTyE ts t' e -> TiTyC (t' :: ts) t c -> TiTyC ts t (Let e c)
 | causal_scale ts ti e c : TiTyE ts (REAL ^ ti) e -> TiTyC ts ti c -> TiTyC ts ti (Scale e c)
 | causal_both ts t c1 c2 : TiTyC ts t c1 -> TiTyC ts t c2 -> TiTyC ts t (Both c1 c2)
-| causal_transfer t ts p1 p2 a : tle t (Some 0) -> TiTyC ts t (Transfer p1 p2 a)
+| causal_transfer t ts p1 p2 a : t <= Some 0 -> TiTyC ts t (Transfer p1 p2 a)
 | causal_if ts t d e c1 c2 : TiTyE ts (BOOL ^ Some 0) e -> TiTyC ts t c1
                              -> TiTyC (map (sub_time d) ts) (tsub' d t) c2
                              -> TiTyC ts t (If e d c1 c2)
@@ -269,7 +270,7 @@ Proof.
   apply TiTyC_time in H. rewrite map_time in H; auto. destruct H. apply type_TiTyC;auto.
 Qed.
 
-Definition subtype (t1 t2 : TiTy) := type t1 = type t2 /\ tle (time t1) (time t2).
+Definition subtype (t1 t2 : TiTy) := type t1 = type t2 /\ time t1 <= time t2.
 
 Infix "<|" := subtype (at level 1).
 
@@ -279,7 +280,7 @@ Lemma subtype_type t1 t2 : t1 <| t2 -> type t1 = type t2.
 Proof.
   intros. unfold subtype in *. tauto.
 Qed.
-Lemma subtype_time t1 t2 : t1 <| t2 -> tle (time t1) (time t2).
+Lemma subtype_time t1 t2 : t1 <| t2 -> time t1 <= time t2.
 Proof.
   intros. unfold subtype in *. tauto.
 Qed.
@@ -355,99 +356,113 @@ Proof.
   destruct op; split; intro H; repeat (destruct args;try destruct t; simpl in *; try solve [inversion H;eauto]).
 Qed.
 
-Definition min_time (t1 t2 : option Z) : option Z :=
+Definition tmax (t1 t2 : option Z) : option Z :=
   match t1,t2 with
     | None, _ => t2
     | _, None => t1
-    | Some t1', Some t2' => Some (Z.min t1' t2')
+    | Some t1', Some t2' => Some (Z.max t1' t2')
   end.
 
-Definition min_times (ts : list (option Z)) : option Z :=fold_left min_time ts None.
 
-Definition add_timep d (t : TiTy) := match t with 
-                                        | TimedType ty (Some ti) => TimedType ty (Some (ti + Z.of_nat d))
-                                        | _ => t
-                                      end.
+Lemma tmax_tle_iff t t1 t2 : t <= tmax t1 t2 <-> t <= t1 \/ t <= t2.
+Proof.
+  destruct t;split;firstorder; destruct t1, t2; inversion H; try rewrite -> Z.max_le_iff in H2; firstorder;
+  constructor; rewrite -> Z.max_le_iff; tauto.
+Qed.
+
+Lemma tmax_lub_iff  t t1 t2 : tmax t1 t2 <= t <-> t1 <= t /\ t2 <= t.
+Proof.
+    destruct t;split;firstorder destruct t1, t2; simpl in H; inversion_clear H;
+    try constructor; try rewrite -> Z.max_lub_iff in H0; firstorder.
+    rewrite -> Z.max_lub_iff. inversion H0. tauto. inversion H0. tauto.
+Qed.
+
+(* Define as left fold instead (and then prove that it is equal to the right fold). *)
+Definition tmaxs (ts : list (option Z)) : option Z :=fold_right tmax None ts.
+
+Lemma tmaxs_cons x xs : tmaxs (x :: xs) = tmax x (tmaxs xs).
+Proof.
+  unfold tmaxs. fold ([x] ++ xs). rewrite fold_right_app. reflexivity.
+Qed.
 
 Fixpoint inferE (env : TiTyEnv) (e:Exp) : option TiTy :=
   match e with
     | OpE op args => sequence (map (inferE env) args) >>=
-                              (fun args' => liftM (fun ty => ty ^ min_times (map time args')) 
+                              (fun args' => liftM (fun ty => ty ^ tmaxs (map time args')) 
                                                   (inferOp op (map type args')))
     | VarE v => lookupEnv v env
     | Obs l i => Some (inferObs l ^ Some i)
-    | Acc f d z => inferE (map (add_timep d) env) z >>= 
+    | Acc f d z => inferE (map (add_time d) env) z >>= 
                   (fun t => inferE (type t ^ None :: env) f >>= 
                   (fun t' => if tyeqb (type t) (type t') 
-                             then Some (type t ^ min_time (liftM (fun x => x + Z.of_nat d) (time t)) (time t')) 
+                             then Some (type t ^ tmax (tsub' d (time t)) (time t')) 
                              else None))
   end.
 
 
-Definition instTiTy (t : TiTy) (t' : TiTy) : Prop := 
-  type t = type t' /\ (forall ti, time t = Some ti -> time t' = ti).
+Lemma subtype_refl t : t <| t.
+Proof. destruct t. auto. Qed.
 
-Definition instTiTy_arb : TiTyP -> TiTy :=
-  (fun x => match x with 
-                  | ty ^ Some ti => ty ^ ti
-                  | ty ^ None => ty ^ 0
-                end).
+Hint Immediate subtype_refl.
 
-Lemma instTiTy_arb_sound t : instTiTy t (instTiTy_arb t).
+Lemma all_subtype_refl ts :  all2 subtype ts ts.
 Proof.
-  destruct t. simpl. destruct ti; econstructor; eauto;firstorder; simpl in *; congruence.
+  induction ts; eauto. 
 Qed.
 
-Hint Immediate inferObs_sound instTiTy_arb_sound.
-
-Lemma instTiTyEnv_arb_sound env : all2 instTiTy env (map instTiTy_arb env).
+Lemma all_type_tle args ts env m : 
+  all2 (TiTyE env) ts args
+  -> tmaxs (map time ts) <= m
+  -> all2 (TiTyE env) (map (fun t => type t ^ m) ts) args.
 Proof.
-  induction env;simpl;auto.
+  intros T M. rewrite <- map_id. apply all2_map'. generalize dependent m. induction T;intros m M;constructor.
+  - simpl. eapply TiTyE_open with (t:=x). apply all_subtype_refl. constructor. reflexivity.
+    simpl in *. rewrite tmax_lub_iff in M. tauto. assumption.
+  - apply IHT. simpl in M. rewrite tmax_lub_iff in M. tauto.
 Qed.
 
-
-Hint Immediate instTiTyEnv_arb_sound.
-
-Lemma lookupEnv_sound v env t t' :
-  instTiTy t t' -> lookupEnv v env = Some t -> 
-  exists env' : TiTyEnv, TiTyE env' t' (VarE v) /\ all2 instTiTy env env'.
+Corollary all_type_max args ts env : 
+  all2 (TiTyE env) ts args
+  -> all2 (TiTyE env) (map (fun t => type t ^ tmaxs (map time ts)) ts) args.
 Proof.
-  generalize dependent v.
-  induction env;intros v T I;destruct v;tryfalse.
-  - simpl in I. inversion_clear I. eexists. split;[repeat constructor;reflexivity|auto].
-  - simpl in I. eapply IHenv in I; eauto. destruct I as [env' I]. destruct I as [I1 I2].
-    inversion_clear I1. eauto 6 using causal_var, causal_VS.
+  intros. apply all_type_tle;auto.
 Qed.
 
 Theorem inferE_sound env e t :
-   inferE env e = Some t -> 
-   forall t', instTiTy t t' -> 
-              exists env', TiTyE env' t' e /\ all2 instTiTy env env'.
+   inferE env e = Some t -> TiTyE env t e.
 Proof.
-  intros I t' T. generalize dependent env. generalize dependent t. generalize dependent t'.
+  intros I. generalize dependent env. generalize dependent t.
   induction e using Exp_ind'; intros; simpl in *;option_inv_auto.
-  (* - repeat (eapply all_apply in H; eauto).  *)
-  (*   rewrite inferOp_TypeOp in *. eexists. split. econstructor. eapply TiTyOp_TypeOp.  *)
-  (*   eassumption. *)
-  (*   f_equal. *)
+  - assert (all2 (TiTyE env) x args) as T. clear H3.
+    generalize dependent x. induction H; simpl in *; intros.
+    inversion H1. auto.
+    option_inv_auto. constructor. eapply TiTyE_open with (t:=x2). apply all_subtype_refl.
+    auto. auto. apply IHall. auto.
 
-  (*   split; [idtac|eapply H3]. *)
-  - admit.
-  - inversion I as [I']. clear I. subst. destruct T as [T1 T2]. simpl in *.
-    eexists. split; eauto. econstructor. erewrite T2; eauto. omega. rewrite <- T1. auto.
-  - eapply lookupEnv_sound;eauto.
+    apply all_type_max in T. remember (map (fun t => type t ^ tmaxs (map time x)) x) as x'.
+    rewrite inferOp_TypeOp in *. apply causal_op with (ts':= x').
+    constructor. simpl. subst. apply all_map_forall. auto. simpl.
+    assert (map type x = map type x') as Tx.
+    subst. induction x;simpl;f_equal. rewrite map_map. simpl. reflexivity.
+    rewrite <- Tx. assumption. assumption.
+  - inversion I as [I']. destruct l;eauto.
+  - generalize dependent t. generalize dependent env.
+    induction v.
+    + constructor; destruct env; simpl in I; inversion I; auto.
+    + constructor. destruct env; simpl in I;tryfalse. apply IHv in I. inversion I. auto.
   - destruct x; destruct x0; simpl in H3. cases (tyeqb ty ty0) as E;tryfalse. apply tyeqb_iff in E.
     inversion_clear H3. subst. eapply IHe1 in H2. eapply IHe2 in H0.
-    decompose [ex and] H2. decompose [ex and] H0. clear H0 H2.
-    eexists. split.
-    + econstructor. reflexivity
-Qed.
-
-Definition toTiTyP (t : TiTy) : TiTyP := TimedType (type t) (Some (time t)).
-
-
-Theorem inferE_complete env e t :
-  TiTyE env t e -> inferE (map toTiTyP env) e = Some (toTiTyP t).
-Proof.
-  admit.
+    econstructor;simpl in *.
+    + eapply TiTyE_open with (t:=ty0 ^ ti). 
+      * apply all_subtype_refl. 
+      * constructor. reflexivity. simpl. destruct ti,ti0;auto; 
+        simpl; autounfold;constructor; try omega. rewrite <- Z.add_max_distr_r. 
+        rewrite Z.max_le_iff. left. omega.
+      * assumption.
+    + eapply TiTyE_open with (t:=ty0 ^ ti0).
+      * apply all_subtype_refl. 
+      * constructor. reflexivity. simpl. destruct ti,ti0;auto; 
+        simpl; autounfold;constructor; try omega. 
+        rewrite Z.max_le_iff. right. omega.
+      * assumption. 
 Qed.

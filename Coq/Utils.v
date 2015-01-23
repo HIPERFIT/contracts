@@ -61,6 +61,12 @@ Proof.
 Qed.
 
 
+
+Lemma all2_map' {A1 A2 B1 B2} P (f : A1 -> B1) (g : A2 -> B2) xs ys : 
+  all2 (fun x y => P (f x) (g y)) xs ys -> all2 P (map f xs) (map g ys).
+Proof.
+  intro L. induction L; constructor;auto.
+Qed.
   
 
 Class Partial t := {
@@ -280,6 +286,17 @@ Lemma all_apply {A} (P : Type) (p : P) (R : A -> P -> Prop) xs :
   all (fun x => forall (p:P), R x p) xs -> all (fun x => R x p) xs.
 Proof.
   intros F. induction F; auto.
+Qed.
+
+
+Lemma all_map {A B} P (f : A -> B) xs : all (fun x => P (f x)) xs -> all P (map f xs).
+Proof.
+  intro L. induction L; constructor;auto.
+Qed.
+
+Lemma all_map_forall {A B} (P : B -> Prop) (f : A -> B) xs : (forall x, P (f x)) ->  all P (map f xs).
+Proof.
+  intro L. induction xs; constructor;auto.
 Qed.
 
 
