@@ -509,13 +509,15 @@ Definition imeet' (t1 t2 : TimeI) : option TimeI :=
 Definition imeet (t1 t2 : option TimeI) : option TimeI :=
   t1 >>= fun t1' => t2 >>= fun t2' => imeet' t1' t2'.
 
+
+Hint Unfold iadd icut imeet.
 Open Scope time.
 
 Fixpoint inferC (env : TiTyEnv) (c:Contr) : option TimeI :=
   match c with
     | Zero => Some (None,None)
     | Transfer p1 p2 a => Some (None,Some 0)
-    | Translate d c' => iadd d (inferC env c')
+    | Translate d c' => iadd d (inferC (map (sub_time d) env) c')
     | Scale e c' => inferE env e >>= fun t => if tyeqb (type t) REAL 
                                               then icut (time t) (inferC env c')
                                               else None
@@ -523,6 +525,82 @@ Fixpoint inferC (env : TiTyEnv) (c:Contr) : option TimeI :=
     | Let e c' => inferE env e >>= fun t => inferC (t :: env) c'
     | If e d c1 c2 => inferE env e >>= fun t =>
                       if tyeqb (type t) BOOL && (time t <=? Time 0)
-                      then imeet (inferC env c1) (iadd d (inferC env c2))
+                      then imeet (inferC env c1) (iadd d (inferC (map (sub_time d) env) c2))
                       else None
   end.
+
+Open Scope Z.
+
+Inductive ielem : TimeB -> TimeI -> Prop :=
+  | ielem_none t : ielem t (None,None)
+  | ielem_lo l t : l <= t -> ielem (Time t) (Some l, None)
+  | ielem_hi h t : t <= h -> ielem (Time t) (None, Some h)
+  | ielem_lohi l h t : l <= t -> t <= h -> ielem (Time t) (Some l, Some h).
+
+Hint Constructors ielem.
+
+Ltac destruct_time :=   
+  repeat (match goal with
+            | [x : option _ |- _] => destruct x
+            | [x : TimeB |- _] => destruct x
+            | [x : TimeI |- _] => destruct x
+          end); autounfold in *; simpl in *; 
+  try match goal with
+        | [_ : context [?x <=? ?y] |- _] => cases (x <=? y)
+      end.
+
+Lemma icut_ielem t ti i j : icut ti j = Some i -> ielem t i -> tle ti t.
+Proof.
+  intros I C. destruct_time;
+ try constructor; inversion I; inversion C; 
+  clear I C; subst;  eauto using Z.max_lub_l, Z.max_lub_r.
+Qed.
+
+Definition ile (i j : TimeI) := forall t : TimeB, ielem t i -> ielem t j.
+
+Hint Unfold ile.
+
+Lemma icut_ile t i j : icut t j = Some i -> exists j', j = Some j' /\ ile i j'.
+Proof.
+  intros C. destruct_time; inversion C; clear C; subst; 
+  eexists; split; try reflexivity; intros s S; inversion S; clear S; subst;
+  eauto using Z.max_lub_l, Z.max_lub_r.
+Qed.
+
+
+Lemma iadd_ielem_opp t n x : ielem t (iadd' n x) -> ielem (tadd (-n) t) x.
+Proof.
+  intros I. destruct_time; autounfold in *; simpl in *;
+  inversion I; clear I; subst; constructor; omega.
+Qed.
+
+Lemma imeet_ile i j k : imeet i j = Some k -> exists i' j', i = Some i' /\ ile k i' /\ j = Some j' /\ ile k j'.
+Proof.
+  intros M. destruct_time;inversion M; clear M; subst;
+  do 2 eexists; repeat split; try reflexivity; intros s S; inversion S; clear S; subst;
+  eauto using Z.max_lub_l, Z.max_lub_r, Z.min_glb_l, Z.min_glb_r. 
+Qed.
+
+
+
+Theorem inferC_sound env c i : inferC env c = Some i -> forall t, ielem t i -> TiTyC env t c.
+Proof.
+  generalize dependent env. generalize dependent i.
+  induction c; intros i env I t E;simpl in *; option_inv_auto;
+  try solve [eauto using inferE_sound |inversion E;auto].
+  - cases (tyeqb (type x) REAL) as TE;tryfalse. rewrite tyeqb_iff in TE.
+    constructor. apply TiTyE_open' with (t:=x). split. auto. simpl.
+    eauto using icut_ielem. eauto using inferE_sound. 
+    pose H1 as C.
+    apply icut_ile in C. decompose [ex and] C. clear C.
+    eapply IHc. eassumption. auto.
+  - autounfold in I. option_inv I;subst. eauto using iadd_ielem_opp. 
+  - apply imeet_ile in I. decompose [ex and] I. clear I. constructor; eauto.
+  - cases (tyeqb (type x) BOOL && tleb (time x) (Time 0)) as B;tryfalse.
+    apply imeet_ile in H1. decompose [ex and] H1. clear H1.
+    rewrite Bool.andb_true_iff in B. destruct B as [B1 B2].
+    rewrite tleb_tle, tyeqb_iff in *. 
+    autounfold in H3; option_inv' H3. 
+    constructor. eapply TiTyE_open' with (t:=x);eauto using inferE_sound.
+    eapply IHc1; eauto. eapply IHc2; eauto using iadd_ielem_opp.
+Qed.
