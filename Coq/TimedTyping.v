@@ -458,3 +458,71 @@ Proof.
     + rewrite <- Z.add_max_distr_r. rewrite Z.max_le_iff. left. omega.
     + rewrite Z.max_le_iff. right. omega.
 Qed.
+
+(* Time intervals *)
+
+Definition TimeI := (option Z * option Z)%type.
+
+Definition iadd' (d : Z) (t : TimeI) :=
+  let (lo, hi) := t in (liftM (Z.add d) lo, liftM (Z.add d) hi).
+
+Definition iadd (d : nat) : option TimeI -> option TimeI := liftM (iadd' (Z.of_nat d)).
+
+Open Scope Z.
+
+Definition icut' (l : TimeB) (t : TimeI) : option TimeI :=
+  match l with
+    | TimeBot => Some t
+    | Time l' => let (lo, hi) := t in
+                 let lo' := match lo with
+                              | None => Some l'
+                              | Some x => Some (Z.max x l')
+                            end
+                 in match hi with
+                      | None => Some (lo', hi) 
+                      | Some y => if l' <=? y then Some (lo', hi) else None
+                    end
+  end.
+
+Definition icut (l : TimeB) (t : option TimeI) : option TimeI :=
+  t >>= fun t' => icut' l t'.
+
+
+Definition imeet' (t1 t2 : TimeI) : option TimeI :=
+  let (lo1, hi1) := t1 in
+  let (lo2, hi2) := t2 in
+  let lo := match lo1, lo2 with
+                | None,_ => lo2
+                | _, None => lo1
+                | Some l1, Some l2 => Some (Z.max l1 l2)
+            end in
+  let hi := match hi1, hi2 with
+                | None,_ => hi2
+                | _, None => hi1
+                | Some h1, Some h2 => Some (Z.min h1 h2)
+            end
+  in match lo,hi with
+       | Some l, Some h => if (l <=? h) then Some (lo,hi) else None
+       | _,_ => Some (lo,hi)
+     end.
+
+Definition imeet (t1 t2 : option TimeI) : option TimeI :=
+  t1 >>= fun t1' => t2 >>= fun t2' => imeet' t1' t2'.
+
+Open Scope time.
+
+Fixpoint inferC (env : TiTyEnv) (c:Contr) : option TimeI :=
+  match c with
+    | Zero => Some (None,None)
+    | Transfer p1 p2 a => Some (None,Some 0)
+    | Translate d c' => iadd d (inferC env c')
+    | Scale e c' => inferE env e >>= fun t => if tyeqb (type t) REAL 
+                                              then icut (time t) (inferC env c')
+                                              else None
+    | Both c1 c2 => imeet (inferC env c1) (inferC env c2)
+    | Let e c' => inferE env e >>= fun t => inferC (t :: env) c'
+    | If e d c1 c2 => inferE env e >>= fun t =>
+                      if tyeqb (type t) BOOL && (time t <=? Time 0)
+                      then imeet (inferC env c1) (iadd d (inferC env c2))
+                      else None
+  end.
