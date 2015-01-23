@@ -257,13 +257,20 @@ Ltac option_inv' T := option_inv T; subst; clear T.
 
 Ltac option_inv_auto := repeat (idtac; match goal with
                       | [T : liftM _ _ = Some _ |- _] => apply liftM_some in T; decompose [ex and] T; clear T
-                      | [T : Some _ = liftM _ _ |- _] => symmetry in T; apply liftM_some in T;decompose [ex and] T; clear T
+                      | [T : Some _ = liftM _ _ |- _] => symmetry in T; apply liftM_some in T;
+                                                         decompose [ex and] T; clear T
                       | [T : liftM2 _ _ _ = Some _ |- _] => apply liftM2_some in T; decompose [ex and] T; clear T
                       | [T : liftM3 _ _ _ _ = Some _ |- _] => apply liftM3_some in T; decompose [ex and] T; clear T
-                      | [T : Some _ = liftM2 _ _ _ |- _] => symmetry in T; apply liftM2_some in T; decompose [ex and] T; clear T
-                      | [T : Some _ = liftM3 _ _ _ _ |- _] => symmetry in T; apply liftM3_some in T; decompose [ex and] T; clear T
+                      | [T : Some _ = liftM2 _ _ _ |- _] => symmetry in T; apply liftM2_some in T;
+                                                            decompose [ex and] T; clear T
+                      | [T : Some _ = liftM3 _ _ _ _ |- _] => symmetry in T; apply liftM3_some in T;
+                                                              decompose [ex and] T; clear T
                       | [T : _ >>= _ = Some _ |- _] => apply bind_some in T; decompose [ex and] T; clear T
-                      | [T : Some _ = _ >>= _ |- _] => symmetry in T; apply bind_some in T; decompose [ex and] T; clear T
+                      | [T : Some _ = _ >>= _ |- _] => symmetry in T; apply bind_some in T;
+                                                       decompose [ex and] T; clear T
+                      | [T : Some _ = Some _ |- _] => inversion T; clear T
+                      | [T : None = Some _ |- _] => inversion T
+                      | [T : Some _ = None |- _] => inversion T
                      end;subst).
 
 

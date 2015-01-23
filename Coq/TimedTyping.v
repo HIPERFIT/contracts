@@ -306,6 +306,20 @@ Proof.
   eapply CausalE_open;eauto.
 Qed.
 
+Lemma subtype_refl t : t <| t.
+Proof. destruct t. auto. Qed.
+
+Hint Immediate subtype_refl.
+
+Lemma all_subtype_refl ts :  all2 subtype ts ts.
+Proof.
+  induction ts; eauto. 
+Qed.
+
+
+(* Special case of [TiTyE_open] where the type environment stays the same. *)
+Corollary TiTyE_open' t t' ts (e : Exp) : t <| t' -> TiTyE ts t e -> TiTyE ts t' e.
+Proof. eauto using TiTyE_open, all_subtype_refl. Qed.
 
 Definition inferObs (l : ObsLabel) : Ty :=
   match l with
@@ -399,25 +413,14 @@ Fixpoint inferE (env : TiTyEnv) (e:Exp) : option TiTy :=
                              else None))
   end.
 
-
-Lemma subtype_refl t : t <| t.
-Proof. destruct t. auto. Qed.
-
-Hint Immediate subtype_refl.
-
-Lemma all_subtype_refl ts :  all2 subtype ts ts.
-Proof.
-  induction ts; eauto. 
-Qed.
-
 Lemma all_type_tle args ts env m : 
   all2 (TiTyE env) ts args
   -> tmaxs (map time ts) <= m
   -> all2 (TiTyE env) (map (fun t => type t ^ m) ts) args.
 Proof.
   intros T M. rewrite <- map_id. apply all2_map'. generalize dependent m. induction T;intros m M;constructor.
-  - simpl. eapply TiTyE_open with (t:=x). apply all_subtype_refl. constructor. reflexivity.
-    simpl in *. rewrite tmax_lub_iff in M. tauto. assumption.
+  - simpl. eapply TiTyE_open' with (t:=x);auto. constructor. reflexivity.
+    simpl in *. rewrite tmax_lub_iff in M. tauto.
   - apply IHT. simpl in M. rewrite tmax_lub_iff in M. tauto.
 Qed.
 
@@ -433,36 +436,25 @@ Theorem inferE_sound env e t :
 Proof.
   intros I. generalize dependent env. generalize dependent t.
   induction e using Exp_ind'; intros; simpl in *;option_inv_auto.
-  - assert (all2 (TiTyE env) x args) as T. clear H3.
-    generalize dependent x. induction H; simpl in *; intros.
-    inversion H1. auto.
-    option_inv_auto. constructor. eapply TiTyE_open with (t:=x2). apply all_subtype_refl.
-    auto. auto. apply IHall. auto.
-
+  - assert (all2 (TiTyE env) x args) as T 
+    by (clear H3; generalize dependent x; induction H; simpl in *; 
+        intros; option_inv_auto; eauto using TiTyE_open').
     apply all_type_max in T. remember (map (fun t => type t ^ tmaxs (map time x)) x) as x'.
     rewrite inferOp_TypeOp in *. apply causal_op with (ts':= x').
     constructor. simpl. subst. apply all_map_forall. auto. simpl.
     assert (map type x = map type x') as Tx.
     subst. induction x;simpl;f_equal. rewrite map_map. simpl. reflexivity.
     rewrite <- Tx. assumption. assumption.
-  - inversion I as [I']. destruct l;eauto.
+  - destruct l;eauto.
   - generalize dependent t. generalize dependent env.
-    induction v.
-    + constructor; destruct env; simpl in I; inversion I; auto.
-    + constructor. destruct env; simpl in I;tryfalse. apply IHv in I. inversion I. auto.
+    induction v;constructor; destruct env; simpl in I; inversion I; auto.
+    apply IHv in I. inversion I. auto.
   - destruct x; destruct x0; simpl in H3. cases (tyeqb ty ty0) as E;tryfalse. apply tyeqb_iff in E.
     inversion_clear H3. subst. eapply IHe1 in H2. eapply IHe2 in H0.
-    econstructor;simpl in *.
-    + eapply TiTyE_open with (t:=ty0 ^ ti). 
-      * apply all_subtype_refl. 
-      * constructor. reflexivity. simpl. destruct ti,ti0;auto; 
-        simpl; autounfold;constructor; try omega. rewrite <- Z.add_max_distr_r. 
-        rewrite Z.max_le_iff. left. omega.
-      * assumption.
-    + eapply TiTyE_open with (t:=ty0 ^ ti0).
-      * apply all_subtype_refl. 
-      * constructor. reflexivity. simpl. destruct ti,ti0;auto; 
-        simpl; autounfold;constructor; try omega. 
-        rewrite Z.max_le_iff. right. omega.
-      * assumption. 
+    econstructor;simpl in *;
+    [eapply TiTyE_open' with (t:=ty0 ^ ti)|eapply TiTyE_open' with (t:=ty0 ^ ti0)]; try assumption;
+    constructor; try reflexivity; simpl; destruct ti,ti0;auto; 
+    simpl; autounfold;constructor; try omega. 
+    + rewrite <- Z.add_max_distr_r. rewrite Z.max_le_iff. left. omega.
+    + rewrite Z.max_le_iff. right. omega.
 Qed.
