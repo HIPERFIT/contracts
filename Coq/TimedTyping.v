@@ -3,6 +3,10 @@ Require Import ContextualCausality.
 Require Import Tactics.
 Require Import Utils.
 Require Import Environments.
+Require Import Causality.
+
+Import ListNotations. 
+
 
 (* A type system with time-indexed types. This system subsumes both
 the type system and the contextual causality system. *)
@@ -13,7 +17,7 @@ Open Scope Z.
 
 Inductive TiTy := TimedType (ty : Ty) (ti : TimeB).
 
-Infix "^" := TimedType.
+Infix "@" := TimedType (at level 50).
 
 (* Selector functions to extract the time and the type of a timed
 type. *)
@@ -56,7 +60,7 @@ Inductive TiTyE : TiTyEnv -> TiTy -> Exp -> Prop:=
  | causal_obs l t' t ts : Time t' <= time t -> |-O l ∶ type t ->  TiTyE ts t (Obs l t')
  | causal_var t ts v : TiTyV ts t v -> TiTyE ts t (VarE v)
  | causal_acc t ts e1 e2 n : TiTyE (map (add_time n) ts) (add_time n t) e2
-                             -> TiTyE (type t ^ TimeBot :: ts) t e1
+                             -> TiTyE (type t @ TimeBot :: ts) t e1
                              -> TiTyE ts t (Acc e1 n e2)
   .
 
@@ -67,10 +71,10 @@ Inductive TiTyC : TiTyEnv -> TimeB -> Contr -> Prop :=
 | causal_translate ts t d c : TiTyC (map (sub_time d) ts) (tsub' d t) c
                                      -> TiTyC ts t (Translate d c)
 | causal_let ts t t' e c : TiTyE ts t' e -> TiTyC (t' :: ts) t c -> TiTyC ts t (Let e c)
-| causal_scale ts ti e c : TiTyE ts (REAL ^ ti) e -> TiTyC ts ti c -> TiTyC ts ti (Scale e c)
+| causal_scale ts ti e c : TiTyE ts (REAL @ ti) e -> TiTyC ts ti c -> TiTyC ts ti (Scale e c)
 | causal_both ts t c1 c2 : TiTyC ts t c1 -> TiTyC ts t c2 -> TiTyC ts t (Both c1 c2)
 | causal_transfer t ts p1 p2 a : t <= Time 0 -> TiTyC ts t (Transfer p1 p2 a)
-| causal_if ts t d e c1 c2 : TiTyE ts (BOOL ^ Time 0) e -> TiTyC ts t c1
+| causal_if ts t d e c1 c2 : TiTyE ts (BOOL @ Time 0) e -> TiTyC ts t c1
                              -> TiTyC (map (sub_time d) ts) (tsub' d t) c2
                              -> TiTyC ts t (If e d c1 c2)
 .
@@ -176,10 +180,15 @@ Proof.
     rewrite time_sub_time. reflexivity.
 Qed.
 
+Corollary TiTyC_causal t c : TiTyC [] t c -> causal c.
+Proof.
+  intros T. apply TiTyC_time in T. simpl in *. eauto using CausalC_sound.
+Qed.
+
 (* Below we show that the conjunction of well typing and contextual
 causality implies timed typing. *)
 
-Infix "^^" := (zipWith TimedType) (at level 1).
+Infix "@@" := (zipWith TimedType) (at level 1).
 
 Fixpoint repeat {A} (n : nat) (x : A) : list A :=
   match n with
@@ -188,36 +197,36 @@ Fixpoint repeat {A} (n : nat) (x : A) : list A :=
   end.
 
 
-Lemma map_type tys tis : length tys = length tis -> map type tys ^^ tis = tys.
+Lemma map_type tys tis : length tys = length tis -> map type tys @@ tis = tys.
 Proof.
   generalize dependent tis. induction tys;intros. reflexivity.
   destruct tis;tryfalse. simpl. f_equal. auto.
 Qed.
 
-Lemma map_time tys tis : length tys = length tis -> map time tys ^^ tis = tis.
+Lemma map_time tys tis : length tys = length tis -> map time tys @@ tis = tis.
 Proof.
   generalize dependent tys. induction tis;intros. destruct tys; reflexivity.
   destruct tys;tryfalse. simpl. f_equal. auto.
 Qed.
 
-Lemma map_type_time ts : (map type ts) ^^ (map time ts) = ts.
+Lemma map_type_time ts : (map type ts) @@ (map time ts) = ts.
 Proof.
   induction ts;simpl;f_equal;try destruct a;eauto.
 Qed.
 
-Lemma map_type_repeat tys t : map type tys ^^ (repeat (length tys) t) = tys.
+Lemma map_type_repeat tys t : map type tys @@ (repeat (length tys) t) = tys.
 Proof.
   induction tys. reflexivity. simpl. f_equal. auto.
 Qed.
 
-Lemma map_add_time n tys tis : map (add_time n) tys ^^ tis = tys ^^ (map (tadd' n) tis).
+Lemma map_add_time n tys tis : map (add_time n) tys @@ tis = tys @@ (map (tadd' n) tis).
 Proof.
   generalize dependent tis. induction tys;intros. reflexivity.
   destruct tis. reflexivity.
   simpl. rewrite IHtys. reflexivity.
 Qed.
 
-Lemma map_sub_time n tys tis : map (sub_time n) tys ^^ tis = tys ^^ (map (tsub' n) tis).
+Lemma map_sub_time n tys tis : map (sub_time n) tys @@ tis = tys @@ (map (tsub' n) tis).
 Proof.
   generalize dependent tis. induction tys;intros. reflexivity.
   destruct tis. reflexivity.
@@ -225,11 +234,11 @@ Proof.
 Qed.
 
 
-Lemma type_TiTyE tis tys ti ty e : tys |-E e ∶ ty -> CausalE tis ti e -> TiTyE tys^^tis (ty^ti) e.
+Lemma type_TiTyE tis tys ti ty e : tys |-E e ∶ ty -> CausalE tis ti e -> TiTyE tys@@tis (ty@ti) e.
 Proof.
   intros Ty Ti. generalize dependent tis. generalize dependent ti. 
   induction Ty using TypeExp_ind';intros;inversion Ti;subst;clear Ti.
-  - apply causal_op with (ts' := ts ^^ (repeat (length ts) ti)). unfold TiTyOp. split. 
+  - apply causal_op with (ts' := ts @@ (repeat (length ts) ti)). unfold TiTyOp. split. 
     clear H. clear H0. clear H1. induction ts;simpl; constructor. reflexivity. apply IHts.
     rewrite map_type_repeat. simpl. assumption.
     clear H. induction H0;simpl;constructor;inversion H1;inversion H5;subst;auto.
@@ -240,7 +249,7 @@ Proof.
     specialize (IHTy1 ti (TimeBot :: tis)). eauto.
 Qed.
 
-Theorem type_TiTyC tis tys ti  c : tys |-C c -> CausalC tis ti c -> TiTyC tys^^tis ti c.
+Theorem type_TiTyC tis tys ti  c : tys |-C c -> CausalC tis ti c -> TiTyC tys@@tis ti c.
 Proof.
   intros Ty Ti. generalize dependent tis. generalize dependent ti. 
   induction Ty;intros;inversion Ti;subst;clear Ti;eauto using type_TiTyE.
@@ -264,7 +273,7 @@ Proof.
 Qed.
 
 Theorem TiTyC_decompose' tis tys ti c : length tys = length tis ->
-                                       (TiTyC tys^^tis ti c <-> tys |-C c /\ CausalC tis ti c).
+                                       (TiTyC tys@@tis ti c <-> tys |-C c /\ CausalC tis ti c).
 Proof.
   intro L. split; intros. split. apply TiTyC_type in H. rewrite map_type in H;auto. 
   apply TiTyC_time in H. rewrite map_time in H; auto. destruct H. apply type_TiTyC;auto.
@@ -333,8 +342,6 @@ Proof.
   destruct l; auto.
 Qed.
 
-Import ListNotations. 
-
 Definition tyeqb (t1 t2 : Ty) : bool :=
   match t1, t2 with
     | REAL, REAL => true
@@ -402,95 +409,86 @@ Qed.
 Fixpoint inferE (env : TiTyEnv) (e:Exp) : option TiTy :=
   match e with
     | OpE op args => sequence (map (inferE env) args) >>=
-                              (fun args' => liftM (fun ty => ty ^ tmaxs (map time args')) 
+                              (fun args' => liftM (fun ty => ty @ tmaxs (map time args')) 
                                                   (inferOp op (map type args')))
     | VarE v => lookupEnv v env
-    | Obs l i => Some (inferObs l ^ Time i)
+    | Obs l i => Some (inferObs l @ Time i)
     | Acc f d z => inferE (map (add_time d) env) z >>= 
-                  (fun t => inferE (type t ^ TimeBot :: env) f >>= 
+                  (fun t => inferE (type t @ TimeBot :: env) f >>= 
                   (fun t' => if tyeqb (type t) (type t') 
-                             then Some (type t ^ tmax (tsub' d (time t)) (time t')) 
+                             then Some (type t @ tmax (tsub' d (time t)) (time t')) 
                              else None))
   end.
 
-Lemma all_type_tle args ts env m : 
-  all2 (TiTyE env) ts args
-  -> tmaxs (map time ts) <= m
-  -> all2 (TiTyE env) (map (fun t => type t ^ m) ts) args.
-Proof.
-  intros T M. rewrite <- map_id. apply all2_map'. generalize dependent m. induction T;intros m M;constructor.
-  - simpl. eapply TiTyE_open' with (t:=x);auto. constructor. reflexivity.
-    simpl in *. rewrite tmax_lub_iff in M. tauto.
-  - apply IHT. simpl in M. rewrite tmax_lub_iff in M. tauto.
-Qed.
-
-Corollary all_type_max args ts env : 
-  all2 (TiTyE env) ts args
-  -> all2 (TiTyE env) (map (fun t => type t ^ tmaxs (map time ts)) ts) args.
-Proof.
-  intros. apply all_type_tle;auto.
-Qed.
-
-Theorem inferE_sound env e t :
-   inferE env e = Some t -> TiTyE env t e.
-Proof.
-  intros I. generalize dependent env. generalize dependent t.
-  induction e using Exp_ind'; intros; simpl in *;option_inv_auto.
-  - assert (all2 (TiTyE env) x args) as T 
-    by (clear H3; generalize dependent x; induction H; simpl in *; 
-        intros; option_inv_auto; eauto using TiTyE_open').
-    apply all_type_max in T. remember (map (fun t => type t ^ tmaxs (map time x)) x) as x'.
-    rewrite inferOp_TypeOp in *. apply causal_op with (ts':= x').
-    constructor. simpl. subst. apply all_map_forall. auto. simpl.
-    assert (map type x = map type x') as Tx.
-    subst. induction x;simpl;f_equal. rewrite map_map. simpl. reflexivity.
-    rewrite <- Tx. assumption. assumption.
-  - destruct l;eauto.
-  - generalize dependent t. generalize dependent env.
-    induction v;constructor; destruct env; simpl in I; inversion I; auto.
-    apply IHv in I. inversion I. auto.
-  - destruct x; destruct x0; simpl in H3. cases (tyeqb ty ty0) as E;tryfalse. apply tyeqb_iff in E.
-    inversion_clear H3. subst. eapply IHe1 in H2. eapply IHe2 in H0.
-    econstructor;simpl in *;
-    [eapply TiTyE_open' with (t:=ty0 ^ ti)|eapply TiTyE_open' with (t:=ty0 ^ ti0)]; try assumption;
-    constructor; try reflexivity; simpl; destruct ti,ti0;auto; 
-    simpl; autounfold;constructor; try omega. 
-    + rewrite <- Z.add_max_distr_r. rewrite Z.max_le_iff. left. omega.
-    + rewrite Z.max_le_iff. right. omega.
-Qed.
 
 (* Time intervals *)
+Open Scope Z.
 
-Definition TimeI := (option Z * option Z)%type.
+Definition ole (lo hi : option Z) := forall l h, lo = Some l -> hi = Some h -> l <= h.
 
-Definition iadd' (d : Z) (t : TimeI) :=
-  let (lo, hi) := t in (liftM (Z.add d) lo, liftM (Z.add d) hi).
+Hint Unfold ole.
+
+(* Time intervals are always non-empty. *)
+Inductive TimeI := TimeInt (lo hi : option Z) : ole lo hi -> TimeI.
+
+(* This is a variant of [Z.le] in order to be able to discharge the
+proof obligations of the functions on [TimeI] defined below. *)
+
+Definition zle (a b : Z) : {a <= b} + {b < a}.
+cases (a <=? b). 
+- rewrite Z.leb_le in Eq. auto.
+- rewrite Z.leb_gt in Eq. auto.
+Qed.
+
+
+Ltac destruct_time :=   
+  repeat (match goal with
+            | [x : option _ |- _] => destruct x
+            | [x : TimeB |- _] => destruct x
+            | [x : TimeI |- _] => destruct x
+          end); autounfold in *; simpl in *; 
+  try match goal with
+        | [_ : context [?x <=? ?y] |- _] => cases (x <=? y)
+        | [_ : context [zle ?x ?y] |- _] => cases (zle x y)
+      end.
+
+Program Definition iadd' (d : Z) (t : TimeI) :=
+  match t with TimeInt lo hi _ => TimeInt (liftM (Z.add d) lo) (liftM (Z.add d) hi) _ end.
+
+Next Obligation. destruct_time; autounfold; intros; option_inv_auto. auto using Zplus_le_compat_l.
+Qed.
 
 Definition iadd (d : nat) : option TimeI -> option TimeI := liftM (iadd' (Z.of_nat d)).
 
-Open Scope Z.
 
-Definition icut' (l : TimeB) (t : TimeI) : option TimeI :=
+
+
+Program Definition icut' (l : TimeB) (t : TimeI) : option TimeI :=
   match l with
     | TimeBot => Some t
-    | Time l' => let (lo, hi) := t in
+    | Time l' => match t with TimeInt lo hi _ =>
                  let lo' := match lo with
                               | None => Some l'
                               | Some x => Some (Z.max x l')
                             end
                  in match hi with
-                      | None => Some (lo', hi) 
-                      | Some y => if l' <=? y then Some (lo', hi) else None
+                      | None => Some (TimeInt lo' hi _)
+                      | Some y => if zle l' y then Some (TimeInt lo' hi _) else None
                     end
+                 end
   end.
+
+Next Obligation.
+  destruct lo; autounfold in *; intros;option_inv_auto. apply Z.max_lub. eauto. auto. auto.
+Qed.
 
 Definition icut (l : TimeB) (t : option TimeI) : option TimeI :=
   t >>= fun t' => icut' l t'.
 
 
-Definition imeet' (t1 t2 : TimeI) : option TimeI :=
-  let (lo1, hi1) := t1 in
-  let (lo2, hi2) := t2 in
+Program Definition imeet' (t1 t2 : TimeI) : option TimeI :=
+  match t1,t2 with
+      TimeInt lo1 hi1 _, TimeInt lo2 hi2 _ =>
   let lo := match lo1, lo2 with
                 | None,_ => lo2
                 | _, None => lo1
@@ -502,9 +500,20 @@ Definition imeet' (t1 t2 : TimeI) : option TimeI :=
                 | Some h1, Some h2 => Some (Z.min h1 h2)
             end
   in match lo,hi with
-       | Some l, Some h => if (l <=? h) then Some (lo,hi) else None
-       | _,_ => Some (lo,hi)
-     end.
+       | Some l, Some h => if zle l h then Some (TimeInt lo hi _) else None
+       | _,_ => Some (TimeInt lo hi _)
+     end
+  end.
+
+Next Obligation.
+  destruct_time;intros;option_inv_auto;auto.
+Qed.
+Next Obligation.
+  autounfold. intros. destruct_time;intros;option_inv_auto;auto;
+  specialize (H _ _ (conj (@eq_refl _ _) (@eq_refl _ _))); contradiction.
+Qed.
+
+
 
 Definition imeet (t1 t2 : option TimeI) : option TimeI :=
   t1 >>= fun t1' => t2 >>= fun t2' => imeet' t1' t2'.
@@ -513,10 +522,13 @@ Definition imeet (t1 t2 : option TimeI) : option TimeI :=
 Hint Unfold iadd icut imeet.
 Open Scope time.
 
+Program Definition iall : TimeI := TimeInt None None _.
+Program Definition ibelow (t : Z) : TimeI := TimeInt None (Some t) _.
+
 Fixpoint inferC (env : TiTyEnv) (c:Contr) : option TimeI :=
   match c with
-    | Zero => Some (None,None)
-    | Transfer p1 p2 a => Some (None,Some 0)
+    | Zero => Some iall
+    | Transfer p1 p2 a => Some (ibelow 0)
     | Translate d c' => iadd d (inferC (map (sub_time d) env) c')
     | Scale e c' => inferE env e >>= fun t => if tyeqb (type t) REAL 
                                               then icut (time t) (inferC env c')
@@ -529,31 +541,70 @@ Fixpoint inferC (env : TiTyEnv) (c:Contr) : option TimeI :=
                       else None
   end.
 
+
+
+
+Lemma all_type_tle args ts env m : 
+  all2 (TiTyE env) ts args
+  -> tmaxs (map time ts) <= m
+  -> all2 (TiTyE env) (map (fun t => type t @ m) ts) args.
+Proof.
+  intros T M. rewrite <- map_id. apply all2_map'. generalize dependent m. induction T;intros m M;constructor.
+  - simpl. eapply TiTyE_open' with (t:=x);auto. constructor. reflexivity.
+    simpl in *. rewrite tmax_lub_iff in M. tauto.
+  - apply IHT. simpl in M. rewrite tmax_lub_iff in M. tauto.
+Qed.
+
+Corollary all_type_max args ts env : 
+  all2 (TiTyE env) ts args
+  -> all2 (TiTyE env) (map (fun t => type t @ tmaxs (map time ts)) ts) args.
+Proof.
+  intros. apply all_type_tle;auto.
+Qed.
+
+Theorem inferE_sound env e t :
+   inferE env e = Some t -> TiTyE env t e.
+Proof.
+  intros I. generalize dependent env. generalize dependent t.
+  induction e using Exp_ind'; intros; simpl in *;option_inv_auto.
+  - assert (all2 (TiTyE env) x args) as T 
+    by (clear H3; generalize dependent x; induction H; simpl in *; 
+        intros; option_inv_auto; eauto using TiTyE_open').
+    apply all_type_max in T. remember (map (fun t => type t @ tmaxs (map time x)) x) as x'.
+    rewrite inferOp_TypeOp in *. apply causal_op with (ts':= x').
+    constructor. simpl. subst. apply all_map_forall. auto. simpl.
+    assert (map type x = map type x') as Tx.
+    subst. induction x;simpl;f_equal. rewrite map_map. simpl. reflexivity.
+    rewrite <- Tx. assumption. assumption.
+  - destruct l;eauto.
+  - generalize dependent t. generalize dependent env.
+    induction v;constructor; destruct env; simpl in I; inversion I; auto.
+    apply IHv in I. inversion I. auto.
+  - destruct x; destruct x0; simpl in H3. cases (tyeqb ty ty0) as E;tryfalse. apply tyeqb_iff in E.
+    inversion_clear H3. subst. eapply IHe1 in H2. eapply IHe2 in H0.
+    econstructor;simpl in *;
+    [eapply TiTyE_open' with (t:=ty0 @ ti)|eapply TiTyE_open' with (t:=ty0 @ ti0)]; try assumption;
+    constructor; try reflexivity; simpl; destruct ti,ti0;auto; 
+    simpl; autounfold;constructor; try omega. 
+    + rewrite <- Z.add_max_distr_r. rewrite Z.max_le_iff. left. omega.
+    + rewrite Z.max_le_iff. right. omega.
+Qed.
+
 Open Scope Z.
 
 Inductive ielem : TimeB -> TimeI -> Prop :=
-  | ielem_none t : ielem t (None,None)
-  | ielem_lo l t : l <= t -> ielem (Time t) (Some l, None)
-  | ielem_hi h t : t <= h -> ielem (Time t) (None, Some h)
-  | ielem_lohi l h t : l <= t -> t <= h -> ielem (Time t) (Some l, Some h).
+  | ielem_none t p : ielem t (TimeInt None None p)
+  | ielem_lo l t p : l <= t -> ielem (Time t) (TimeInt (Some l) None p)
+  | ielem_hi h t p : t <= h -> ielem (Time t) (TimeInt None (Some h) p)
+  | ielem_lohi l h t p : l <= t -> t <= h -> ielem (Time t) (TimeInt (Some l) (Some h) p).
 
 Hint Constructors ielem.
-
-Ltac destruct_time :=   
-  repeat (match goal with
-            | [x : option _ |- _] => destruct x
-            | [x : TimeB |- _] => destruct x
-            | [x : TimeI |- _] => destruct x
-          end); autounfold in *; simpl in *; 
-  try match goal with
-        | [_ : context [?x <=? ?y] |- _] => cases (x <=? y)
-      end.
 
 Lemma icut_ielem t ti i j : icut ti j = Some i -> ielem t i -> tle ti t.
 Proof.
   intros I C. destruct_time;
  try constructor; inversion I; inversion C; 
-  clear I C; subst;  eauto using Z.max_lub_l, Z.max_lub_r.
+  clear I C; subst; eauto using Z.max_lub_l, Z.max_lub_r.
 Qed.
 
 Definition ile (i j : TimeI) := forall t : TimeB, ielem t i -> ielem t j.
@@ -603,4 +654,23 @@ Proof.
     autounfold in H3; option_inv' H3. 
     constructor. eapply TiTyE_open' with (t:=x);eauto using inferE_sound.
     eapply IHc1; eauto. eapply IHc2; eauto using iadd_ielem_opp.
+Qed.
+
+Definition has_type (c : Contr) : bool := 
+  match inferC nil c with
+    | Some _ => true
+    | None => false
+  end.
+
+Lemma ielem_exists i : exists t, ielem t i.
+Proof.
+  destruct i. autounfold in *. destruct lo,hi;
+  first [exists (Time z)|exists (TimeBot)]; eauto using Z.le_refl.
+Qed.
+
+
+Corollary has_type_causal c : has_type c = true -> causal c.
+Proof.
+  unfold has_type. intros. cases (inferC [] c) as T;tryfalse.
+  pose (ielem_exists t) as E. destruct E. eauto using inferC_sound, TiTyC_causal.
 Qed.
