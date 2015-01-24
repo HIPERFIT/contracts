@@ -434,7 +434,7 @@ Inductive TimeI := TimeInt (lo hi : option Z) : ole lo hi -> TimeI.
 (* This is a variant of [Z.le] in order to be able to discharge the
 proof obligations of the functions on [TimeI] defined below. *)
 
-Definition zle (a b : Z) : {a <= b} + {b < a}.
+Definition zleb (a b : Z) : {a <= b} + {b < a}.
 cases (a <=? b). 
 - rewrite Z.leb_le in Eq. auto.
 - rewrite Z.leb_gt in Eq. auto.
@@ -449,7 +449,7 @@ Ltac destruct_time :=
           end); autounfold in *; simpl in *; 
   try match goal with
         | [_ : context [?x <=? ?y] |- _] => cases (x <=? y)
-        | [_ : context [zle ?x ?y] |- _] => cases (zle x y)
+        | [_ : context [zleb ?x ?y] |- _] => cases (zleb x y)
       end.
 
 Program Definition iadd' (d : Z) (t : TimeI) :=
@@ -473,7 +473,7 @@ Program Definition icut' (l : TimeB) (t : TimeI) : option TimeI :=
                             end
                  in match hi with
                       | None => Some (TimeInt lo' hi _)
-                      | Some y => if zle l' y then Some (TimeInt lo' hi _) else None
+                      | Some y => if zleb l' y then Some (TimeInt lo' hi _) else None
                     end
                  end
   end.
@@ -500,7 +500,7 @@ Program Definition imeet' (t1 t2 : TimeI) : option TimeI :=
                 | Some h1, Some h2 => Some (Z.min h1 h2)
             end
   in match lo,hi with
-       | Some l, Some h => if zle l h then Some (TimeInt lo hi _) else None
+       | Some l, Some h => if zleb l h then Some (TimeInt lo hi _) else None
        | _,_ => Some (TimeInt lo hi _)
      end
   end.

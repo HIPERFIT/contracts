@@ -47,6 +47,7 @@ FMap,
 horizon,
 advance,
 specialise,
+hasType,
 
 mkExtEnvP,
 
@@ -227,3 +228,7 @@ mkExtEnvP rs bs = env
           tabB = Map.fromList (map bool bs)
           env (LabR l) i = Map.lookup (l,i) tabR
           env (LabB l) i = Map.lookup (l,i) tabB
+
+
+hasType :: Contr -> Bool
+hasType = C.has_type . fromHoas

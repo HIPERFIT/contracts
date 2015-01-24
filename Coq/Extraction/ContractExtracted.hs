@@ -54,17 +54,13 @@ type Sig a =
   a
   -- singleton inductive, whose constructor was exist
   
-data Sumbool =
-   Left
- | Right
-
-sumbool_rect :: (() -> a1) -> (() -> a1) -> Sumbool -> a1
+sumbool_rect :: (() -> a1) -> (() -> a1) -> Bool -> a1
 sumbool_rect f f0 s =
   case s of {
-   Left -> f __;
-   Right -> f0 __}
+   True -> f __;
+   False -> f0 __}
 
-sumbool_rec :: (() -> a1) -> (() -> a1) -> Sumbool -> a1
+sumbool_rec :: (() -> a1) -> (() -> a1) -> Bool -> a1
 sumbool_rec =
   sumbool_rect
 
@@ -681,18 +677,18 @@ of_succ_nat n =
     succ (of_succ_nat x))
     n
 
-eq_dec :: Int -> Int -> Sumbool
+eq_dec :: Int -> Int -> Bool
 eq_dec x y =
   positive_rec (\p h y0 ->
     case y0 of {
-     unused p0 -> sumbool_rec (\_ -> eq_rec_r p0 Left p) (\_ -> Right) (h p0);
-     _ -> Right}) (\p h y0 ->
+     unused p0 -> sumbool_rec (\_ -> eq_rec_r p0 True p) (\_ -> False) (h p0);
+     _ -> False}) (\p h y0 ->
     case y0 of {
-     unused p0 -> sumbool_rec (\_ -> eq_rec_r p0 Left p) (\_ -> Right) (h p0);
-     _ -> Right}) (\y0 ->
+     unused p0 -> sumbool_rec (\_ -> eq_rec_r p0 True p) (\_ -> False) (h p0);
+     _ -> False}) (\y0 ->
     case y0 of {
-     1 -> Left;
-     _ -> Right}) x y
+     1 -> True;
+     _ -> False}) x y
 
 peano_rect :: a1 -> (Int -> a1 -> a1) -> Int -> a1
 peano_rect a f p =
@@ -788,9 +784,9 @@ max_case :: Int -> Int -> (Int -> Int -> () -> a1 -> a1) -> a1 -> a1 -> a1
 max_case n m x x0 x1 =
   max_case_strong n m x (\_ -> x0) (\_ -> x1)
 
-max_dec :: Int -> Int -> Sumbool
+max_dec :: Int -> Int -> Bool
 max_dec n m =
-  max_case n m (\x y _ h0 -> h0) Left Right
+  max_case n m (\x y _ h0 -> h0) True False
 
 min_case_strong :: Int -> Int -> (Int -> Int -> () -> a1 -> a1) -> (() -> a1)
                    -> (() -> a1) -> a1
@@ -804,9 +800,9 @@ min_case :: Int -> Int -> (Int -> Int -> () -> a1 -> a1) -> a1 -> a1 -> a1
 min_case n m x x0 x1 =
   min_case_strong n m x (\_ -> x0) (\_ -> x1)
 
-min_dec :: Int -> Int -> Sumbool
+min_dec :: Int -> Int -> Bool
 min_dec n m =
-  min_case n m (\x y _ h0 -> h0) Left Right
+  min_case n m (\x y _ h0 -> h0) True False
 
 max_case_strong0 :: Int -> Int -> (() -> a1) -> (() -> a1) -> a1
 max_case_strong0 n m x x0 =
@@ -816,7 +812,7 @@ max_case0 :: Int -> Int -> a1 -> a1 -> a1
 max_case0 n m x x0 =
   max_case_strong0 n m (\_ -> x) (\_ -> x0)
 
-max_dec0 :: Int -> Int -> Sumbool
+max_dec0 :: Int -> Int -> Bool
 max_dec0 =
   max_dec
 
@@ -828,7 +824,7 @@ min_case0 :: Int -> Int -> a1 -> a1 -> a1
 min_case0 n m x x0 =
   min_case_strong0 n m (\_ -> x) (\_ -> x0)
 
-min_dec0 :: Int -> Int -> Sumbool
+min_dec0 :: Int -> Int -> Bool
 min_dec0 =
   min_dec
 
@@ -1184,16 +1180,16 @@ iter0 n f x =
    N0 -> x;
    Npos p -> iter p f x}
 
-eq_dec0 :: N -> N -> Sumbool
+eq_dec0 :: N -> N -> Bool
 eq_dec0 n m =
   n_rec (\m0 ->
     case m0 of {
-     N0 -> Left;
-     Npos p -> Right}) (\p m0 ->
+     N0 -> True;
+     Npos p -> False}) (\p m0 ->
     case m0 of {
-     N0 -> Right;
+     N0 -> False;
      Npos p0 ->
-      sumbool_rec (\_ -> eq_rec_r p0 Left p) (\_ -> Right) (eq_dec p p0)}) n
+      sumbool_rec (\_ -> eq_rec_r p0 True p) (\_ -> False) (eq_dec p p0)}) n
     m
 
 discr :: N -> Sumor Int
@@ -1291,9 +1287,9 @@ max_case1 :: N -> N -> (N -> N -> () -> a1 -> a1) -> a1 -> a1 -> a1
 max_case1 n m x x0 x1 =
   max_case_strong1 n m x (\_ -> x0) (\_ -> x1)
 
-max_dec1 :: N -> N -> Sumbool
+max_dec1 :: N -> N -> Bool
 max_dec1 n m =
-  max_case1 n m (\x y _ h0 -> h0) Left Right
+  max_case1 n m (\x y _ h0 -> h0) True False
 
 min_case_strong1 :: N -> N -> (N -> N -> () -> a1 -> a1) -> (() -> a1) -> (()
                     -> a1) -> a1
@@ -1307,9 +1303,9 @@ min_case1 :: N -> N -> (N -> N -> () -> a1 -> a1) -> a1 -> a1 -> a1
 min_case1 n m x x0 x1 =
   min_case_strong1 n m x (\_ -> x0) (\_ -> x1)
 
-min_dec1 :: N -> N -> Sumbool
+min_dec1 :: N -> N -> Bool
 min_dec1 n m =
-  min_case1 n m (\x y _ h0 -> h0) Left Right
+  min_case1 n m (\x y _ h0 -> h0) True False
 
 max_case_strong2 :: N -> N -> (() -> a1) -> (() -> a1) -> a1
 max_case_strong2 n m x x0 =
@@ -1319,7 +1315,7 @@ max_case2 :: N -> N -> a1 -> a1 -> a1
 max_case2 n m x x0 =
   max_case_strong2 n m (\_ -> x) (\_ -> x0)
 
-max_dec2 :: N -> N -> Sumbool
+max_dec2 :: N -> N -> Bool
 max_dec2 =
   max_dec1
 
@@ -1331,7 +1327,7 @@ min_case2 :: N -> N -> a1 -> a1 -> a1
 min_case2 n m x x0 =
   min_case_strong2 n m (\_ -> x) (\_ -> x0)
 
-min_dec2 :: N -> N -> Sumbool
+min_dec2 :: N -> N -> Bool
 min_dec2 =
   min_dec1
 
@@ -1450,18 +1446,6 @@ gtb x y =
   case compare1 x y of {
    GT -> True;
    _ -> False}
-
-max1 :: Int -> Int -> Int
-max1 n m =
-  case compare1 n m of {
-   LT -> m;
-   _ -> n}
-
-min1 :: Int -> Int -> Int
-min1 n m =
-  case compare1 n m of {
-   GT -> m;
-   _ -> n}
 
 abs :: Int -> Int
 abs z =
@@ -1801,20 +1785,20 @@ lxor1 a b =
      id b0 -> negate (succ_pos (lxor0 (pred_N a0) (Npos b0)));
      negate b0 -> of_N (lxor0 (pred_N a0) (pred_N b0))}}
 
-eq_dec1 :: Int -> Int -> Sumbool
+eq_dec1 :: Int -> Int -> Bool
 eq_dec1 x y =
   z_rec (\y0 ->
     case y0 of {
-     0 -> Left;
-     _ -> Right}) (\p y0 ->
+     0 -> True;
+     _ -> False}) (\p y0 ->
     case y0 of {
      id p0 ->
-      sumbool_rec (\_ -> eq_rec_r p0 Left p) (\_ -> Right) (eq_dec p p0);
-     _ -> Right}) (\p y0 ->
+      sumbool_rec (\_ -> eq_rec_r p0 True p) (\_ -> False) (eq_dec p p0);
+     _ -> False}) (\p y0 ->
     case y0 of {
      negate p0 ->
-      sumbool_rec (\_ -> eq_rec_r p0 Left p) (\_ -> Right) (eq_dec p p0);
-     _ -> Right}) x y
+      sumbool_rec (\_ -> eq_rec_r p0 True p) (\_ -> False) (eq_dec p p0);
+     _ -> False}) x y
 
 leb_spec2 :: Int -> Int -> Reflect
 leb_spec2 x y =
@@ -1879,32 +1863,32 @@ max_case_strong3 :: Int -> Int -> (Int -> Int -> () -> a1 -> a1) -> (() ->
 max_case_strong3 n m compat hl hr =
   let {c = compSpec2Type n m (compare1 n m)} in
   case c of {
-   CompGtT -> compat n (max1 n m) __ (hl __);
-   _ -> compat m (max1 n m) __ (hr __)}
+   CompGtT -> compat n (max n m) __ (hl __);
+   _ -> compat m (max n m) __ (hr __)}
 
 max_case3 :: Int -> Int -> (Int -> Int -> () -> a1 -> a1) -> a1 -> a1 -> a1
 max_case3 n m x x0 x1 =
   max_case_strong3 n m x (\_ -> x0) (\_ -> x1)
 
-max_dec3 :: Int -> Int -> Sumbool
+max_dec3 :: Int -> Int -> Bool
 max_dec3 n m =
-  max_case3 n m (\x y _ h0 -> h0) Left Right
+  max_case3 n m (\x y _ h0 -> h0) True False
 
 min_case_strong3 :: Int -> Int -> (Int -> Int -> () -> a1 -> a1) -> (() ->
                     a1) -> (() -> a1) -> a1
 min_case_strong3 n m compat hl hr =
   let {c = compSpec2Type n m (compare1 n m)} in
   case c of {
-   CompGtT -> compat m (min1 n m) __ (hr __);
-   _ -> compat n (min1 n m) __ (hl __)}
+   CompGtT -> compat m (min n m) __ (hr __);
+   _ -> compat n (min n m) __ (hl __)}
 
 min_case3 :: Int -> Int -> (Int -> Int -> () -> a1 -> a1) -> a1 -> a1 -> a1
 min_case3 n m x x0 x1 =
   min_case_strong3 n m x (\_ -> x0) (\_ -> x1)
 
-min_dec3 :: Int -> Int -> Sumbool
+min_dec3 :: Int -> Int -> Bool
 min_dec3 n m =
-  min_case3 n m (\x y _ h0 -> h0) Left Right
+  min_case3 n m (\x y _ h0 -> h0) True False
 
 max_case_strong4 :: Int -> Int -> (() -> a1) -> (() -> a1) -> a1
 max_case_strong4 n m x x0 =
@@ -1914,7 +1898,7 @@ max_case4 :: Int -> Int -> a1 -> a1 -> a1
 max_case4 n m x x0 =
   max_case_strong4 n m (\_ -> x) (\_ -> x0)
 
-max_dec4 :: Int -> Int -> Sumbool
+max_dec4 :: Int -> Int -> Bool
 max_dec4 =
   max_dec3
 
@@ -1926,7 +1910,7 @@ min_case4 :: Int -> Int -> a1 -> a1 -> a1
 min_case4 n m x x0 =
   min_case_strong4 n m (\_ -> x) (\_ -> x0)
 
-min_dec4 :: Int -> Int -> Sumbool
+min_dec4 :: Int -> Int -> Bool
 min_dec4 =
   min_dec3
 
@@ -1977,15 +1961,33 @@ data Contr =
  | Both Contr Contr
  | If Exp Int Contr Contr
 
-data Val =
-   BVal Bool
- | RVal Double
+data Ty =
+   REAL
+ | BOOL
 
 type ExtEnv' a = ObsLabel -> Int -> a
 
 adv_ext :: Int -> (ExtEnv' a1) -> ExtEnv' a1
 adv_ext d e l x =
   e l ((+) d x)
+
+type Env' a = List a
+
+lookupEnv :: Var -> (Env' a1) -> Maybe a1
+lookupEnv v env =
+  case v of {
+   V1 ->
+    case env of {
+     [] -> Nothing;
+     (:) x l -> Just x};
+   VS v0 ->
+    case env of {
+     [] -> Nothing;
+     (:) a xs -> lookupEnv v0 xs}}
+
+data Val =
+   BVal Bool
+ | RVal Double
 
 acc_sem :: (Int -> a1 -> a1) -> Int -> a1 -> a1
 acc_sem f n z =
@@ -2209,27 +2211,13 @@ opSem op vs =
                  (:) v2 l2 -> Nothing}}}}};
        RVal r -> Nothing}}}
 
-type Env' a = List a
-
-lookupEnv :: Var -> (Env' a1) -> Maybe a1
-lookupEnv v env =
-  case v of {
-   V1 ->
-    case env of {
-     [] -> Nothing;
-     (:) x l -> Just x};
-   VS v0 ->
-    case env of {
-     [] -> Nothing;
-     (:) a xs -> lookupEnv v0 xs}}
-
-adv_exp :: Int -> Exp -> Exp
-adv_exp d e =
+translateExp :: Int -> Exp -> Exp
+translateExp d e =
   case e of {
-   OpE op args -> OpE op (P.map (adv_exp d) args);
+   OpE op args -> OpE op (P.map (translateExp d) args);
    Obs l i -> Obs l ((+) d i);
    VarE a -> VarE a;
-   Acc f n z -> Acc (adv_exp d f) n (adv_exp d z)}
+   Acc f n z -> Acc (translateExp d f) n (translateExp d z)}
 
 type ExtEnvP = ExtEnv' (Maybe Val)
 
@@ -2626,7 +2614,7 @@ redfun c env ext =
     let {e' = specialiseExp e env ext} in
     liftM (\ct ->
       case ct of {
-       (,) c' t -> (,) (smartLet (adv_exp (negate 1) e') c') t})
+       (,) c' t -> (,) (smartLet (translateExp (negate 1) e') c') t})
       (redfun c0 ((:) (fromLit e') env) ext);
    Transfer c0 p1 p2 -> Just ((,) Zero (singleton0 c0 p1 p2 1));
    Scale e c0 ->
@@ -2634,7 +2622,7 @@ redfun c env ext =
     (>>=) (redfun c0 env ext) (\ct ->
       case ct of {
        (,) c' t ->
-        liftM (\t' -> (,) (smartScale (adv_exp (negate 1) e') c') t')
+        liftM (\t' -> (,) (smartScale (translateExp (negate 1) e') c') t')
           (scale_trans' (fromRLit e') t)});
    Translate n c0 ->
     (\fO fS n -> if n==0 then fO () else fS (n-1))
@@ -2681,4 +2669,360 @@ horizon c =
    Translate l c' -> plus0 l (horizon c');
    Both c1 c2 -> max (horizon c1) (horizon c2);
    If e l c1 c2 -> plus0 l (max (horizon c1) (horizon c2))}
+
+data TimeB =
+   Time Int
+ | TimeBot
+
+tleb :: TimeB -> TimeB -> Bool
+tleb t1 t2 =
+  case t1 of {
+   Time t1' ->
+    case t2 of {
+     Time t2' -> (<=) t1' t2';
+     TimeBot -> False};
+   TimeBot -> True}
+
+tadd :: Int -> TimeB -> TimeB
+tadd d t =
+  case t of {
+   Time t' -> Time ((+) t' d);
+   TimeBot -> TimeBot}
+
+tsub :: Int -> TimeB -> TimeB
+tsub d =
+  tadd (negate d)
+
+tadd' :: Int -> TimeB -> TimeB
+tadd' d =
+  tadd (id d)
+
+tsub' :: Int -> TimeB -> TimeB
+tsub' d =
+  tsub (id d)
+
+data TiTy =
+   TimedType Ty TimeB
+
+time :: TiTy -> TimeB
+time t =
+  case t of {
+   TimedType ty ti -> ti}
+
+type0 :: TiTy -> Ty
+type0 t =
+  case t of {
+   TimedType ty ti -> ty}
+
+add_time :: Int -> TiTy -> TiTy
+add_time d t =
+  case t of {
+   TimedType ty ti -> TimedType ty (tadd' d ti)}
+
+sub_time :: Int -> TiTy -> TiTy
+sub_time d t =
+  case t of {
+   TimedType ty ti -> TimedType ty (tsub' d ti)}
+
+type TiTyEnv = Env' TiTy
+
+inferObs :: ObsLabel -> Ty
+inferObs l =
+  case l of {
+   LabR l0 -> REAL;
+   LabB l0 -> BOOL}
+
+tyeqb :: Ty -> Ty -> Bool
+tyeqb t1 t2 =
+  case t1 of {
+   REAL ->
+    case t2 of {
+     REAL -> True;
+     BOOL -> False};
+   BOOL ->
+    case t2 of {
+     REAL -> False;
+     BOOL -> True}}
+
+inferOp :: Op -> (List Ty) -> Maybe Ty
+inferOp op args =
+  case op of {
+   And ->
+    case args of {
+     [] -> Nothing;
+     (:) t l ->
+      case t of {
+       REAL -> Nothing;
+       BOOL ->
+        case l of {
+         [] -> Nothing;
+         (:) t0 l0 ->
+          case t0 of {
+           REAL -> Nothing;
+           BOOL ->
+            case l0 of {
+             [] -> Just BOOL;
+             (:) t1 l1 -> Nothing}}}}};
+   Or ->
+    case args of {
+     [] -> Nothing;
+     (:) t l ->
+      case t of {
+       REAL -> Nothing;
+       BOOL ->
+        case l of {
+         [] -> Nothing;
+         (:) t0 l0 ->
+          case t0 of {
+           REAL -> Nothing;
+           BOOL ->
+            case l0 of {
+             [] -> Just BOOL;
+             (:) t1 l1 -> Nothing}}}}};
+   Less ->
+    case args of {
+     [] -> Nothing;
+     (:) t l ->
+      case t of {
+       REAL ->
+        case l of {
+         [] -> Nothing;
+         (:) t0 l0 ->
+          case t0 of {
+           REAL ->
+            case l0 of {
+             [] -> Just BOOL;
+             (:) t1 l1 -> Nothing};
+           BOOL -> Nothing}};
+       BOOL -> Nothing}};
+   Leq ->
+    case args of {
+     [] -> Nothing;
+     (:) t l ->
+      case t of {
+       REAL ->
+        case l of {
+         [] -> Nothing;
+         (:) t0 l0 ->
+          case t0 of {
+           REAL ->
+            case l0 of {
+             [] -> Just BOOL;
+             (:) t1 l1 -> Nothing};
+           BOOL -> Nothing}};
+       BOOL -> Nothing}};
+   Equal ->
+    case args of {
+     [] -> Nothing;
+     (:) t l ->
+      case t of {
+       REAL ->
+        case l of {
+         [] -> Nothing;
+         (:) t0 l0 ->
+          case t0 of {
+           REAL ->
+            case l0 of {
+             [] -> Just BOOL;
+             (:) t1 l1 -> Nothing};
+           BOOL -> Nothing}};
+       BOOL -> Nothing}};
+   Not ->
+    case args of {
+     [] -> Nothing;
+     (:) t l ->
+      case t of {
+       REAL -> Nothing;
+       BOOL ->
+        case l of {
+         [] -> Just BOOL;
+         (:) t0 l0 -> Nothing}}};
+   Neg ->
+    case args of {
+     [] -> Nothing;
+     (:) t l ->
+      case t of {
+       REAL ->
+        case l of {
+         [] -> Just REAL;
+         (:) t0 l0 -> Nothing};
+       BOOL -> Nothing}};
+   BLit b ->
+    case args of {
+     [] -> Just BOOL;
+     (:) t l -> Nothing};
+   RLit r ->
+    case args of {
+     [] -> Just REAL;
+     (:) t l -> Nothing};
+   Cond ->
+    case args of {
+     [] -> Nothing;
+     (:) t l ->
+      case t of {
+       REAL -> Nothing;
+       BOOL ->
+        case l of {
+         [] -> Nothing;
+         (:) t1 l0 ->
+          case l0 of {
+           [] -> Nothing;
+           (:) t2 l1 ->
+            case l1 of {
+             [] ->
+              case tyeqb t1 t2 of {
+               True -> Just t1;
+               False -> Nothing};
+             (:) t0 l2 -> Nothing}}}}};
+   _ ->
+    case args of {
+     [] -> Nothing;
+     (:) t l ->
+      case t of {
+       REAL ->
+        case l of {
+         [] -> Nothing;
+         (:) t0 l0 ->
+          case t0 of {
+           REAL ->
+            case l0 of {
+             [] -> Just REAL;
+             (:) t1 l1 -> Nothing};
+           BOOL -> Nothing}};
+       BOOL -> Nothing}}}
+
+tmax :: TimeB -> TimeB -> TimeB
+tmax t1 t2 =
+  case t1 of {
+   Time t1' ->
+    case t2 of {
+     Time t2' -> Time (max t1' t2');
+     TimeBot -> t1};
+   TimeBot -> t2}
+
+tmaxs :: (List TimeB) -> TimeB
+tmaxs ts =
+  foldr tmax TimeBot ts
+
+inferE :: TiTyEnv -> Exp -> Maybe TiTy
+inferE env e =
+  case e of {
+   OpE op args ->
+    (>>=) (sequence (P.map (inferE env) args)) (\args' ->
+      liftM (\ty -> TimedType ty (tmaxs (P.map time args')))
+        (inferOp op (P.map type0 args')));
+   Obs l i -> Just (TimedType (inferObs l) (Time i));
+   VarE v -> lookupEnv v env;
+   Acc f d z ->
+    (>>=) (inferE (P.map (add_time d) env) z) (\t ->
+      (>>=) (inferE ((:) (TimedType (type0 t) TimeBot) env) f) (\t' ->
+        case tyeqb (type0 t) (type0 t') of {
+         True -> Just (TimedType (type0 t)
+          (tmax (tsub' d (time t)) (time t')));
+         False -> Nothing}))}
+
+data TimeI =
+   TimeInt (Maybe Int) (Maybe Int)
+
+iadd' :: Int -> TimeI -> TimeI
+iadd' d t =
+  case t of {
+   TimeInt lo hi -> TimeInt (liftM ((+) d) lo) (liftM ((+) d) hi)}
+
+iadd :: Int -> (Maybe TimeI) -> Maybe TimeI
+iadd d =
+  liftM (iadd' (id d))
+
+icut' :: TimeB -> TimeI -> Maybe TimeI
+icut' l t =
+  case l of {
+   Time l' ->
+    case t of {
+     TimeInt lo hi ->
+      let {
+       lo' = case lo of {
+              Just x -> Just (max x l');
+              Nothing -> Just l'}}
+      in
+      case hi of {
+       Just y ->
+        case (<=) l' y of {
+         True -> Just (TimeInt lo' hi);
+         False -> Nothing};
+       Nothing -> Just (TimeInt lo' hi)}};
+   TimeBot -> Just t}
+
+icut :: TimeB -> (Maybe TimeI) -> Maybe TimeI
+icut l t =
+  (>>=) t (\t' -> icut' l t')
+
+imeet' :: TimeI -> TimeI -> Maybe TimeI
+imeet' t1 t2 =
+  case t1 of {
+   TimeInt lo1 hi1 ->
+    case t2 of {
+     TimeInt lo2 hi2 ->
+      let {
+       lo = case lo1 of {
+             Just l1 ->
+              case lo2 of {
+               Just l2 -> Just (max l1 l2);
+               Nothing -> lo1};
+             Nothing -> lo2}}
+      in
+      let {
+       hi = case hi1 of {
+             Just h1 ->
+              case hi2 of {
+               Just h2 -> Just (min h1 h2);
+               Nothing -> hi1};
+             Nothing -> hi2}}
+      in
+      case lo of {
+       Just l ->
+        case hi of {
+         Just h ->
+          case (<=) l h of {
+           True -> Just (TimeInt lo hi);
+           False -> Nothing};
+         Nothing -> Just (TimeInt lo hi)};
+       Nothing -> Just (TimeInt lo hi)}}}
+
+imeet :: (Maybe TimeI) -> (Maybe TimeI) -> Maybe TimeI
+imeet t1 t2 =
+  (>>=) t1 (\t1' -> (>>=) t2 (\t2' -> imeet' t1' t2'))
+
+iall :: TimeI
+iall =
+  TimeInt Nothing Nothing
+
+ibelow :: Int -> TimeI
+ibelow t =
+  TimeInt Nothing (Just t)
+
+inferC :: TiTyEnv -> Contr -> Maybe TimeI
+inferC env c =
+  case c of {
+   Zero -> Just iall;
+   Let e c' -> (>>=) (inferE env e) (\t -> inferC ((:) t env) c');
+   Transfer p1 p2 a -> Just (ibelow 0);
+   Scale e c' ->
+    (>>=) (inferE env e) (\t ->
+      case tyeqb (type0 t) REAL of {
+       True -> icut (time t) (inferC env c');
+       False -> Nothing});
+   Translate d c' -> iadd d (inferC (P.map (sub_time d) env) c');
+   Both c1 c2 -> imeet (inferC env c1) (inferC env c2);
+   If e d c1 c2 ->
+    (>>=) (inferE env e) (\t ->
+      case (&&) (tyeqb (type0 t) BOOL) (tleb (time t) (Time 0)) of {
+       True ->
+        imeet (inferC env c1) (iadd d (inferC (P.map (sub_time d) env) c2));
+       False -> Nothing})}
+
+has_type :: Contr -> Bool
+has_type c =
+  case inferC [] c of {
+   Just t -> True;
+   Nothing -> False}
 

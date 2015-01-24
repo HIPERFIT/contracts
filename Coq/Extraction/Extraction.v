@@ -4,6 +4,7 @@ Require Import Denotational.
 Require Import PartialReduction.
 Require Import Horizon.
 Require Import Specialise.
+Require Import TimedTyping.
 
 
 
@@ -12,23 +13,28 @@ Extraction Language Haskell.
 
 Extract Inductive unit => "()" [ "()" ].
 Extract Inductive bool => "Bool" [ "True" "False" ].
+Extract Inductive sumbool => "Bool" [ "True" "False" ].
 Extract Inlined Constant orb => "(||)".
 Extract Inlined Constant andb => "(&&)".
 
 Extract Inlined Constant compose => "(.)".
 Extract Inductive list => "List" [ "[]" "(:)" ].
 Extract Inlined Constant map => "P.map".
+Extract Inlined Constant fold_right => "foldr".
 
 Extract Inductive nat => "Int" ["0" "succ"] "(\fO fS n -> if n==0 then fO () else fS (n-1))".
 Extract Inductive Z => "Int" ["0" "id" "negate"].
 Extract Inductive positive => "Int" ["unused" "unused" "1"].
 
 Extract Inlined Constant Z.leb => "(<=)".
+Extract Inlined Constant zleb => "(<=)".
 Extract Inlined Constant Z.ltb => "(<)".
 Extract Inlined Constant Z.add => "(+)".
 Extract Inlined Constant Z.sub => "(-)".
 Extract Inlined Constant Z.mul => "(*)".
 Extract Inlined Constant Z.opp => "negate".
+Extract Inlined Constant Z.max => "max".
+Extract Inlined Constant Z.min => "min".
 
 Extract Inlined Constant R => "Double".
 Extract Inlined Constant Rleb => "(<=)".
@@ -98,4 +104,5 @@ Extraction "ContractExtracted.hs"
   Contr
   horizon
   redfun
-  specialise.
+  specialise
+  has_type.
