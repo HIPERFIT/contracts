@@ -39,6 +39,7 @@ Extract Inlined Constant Z.min => "min".
 Extract Inlined Constant R => "Double".
 Extract Inlined Constant Rleb => "(<=)".
 Extract Inlined Constant Reqb => "(==)".
+Extract Inlined Constant Req_dec => "(==)".
 Extract Inlined Constant Rltb => "(<)".
 Extract Inlined Constant Rplus => "(+)".
 Extract Inlined Constant Rminus => "(-)".
@@ -94,6 +95,13 @@ Extract Inlined Constant FMap.find => "Map.lookup".
 Extract Inlined Constant FMap.is_empty => "Map.null".
 Extract Inlined Constant FMap.map => "Map.map".
 Extract Inlined Constant FMap.union_with => "unionWith".
+
+(* Coq extracts [SMap_rec] and [SMap.SMap_rect], even though they are
+not used. The inlining commands below prevent that. *)
+
+Extract Inlined Constant SMap.SMap_rec => "unused".
+Extract Inlined Constant SMap.SMap_rect => "unused".
+
 
 Extract Inlined Constant compare => "compare".
 

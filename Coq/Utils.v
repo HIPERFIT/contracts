@@ -402,3 +402,7 @@ Proof.
   cases (Reqb x y) as E. rewrite -> Reqb_iff in E. tryfalse. reflexivity.
 Qed.
   
+Definition Req_dec (x y : R) : {x = y} + {x <> y}. 
+Proof.
+  cases (Reqb x y) as E; [rewrite Reqb_iff in E|rewrite Reqb_iff_false in E]; auto.
+Qed.

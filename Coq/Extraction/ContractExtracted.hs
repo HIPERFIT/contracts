@@ -2548,51 +2548,51 @@ singleton :: Key -> Double -> FMap
 singleton k r =
   Map.insert k r Map.empty
 
-type SMap = FMap
+type SMap =
+  FMap
+  -- singleton inductive, whose constructor was mkSMap
+  
+getFMap :: SMap -> FMap
+getFMap sm =
+  sm
 
-add1 :: Party -> Party -> Asset -> Double -> FMap -> FMap
-add1 p1 p2 a v m =
-  case compare p1 p2 of {
-   EQ -> m;
-   LT -> Map.insert ((,) ((,) p1 p2) a) v m;
-   GT -> Map.insert ((,) ((,) p2 p1) a) (negate v) m}
-
-empty :: FMap
-empty =
-  Map.empty
-
-find :: Party -> Party -> Asset -> FMap -> Double
+find :: Party -> Party -> Asset -> SMap -> Double
 find p1 p2 a m =
   case compare p1 p2 of {
    EQ -> 0;
-   LT -> fromMaybe 0 (Map.lookup ((,) ((,) p1 p2) a) m);
+   LT -> fromMaybe 0 (Map.lookup ((,) ((,) p1 p2) a) (getFMap m));
    GT ->
-    case Map.lookup ((,) ((,) p2 p1) a) m of {
+    case Map.lookup ((,) ((,) p2 p1) a) (getFMap m) of {
      Just r -> negate r;
      Nothing -> 0}}
 
-map :: (Double -> Double) -> FMap -> FMap
-map =
-  Map.map
+map :: (Double -> Double) -> SMap -> SMap
+map f sm =
+  Map.map f sm
 
-union_with :: (Double -> Double -> Double) -> FMap -> FMap -> FMap
-union_with f =
+union_with :: (Double -> Double -> Double) -> SMap -> SMap -> SMap
+union_with f sm1 sm2 =
   unionWith (\x y ->
     let {r = f x y} in
     case (==) r 0 of {
      True -> Nothing;
-     False -> Just r})
+     False -> Just r}) sm1 sm2
 
-singleton0 :: Party -> Party -> Asset -> Double -> FMap
+singleton0 :: Party -> Party -> Asset -> Double -> SMap
 singleton0 p1 p2 a r =
-  case compare p1 p2 of {
+  let {filtered_var = compare p1 p2} in
+  case filtered_var of {
    EQ -> Map.empty;
    LT -> singleton ((,) ((,) p1 p2) a) r;
    GT -> singleton ((,) ((,) p2 p1) a) (negate r)}
 
-is_empty :: FMap -> Bool
-is_empty =
-  Map.null
+is_empty :: SMap -> Bool
+is_empty sm =
+  Map.null (getFMap sm)
+
+empty :: SMap
+empty =
+  Map.empty
 
 scale_trans' :: (Maybe Double) -> SMap -> Maybe SMap
 scale_trans' v t =

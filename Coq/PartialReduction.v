@@ -125,11 +125,20 @@ Import SMap.
 Definition lift2M {A B C} (f : A -> B -> C) (x : option (A * B)) : option C 
   := liftM (fun x: (A * B) => let (x1,x2) := x in f x1 x2) x.
 
-Definition scale_trans' (v : option R) (t : SMap) : option SMap :=
+
+
+Program Definition scale_trans' (v : option R) (t : SMap) : option SMap :=
   match v with
   | None => if SMap.is_empty t then Some SMap.empty else None
-  | Some v => Some (if Reqb v 0 then SMap.empty else  SMap.map (fun x => v * x) t)
+  | Some v => Some (if Req_dec v 0 then SMap.empty else  SMap.map (fun x => v * x) _ t)
   end.
+
+Next Obligation. 
+apply Rmult_integral in H0. destruct H0. tryfalse. assumption.
+Qed.  
+  
+
+
 
 (* Computable function that implements the reduction semantics. *)
 
@@ -139,7 +148,7 @@ Fixpoint redfun (c : Contr) (env : EnvP) (ext : ExtEnvP) : option (Contr * SMap)
     | Let e c => let e' := specialiseExp e env ext in
                  liftM (fun ct : Contr * SMap => let (c', t) := ct in (smartLet (translateExp (-1) e') c', t)) 
                        (redfun c (fromLit e'::env) ext)
-    | Transfer c p1 p2 => Some (Zero, SMap.singleton c p1 p2 1)
+    | Transfer c p1 p2 => Some (Zero, SMap.singleton c p1 p2 1 R1_neq_R0)
     | Scale e c => let e' := specialiseExp e env ext
                    in redfun c env ext  >>= 
                       (fun ct => let (c', t) := ct in 
@@ -174,7 +183,7 @@ Qed.
 Ltac eqb_eq := repeat rewrite andb_true_iff in *;repeat rewrite Party.eqb_eq in *; repeat rewrite Asset.eqb_eq in *.
 Ltac eqb_refl := repeat rewrite Party.eqb_refl in *; repeat rewrite Asset.eqb_refl in *.
 
-Lemma smap_fun_singleton p1 p2 a r : smap_fun (singleton p1 p2 a r) = singleton_trans p1 p2 a r.
+Lemma smap_fun_singleton p1 p2 a r p : smap_fun (singleton p1 p2 a r p) = singleton_trans p1 p2 a r.
 Proof.
   unfold singleton_trans, smap_fun,find,singleton.
   do 3 (apply functional_extensionality;intro).
@@ -183,7 +192,7 @@ Proof.
   cases (Party.eqb p1 x0 && Party.eqb p2 x0 && Asset.eqb a x1) as E1.
   eqb_eq. decompose [and] E1. subst. rewrite Party.eqb_refl in P1.
   tryfalse. reflexivity.
-  cases (Party.eqb p1 p2) as P1. rewrite Party.eqb_eq in P1. rewrite <- compare_eq in P1.
+  cases (Party.eqb p1 p2) as P1;simpl. rewrite Party.eqb_eq in P1. rewrite <- compare_eq in P1.
   rewrite P1. rewrite FMap.empty_find. reflexivity. 
   cases (compare p1 p2) as C2. rewrite compare_eq in C2. subst. rewrite Party.eqb_refl in P1. tryfalse.
   cases (FMap.find (x, x0, x1) (FMap.singleton (p1, p2, a) r)) as F1.
@@ -206,7 +215,7 @@ Proof.
   eqb_refl. tryfalse. reflexivity.
   
   rewrite <- compare_lt_gt in C1.
-  cases (Party.eqb p1 p2) as P1. rewrite Party.eqb_eq in P1. rewrite <- compare_eq in P1.
+  cases (Party.eqb p1 p2) as P1;simpl. rewrite Party.eqb_eq in P1. rewrite <- compare_eq in P1.
   rewrite P1. rewrite FMap.empty_find. reflexivity. 
   cases (compare p1 p2) as C2. rewrite compare_eq in C2. subst. rewrite Party.eqb_refl in P1. tryfalse.
   cases (FMap.find (x0, x, x1) (FMap.singleton (p1, p2, a) r)) as F1.
@@ -241,7 +250,7 @@ Lemma scale_trans_ScaleTrans (v : option R) t t' m m' :
 Proof.
   intros. destruct v. simpl in H1. inversion H1;clear H1. assert (t' = scale_trans r t) as S.
   subst. unfold smap_fun, scale_trans. repeat (apply functional_extensionality;intro).
-  cases (Reqb r 0) as E. rewrite empty_find. apply Reqb_iff in E. subst. 
+  cases (Req_dec r 0) as E. rewrite empty_find. subst. 
   rewrite Rmult_0_r. reflexivity.
   rewrite map_find. apply Rmult_comm. apply Rmult_0_r. intros. rewrite Ropp_mult_distr_r_reverse.
   reflexivity. rewrite S. econstructor.
@@ -268,49 +277,27 @@ Proof.
 Qed.
 
 
-Hint Resolve compact_singleton compact_map compact_union compact_empty.
-
-
-Lemma redfun_compact c env ext c' m : redfun c env ext = Some (c', m) -> Compact m.
+Lemma smap_fun_empty_compact m : smap_fun m = empty_trans -> m = SMap.empty.
 Proof.
-  intro R. generalize dependent m. generalize dependent ext. generalize dependent env. 
-  generalize dependent c' .
-  induction c;intros;simpl in R;try first[option_inv' R|injection R;intros];dprod;option_inv_auto;dprod;
-  subst;eauto using R1_neq_R0.
-  - cases (fromRLit (specialiseExp e env ext)). simpl in H0. 
-    cases (Reqb r 0) as E. inversion H0. auto. rewrite Reqb_iff_false in E. inversion H0. 
-    apply compact_map. intros. apply Rmult_integral in H. destruct H. tryfalse. auto.
-    eauto.
-    simpl in H0. cases (is_empty s) as E. inversion H0. auto. tryfalse.
-  - destruct n. eauto. inversion R. auto.
-  - destruct n; destruct x;eauto. inversion H2. eauto.
-Qed.
-
-
-Lemma smap_fun_empty_compact m : Compact m -> smap_fun m = empty_trans -> m = SMap.empty.
-Proof.
-  intros C F. 
+  destruct m as [M C]. intro F. 
   apply empty_find_compact;eauto. intros.
   do 3 eapply equal_f in F.
   unfold smap_fun in F. rewrite F. reflexivity.
 Qed.
 
-Hint Resolve redfun_compact smap_fun_empty_compact.
-
 
 Lemma ScaleTrans_scale_trans (v : option R) t t' m : 
-  Compact m ->
   t = smap_fun m -> ScaleTrans v t t' -> exists m', scale_trans' v m = Some m' /\ t' = smap_fun m'.
 Proof.
-  intros C T S. inversion S. 
+  intros T S. inversion S. 
   - subst. symmetry in H0. apply smap_fun_empty_compact in H0;auto.
-    eexists. split. destruct v. simpl. cases (Reqb r 0). reflexivity.
-    subst. rewrite SMap.map_empty. reflexivity. simpl.
+    eexists. split. destruct v. simpl. cases (Req_dec r 0). reflexivity.
+    rewrite -> H0. rewrite SMap.map_empty. reflexivity. simpl.
     cases (is_empty m). reflexivity. rewrite <- SMap.empty_is_empty in H0. tryfalse.
     rewrite smap_fun_empty. reflexivity.
-  - simpl. cases (Reqb v0 0) as R. 
-    eexists. split. reflexivity. rewrite Reqb_iff in R. subst.
-    rewrite scale_trans_0.     rewrite smap_fun_empty. reflexivity.
+  - simpl. cases (Req_dec v0 0) as R. 
+    eexists. split. reflexivity. subst.
+    rewrite scale_trans_0. rewrite smap_fun_empty. reflexivity.
     eexists. split. reflexivity. subst. unfold smap_fun, scale_trans.
     do 3 (apply functional_extensionality;intro). rewrite map_find. apply Rmult_comm.
     apply Rmult_0_r. intros. rewrite Ropp_mult_distr_r_reverse. reflexivity.
@@ -329,7 +316,8 @@ Proof.
   - eapply ScaleTrans_scale_trans in H0. decompose [ex and] H0.
     eexists. split. simpl. rewrite H1. simpl.
     rewrite H3. simpl.
-    unfold pure, compose. rewrite H2. reflexivity. auto. eauto. eauto.
+    unfold pure, compose. rewrite H2. reflexivity. auto. eauto. 
   Qed.
+
 
 

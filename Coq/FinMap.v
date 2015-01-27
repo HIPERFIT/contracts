@@ -152,64 +152,70 @@ mapped to a non-zero value. The upshot of this compactness property is
 that we can check whether a symmetric mapping maps all keys to [0] by
 checking whether the underlying finite mapping is empty. *)
 
-  Definition SMap := FMap.FMap.
+  Definition Compact (m : FMap.FMap) : Prop  := 
+    (forall p1 p2 a, FMap.find (p1, p2, a) m <> Some 0) /\ 
+    (forall p1 p2 a, compare p1 p2 <> Lt -> FMap.find (p1,p2,a) m = None).
 
-  Definition add p1 p2 a v m := match compare p1 p2 with
-                                | Lt => FMap.add (p1,p2,a) v m
-                                | Gt => FMap.add (p2,p1,a) (-v) m
-                                | Eq => m
-                              end.
 
-  Definition empty := FMap.empty.
+  Inductive SMap := mkSMap (m : FMap.FMap) : Compact m -> SMap .
+
+  Definition getFMap (sm : SMap) : FMap.FMap :=
+    match sm with
+      | mkSMap m _ => m
+    end.
+
   Definition find p1 p2 a m := match compare p1 p2 with
-                                 | Lt => default 0 (FMap.find (p1,p2,a) m)
-                                 | Gt => match FMap.find (p2,p1,a) m with
+                                 | Lt => default 0 (FMap.find (p1,p2,a) (getFMap m))
+                                 | Gt => match FMap.find (p2,p1,a) (getFMap m) with
                                              | Some r => - r
                                              | None => 0
                                          end
                                  | Eq => 0
                                end.
 
-  Definition map := FMap.map.
-  Definition union_with f := FMap.union_with (fun x y => let r := f x y
-                                                        in if Reqb r 0 then None else Some r) .
+  Program Definition map (f : R -> R) (Z : forall x, f x = 0 -> x = 0) (sm : SMap) : SMap :=
+    match sm with
+      | mkSMap m _ => mkSMap (FMap.map f m) _
+    end.
 
-  Definition singleton p1 p2 a r := match compare p1 p2 with
-                                | Lt => FMap.singleton (p1,p2,a) r
-                                | Gt => FMap.singleton (p2,p1,a) (-r)
-                                | Eq => FMap.empty
-                              end.
+  Next Obligation.
+    destruct wildcard' as [C1 C2].
+    unfold Compact, map in *. intros. split;intros.
+    - intro O.
+      rewrite FMap.map_find in O. option_inv_auto.
+      symmetry in H1. apply Z in H1. subst. tryfalse.
+    - rewrite FMap.map_find. rewrite C2 by auto. reflexivity.
+  Qed.       
 
-  Definition is_empty := FMap.is_empty.
+  Program Definition union_with (f : R -> R -> R) (sm1 sm2 : SMap) : SMap := 
+    match sm1, sm2 with
+      | mkSMap m1 _ , mkSMap m2 _ => mkSMap (FMap.union_with (fun x y => let r := f x y
+                                                                 in if Reqb r 0 then None else Some r) m1 m2) _
+    end.
 
-  Lemma empty_is_empty m : is_empty m = true <-> m = empty.
-  Proof.
-    unfold is_empty, empty. apply FMap.empty_is_empty.
+  Next Obligation.
+    unfold Compact in *.
+    destruct wildcard' as [C11 C12]. destruct wildcard'0 as [C21 C22].
+    split.
+    - intros. intro C.
+      rewrite FMap.union_find in C.
+      cases (FMap.find (p1, p2, a) m1) as F1;
+        cases (FMap.find (p1, p2, a) m2) as F2; try solve[inversion C; subst; tryfalse].
+      cases (Reqb (f r r0) 0) as E. tryfalse.
+      inversion C. rewrite <- Reqb_iff in H0. tryfalse.
+    - intros. rewrite FMap.union_find. rewrite C12 by assumption. rewrite C22 by assumption. reflexivity.
   Qed.
 
-  Lemma empty_is_empty': is_empty empty = true.
-  Proof.
-    rewrite empty_is_empty. reflexivity.
-  Qed.
+  Program Definition singleton (p1 p2 : Party) (a : Asset) (r : R) (Z : r <> 0) : SMap := 
+    let m := match compare p1 p2 with
+               | Lt => FMap.singleton (p1,p2,a) r
+               | Gt => FMap.singleton (p2,p1,a) (-r)
+               | Eq => FMap.empty
+             end
+    in mkSMap m _.
 
-
-  Lemma empty_find : forall p1 p2 a, find p1 p2 a empty = 0.
-  Proof.
-    intros. unfold find. destruct (compare p1 p2); try rewrite FMap.empty_find; reflexivity. 
-  Qed.
-
-  Definition Compact m := (forall p1 p2 a, FMap.find (p1, p2, a) m <> Some 0) /\ 
-                          (forall p1 p2 a, compare p1 p2 <> Lt -> FMap.find (p1,p2,a) m = None).
-  
-  Lemma compact_empty : Compact empty.
-  Proof. 
-    unfold Compact,empty. split. intros. rewrite FMap.empty_find. intro C. inversion C.
-    intros. apply FMap.empty_find.
-  Qed.
-
-  Lemma compact_singleton p1 p2 a r : r <> 0 -> Compact (singleton p1 p2 a r).
-  Proof.
-    unfold Compact, singleton. intros. 
+  Next Obligation.
+    unfold Compact. intros. 
     cases (compare p1 p2). split. intros. rewrite FMap.empty_find. intro C. inversion C. 
     intros. apply FMap.empty_find.
     split;intros.
@@ -223,82 +229,93 @@ checking whether the underlying finite mapping is empty. *)
     rewrite compare_eq in H2. subst. rewrite <- compare_lt_gt in Eq. tryfalse.
   Qed.
 
-  Lemma map_empty f : map f empty = empty.
+  Definition is_empty (sm : SMap) : bool := FMap.is_empty (getFMap sm).
+
+  Program Definition empty : SMap := mkSMap FMap.empty _.
+  Next Obligation.
+    unfold Compact. split. intros. rewrite FMap.empty_find. intro C. inversion C.
+    intros. apply FMap.empty_find.
+  Qed.
+
+Require Import Coq.Logic.ProofIrrelevance.
+
+
+  Lemma mkSMap_eq m1 m2 p q : m1 = m2 -> mkSMap m1 p = mkSMap m2 q.
   Proof.
-    unfold map, empty. apply FMap.map_empty.
+    intro E. subst. f_equal. apply proof_irrelevance.
+  Qed.
+
+  Lemma empty_is_empty (m : SMap) : is_empty m = true <-> m = empty.
+  Proof.
+    unfold is_empty, empty. simpl. destruct m. rewrite FMap.empty_is_empty. simpl.
+    split;intros. eauto using mkSMap_eq. inversion H. reflexivity.
+  Qed.
+
+  Lemma empty_is_empty': is_empty empty = true.
+  Proof.
+    rewrite empty_is_empty. reflexivity.
+  Qed.
+
+
+  Lemma empty_find : forall p1 p2 a, find p1 p2 a empty = 0.
+  Proof.
+    intros. unfold find. destruct (compare p1 p2); try rewrite FMap.empty_find; reflexivity. 
+  Qed.
+  
+
+  Lemma map_empty f Z : map f Z empty = empty.
+  Proof.
+    unfold map, empty. apply mkSMap_eq. apply FMap.map_empty.
   Qed.
 
   Lemma union_empty_l f m : union_with f m empty = m.
   Proof.
-    unfold union_with, empty. apply FMap.union_empty_l.
+    unfold union_with, empty. destruct m. apply mkSMap_eq. apply FMap.union_empty_l.
   Qed.
 
   Lemma union_empty_r f m : union_with f empty m = m.
   Proof.
-    unfold union_with, empty. apply FMap.union_empty_r.
+    unfold union_with, empty. destruct m. apply mkSMap_eq. apply FMap.union_empty_r.
   Qed.
 
   Lemma zip_empty f : union_with f empty empty = empty.
   Proof.
-    unfold union_with, empty. apply FMap.union_empty.
+    unfold union_with, empty. apply mkSMap_eq. apply FMap.union_empty.
   Qed.
 
   Lemma union_find p1 p2 a m1 m2 :  find p1 p2 a (union_with Rplus m1 m2) = find p1 p2 a m1 + find p1 p2 a m2.
   Proof.
-    unfold find, union_with. cases (compare p1 p2).
-    rewrite Rplus_0_l. reflexivity. rewrite FMap.union_find.
-    cases (FMap.find (p1, p2, a) m1) as F1; cases (FMap.find (p1, p2, a) m2) as F2;
-    try (cases (Reqb (r + r0) 0) as R; try rewrite Reqb_iff in R); auto using Rplus_0_l,Rplus_0_r.
-    rewrite FMap.union_find.
-    cases (FMap.find (p2, p1, a) m1) as F1; cases (FMap.find (p2, p1, a) m2) as F2;
-    try (cases (Reqb (r + r0) 0) as R; try rewrite Reqb_iff in R); auto using Rplus_0_l,Rplus_0_r;
-    rewrite <- Ropp_plus_distr. rewrite R. rewrite Ropp_0. reflexivity. reflexivity.
-  Qed.
-
-  Lemma compact_union m1 m2 f : Compact m1 -> Compact m2 -> Compact (union_with f m1 m2).
-  Proof.
-
-    intros C1 C2.
-    unfold Compact, union_with in *. 
-    destruct C1 as [C11 C12]. destruct C2 as [C21 C22].
-    split.
-    - intros. intro C.
-      rewrite FMap.union_find in C.
-      cases (FMap.find (p1, p2, a) m1) as F1;
-        cases (FMap.find (p1, p2, a) m2) as F2; try solve[inversion C; subst; tryfalse].
-      cases (Reqb (f r r0) 0) as E. tryfalse.
-      inversion C. rewrite <- Reqb_iff in H0. tryfalse.
-    - intros. rewrite FMap.union_find. rewrite C12 by assumption. rewrite C22 by assumption. reflexivity.
+    unfold find, union_with. destruct m1 as [m1 q1];destruct m2 as [m2 q2]. simpl.
+    cases (compare p1 p2).
+    - rewrite Rplus_0_l. reflexivity. 
+    - rewrite FMap.union_find.
+      cases (FMap.find (p1, p2, a) m1) as F1; cases (FMap.find (p1, p2, a) m2) as F2;
+      try (cases (Reqb (r + r0) 0) as R; try rewrite Reqb_iff in R); auto using Rplus_0_l,Rplus_0_r.
+    - rewrite FMap.union_find.
+      cases (FMap.find (p2, p1, a) m1) as F1; cases (FMap.find (p2, p1, a) m2) as F2;
+      try (cases (Reqb (r + r0) 0) as R; try rewrite Reqb_iff in R); auto using Rplus_0_l,Rplus_0_r;
+      rewrite <- Ropp_plus_distr. rewrite R. rewrite Ropp_0. reflexivity. reflexivity.
   Qed.
 
 
-  Lemma compact_map m f : (forall x, f x = 0 -> x = 0) -> Compact m -> Compact (map f m).
+  Lemma empty_find_compact m : (forall p1 p2 a, find p1 p2 a m = 0) -> m = empty.
   Proof.
-    intros F C. destruct C as [C1 C2].
-    unfold Compact, map in *. intros. split;intros.
-    - intro O.
-      rewrite FMap.map_find in O. option_inv_auto.
-      symmetry in H1. apply F in H1. subst. tryfalse.
-    - rewrite FMap.map_find. rewrite C2 by auto. reflexivity.
-  Qed.
-
-  Lemma empty_find_compact m : Compact m -> (forall p1 p2 a, find p1 p2 a m = 0) -> m = empty.
-  Proof.
-    intros C Z. unfold Compact in *. destruct C as [C1 C2].
-    unfold empty. apply FMap.empty_find'. intros.
+    destruct m as [m C]. intro Z. 
+    unfold Compact in *. destruct C as [C1 C2].
+    unfold empty. apply mkSMap_eq. apply FMap.empty_find'. intros.
     destruct k. destruct p. specialize (Z p p0 a). 
     unfold find in Z. 
 
     cases (compare p p0) as  P. apply C2. rewrite P. intro C; inversion C.
-    cases (FMap.find (p, p0, a) m). simpl in *. subst. tryfalse. reflexivity.
+    cases (FMap.find (p, p0, a) m). simpl in *. rewrite Eq in Z. simpl in Z. tryfalse. reflexivity.
     apply C2. rewrite P. intro C; inversion C.
-
   Qed.
 
-  Lemma map_find : forall p1 p2 a m f,  f 0 = 0 -> (forall r, - f r = f (- r)) 
-                                        -> find p1 p2 a (map f m) = f (find p1 p2 a m).
+  Lemma map_find : forall p1 p2 a (m : SMap) f q,  f 0 = 0 -> (forall r, - f r = f (- r)) 
+                                                   -> find p1 p2 a (map f q m) = f (find p1 p2 a m).
   Proof. 
-    unfold find, map. intros. cases (compare p1 p2); auto; rewrite FMap.map_find.
+    unfold find, map. intros. destruct m as [m C]. simpl.
+    cases (compare p1 p2); auto; rewrite FMap.map_find.
     destruct (FMap.find (p1, p2, a) m);auto.
     destruct (FMap.find (p2, p1, a) m);auto. apply H0.
   Qed.
