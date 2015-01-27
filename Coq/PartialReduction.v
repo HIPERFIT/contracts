@@ -6,7 +6,9 @@ Require Import FunctionalExtensionality.
 Require Export FinMap.
 
 
-(********** Reduction semantics **********)
+(********** Partial reduction semantics **********)
+
+(* This  *)
 
 
 Inductive ScaleTrans : option R -> Trans -> Trans -> Prop :=
@@ -128,6 +130,8 @@ Definition scale_trans' (v : option R) (t : SMap) : option SMap :=
   | None => if SMap.is_empty t then Some SMap.empty else None
   | Some v => Some (if Reqb v 0 then SMap.empty else  SMap.map (fun x => v * x) t)
   end.
+
+(* Computable function that implements the reduction semantics. *)
 
 Fixpoint redfun (c : Contr) (env : EnvP) (ext : ExtEnvP) : option (Contr * SMap) :=
   match c with

@@ -1,9 +1,19 @@
+(* This module (axiomatically) defines an abstract data type [FMap] of
+finite mappings from [Party * Party * Asset] to [R]. Based on [FMap],
+we then define a type [SMap] of "symmetric" finite mappings. This type
+provides a compact representation of finite mappings with the property
+that if [(p,q,a)] is mapped to [r], then [(q,p,a)] is mapped to
+[-r]. This is achieved by only representing of the two mappings,
+i.e. either [(p,q,a)] to [r] or [(q,p,a)] to [-r]. *)
+
 Require Export Bool.
 Require Export Reals.
 Require Export Syntax.
 Require Export Utils.
 Require Export Tactics.
 Open Scope R.
+
+
 
 Module FMap.
 
@@ -126,6 +136,22 @@ Axiom compare_lt_gt : forall p1 p2, compare p1 p2 = Lt <-> compare p2 p1 = Gt.
 
 
 Module SMap.
+
+(* Based on the type [FMap], this module defines the type [SMap] of
+"symmetric" mappings. Symmetric mappings have only finitely many key
+values that are mapped to a non-zero value, and whenever [(p,q,a)] is
+mapped to [r], then [(q,p,a)] is mapped to [-r]. The first is achieved
+by implicitly mapping all key values to [0], for which there is no
+explicit mapping in the underlying finite mapping. The latter is
+achieved by only representing of the two mappings in the underlying
+finite mapping, i.e. either [(p,q,a)] to [r] or [(q,p,a)] to [-r].
+
+ In addition, we provide a collection of lemmas that prove a stronger
+"compactness" property: All keys in the underlying finite mapping are
+mapped to a non-zero value. The upshot of this compactness property is
+that we can check whether a symmetric mapping maps all keys to [0] by
+checking whether the underlying finite mapping is empty. *)
+
   Definition SMap := FMap.FMap.
 
   Definition add p1 p2 a v m := match compare p1 p2 with

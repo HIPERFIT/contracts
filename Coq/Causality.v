@@ -1,11 +1,16 @@
+(********** Causality **********)
+
+(* This module defines the semantic notion of causality and gives some
+lemmas helpful for proving causality. *)
+
+
 Require Export Denotational.
 Require Export TranslateExp.
 
 Open Scope Z.
 
-(********** Causality **********)
 
-(* [obs_until d r1 r2] iff [r1] [r2] coincide at [d] and earlier. *)
+(** [ext_until d r1 r2] iff [r1] and [r2] coincide at [d] and earlier. *)
 
 Definition ext_until {A} (d : Z) (r1 r2 : ExtEnv' A) : Prop :=
   forall l z, Z.le z d -> r1 l z = r2 l z.
