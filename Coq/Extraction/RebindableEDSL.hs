@@ -6,7 +6,7 @@
 module RebindableEDSL
     (
      -- * comparison operators                            
-     (<), (<=), (==), (>), (>=), 
+     (<), (<=), (==), (/=), (>), (>=), 
      -- * Boolean operators
      (&&), (||), not,
 
@@ -26,6 +26,12 @@ module RebindableEDSL
 
 import EDSL
 import Prelude as P (Int,Integer,error, Num(..), Fractional(..), fail, return, Bool(..))
+ 
+
+infix  4  ==, /=, <, <=, >=, >  
+infixr 3  &&  
+infixr 2  || 
+infix  1  `within`
 
 
 max :: ExpHoas exp => exp R -> exp R -> exp R
@@ -33,6 +39,9 @@ max x y = if x < y then y else x
 
 min :: ExpHoas exp => exp R -> exp R -> exp R
 min x y = if x < y then x else y
+
+(/=) :: ExpHoas exp => exp R -> exp R -> exp B
+(/=) = (!/=!)
 
 
 (==) :: ExpHoas exp => exp R -> exp R -> exp B

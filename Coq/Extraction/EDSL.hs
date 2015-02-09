@@ -21,7 +21,7 @@ rObs,
 -- * Boolean expression combinators
 BExp,
 false, true,
-(!<!), (!<=!), (!=!), (!>!), (!>=!), (!&!), (!|!),
+(!<!), (!<=!), (!=!), (!/=!), (!>!), (!>=!), (!&!), (!|!),
 bNot,
 bObs,
 
@@ -129,6 +129,10 @@ type BExp = Exp B
 
 (!=!) :: ExpHoas exp => exp R -> exp R -> exp B
 x !=! y = opE Equal [x, y]
+
+(!/=!) :: ExpHoas exp => exp R -> exp R -> exp B
+x !/=! y = bNot (x !=! y)
+
 
 (!<!) :: ExpHoas exp => exp R -> exp R -> exp B
 x !<! y = opE Less [x, y]
