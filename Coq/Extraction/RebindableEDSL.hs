@@ -20,7 +20,7 @@ module RebindableEDSL
      module P,
      ifThenElse,
      within,
-     module EDSL
+     module EDSL,
 ) where
 
 

@@ -80,10 +80,10 @@ Extract Inlined Constant default => "fromMaybe".
 
 Extract Inductive sum => "Either" ["Left" "Right"].
 
-Extract Constant Asset => "String".
-Extract Constant Party => "String".
-Extract Constant BoolObs => "String".
-Extract Constant RealObs => "String".
+Extract Inlined Constant Asset => "Asset".
+Extract Inlined Constant Party => "Party".
+Extract Inlined Constant BoolObs => "BoolObs".
+Extract Inlined Constant RealObs => "RealObs".
 
 Extract Inlined Constant Asset.eqb => "(==)".
 Extract Inlined Constant Party.eqb => "(==)".

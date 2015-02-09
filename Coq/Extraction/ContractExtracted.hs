@@ -1914,14 +1914,6 @@ min_dec4 :: Int -> Int -> Bool
 min_dec4 =
   min_dec3
 
-type Asset = String
-
-type Party = String
-
-type BoolObs = String
-
-type RealObs = String
-
 data Var =
    V1
  | VS Var

@@ -8,8 +8,8 @@ import Contract hiding (map)
 import Data.Maybe
 
 instance Show ObsLabel where
-    show (LabR l) = l
-    show (LabB l) = l
+    show (LabR l) = show l
+    show (LabB l) = show l
 
 varName :: Int -> String
 varName i = "x"++show i
@@ -60,7 +60,7 @@ ppContr cur names c = case c of
                         Zero -> "zero"
                         Translate l c -> parentheses (show l ++ " ! " ++ ppContr cur names c)
                         Scale e c -> parentheses (ppExp cur names e ++ " # " ++ ppContr cur names c)
-                        Transfer p1 p2 a -> a ++ "(" ++ p1 ++ " -> " ++ p2 ++ ")"
+                        Transfer p1 p2 a -> show a ++ "(" ++ show p1 ++ " -> " ++ show p2 ++ ")"
                         Both c1 c2 -> parentheses (ppContr cur names c1 ++ " & " ++ ppContr cur names c2)
                         If b l c1 c2 -> "if " ++ ppExp cur names b ++ within ++ " then " ++
                                         ppContr cur names c1 ++ " else " ++ ppContr cur names c2

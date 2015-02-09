@@ -6,8 +6,8 @@
 
 module EDSL (
 -- * Data types used in contracts
-Asset,
-Party,
+Asset (..),
+Party (..),
 
 Exp,
 acc,
@@ -42,6 +42,8 @@ letc,
 
 -- * Operations on contracts
 ObsLabel (..),
+RealObs (..),
+BoolObs (..),
 ExtEnvP,
 FMap,
 horizon,
@@ -52,7 +54,7 @@ hasType,
 mkExtEnvP,
 
 ExpHoas,
-R, B
+R, B,
 
 ) where
 
@@ -119,7 +121,7 @@ instance ExpHoas DB
 type Exp t = forall exp . ExpHoas exp => exp t
 
 
-rObs :: ExpHoas exp => String -> Int -> exp R
+rObs :: ExpHoas exp => RealObs -> Int -> exp R
 rObs l i = obs (LabR l) i
 
 type RExp = Exp R
@@ -151,7 +153,7 @@ x !|! y = opE Or [x, y]
 bNot :: ExpHoas exp => exp B -> exp B
 bNot x =  opE Not [x]
 
-bObs :: ExpHoas exp => String -> Int -> exp B
+bObs :: ExpHoas exp => BoolObs -> Int -> exp B
 bObs l i = obs (LabB l) i
 
 
