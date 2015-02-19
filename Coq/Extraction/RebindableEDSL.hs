@@ -1,3 +1,6 @@
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RebindableSyntax #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -25,7 +28,8 @@ module RebindableEDSL
 
 
 import EDSL
-import Prelude as P (Int,Integer,error, Num(..), Fractional(..), fail, return, Bool(..))
+import Prelude as P (Int,Integer,error, Num(..), Fractional(..), fail, return, Bool(..), otherwise)
+import qualified Prelude
  
 
 infix  4  ==, /=, <, <=, >=, >  
@@ -33,43 +37,59 @@ infixr 3  &&
 infixr 2  || 
 infix  1  `within`
 
+class Eq a b where
+    (==) :: a -> a -> b
+    (/=) :: a -> a -> b
 
-max :: ExpHoas exp => exp R -> exp R -> exp R
-max x y = if x < y then y else x
+instance ExpHoas exp => Eq (exp R) (exp B) where
+    (==) = (!=!)
+    (/=) = (!/=!)
 
-min :: ExpHoas exp => exp R -> exp R -> exp R
-min x y = if x < y then x else y
+instance Prelude.Eq a => Eq a Bool where
+    (==) = (Prelude.==)
+    (/=) = (Prelude./=)
 
-(/=) :: ExpHoas exp => exp R -> exp R -> exp B
-(/=) = (!/=!)
+class Eq a b => Ord a b where
+    (<),(>=), (>), (<=) :: a -> a -> b
+
+class Max a where
+    max,min :: a -> a -> a
+
+instance ExpHoas exp => Ord (exp R) (exp B) where
+    (<) = (!<!)
+    (<=) = (!<=!)
+    (>) = (!>!)
+    (>=) = (!>=!)
+
+instance ExpHoas exp => Max (exp R) where
+    max x y = if x !<! y then y else x
+    min x y = if x !<! y then y else x
+
+instance Prelude.Ord a => Ord a Bool where
+    (<) = (Prelude.<)
+    (<=) = (Prelude.<=)
+    (>) = (Prelude.>)
+    (>=) = (Prelude.>=)
+
+instance Prelude.Ord a => Max a where
+    max = Prelude.max
+    min = Prelude.min
+
+class Boolean b where
+    (&&) :: b -> b -> b
+    (||) :: b -> b -> b
+    not :: b -> b
+
+instance ExpHoas exp => Boolean (exp B) where
+    (&&) = (!&!)
+    (||) = (!|!)
+    not = bNot
 
 
-(==) :: ExpHoas exp => exp R -> exp R -> exp B
-(==) = (!=!)
-
-(<) :: ExpHoas exp => exp R -> exp R -> exp B
-(<) = (!<!)
-
-(<=) :: ExpHoas exp => exp R -> exp R -> exp B
-(<=) = (!<=!)
-
-
-(>) :: ExpHoas exp => exp R -> exp R -> exp B
-(>) = (!>!)
-
-(>=) :: ExpHoas exp => exp R -> exp R -> exp B
-(>=) = (!>=!)
-
-
-(&&) :: ExpHoas exp => exp B -> exp B -> exp B
-(&&) = (!&!)
-
-(||) :: ExpHoas exp => exp B -> exp B -> exp B
-(||) = (!|!)
-
-not :: ExpHoas exp => exp B -> exp B
-not = bNot
-
+instance Boolean Bool where
+    (&&) = (Prelude.&&)
+    (||) = (Prelude.||)
+    not = Prelude.not
 
 
 (>>=) :: ContrHoas exp contr => exp t -> (exp t -> contr) -> contr
@@ -87,6 +107,11 @@ within = Within
 
 class IfThenElse b c where
     ifThenElse :: b -> c -> c -> c
+
+instance IfThenElse Bool a where
+    ifThenElse True  x _ = x
+    ifThenElse False _ y = y
+
 
 instance ExpHoas exp => IfThenElse (exp B) (exp t) where
     ifThenElse = ife

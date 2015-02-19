@@ -1,7 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RebindableSyntax #-}
 
-
-import EDSL
+import RebindableEDSL
 
 -- Credit default swap parametrised by the maturity (in months), the
 -- currency, the premium and the settlement as well as the buyer and
@@ -10,12 +10,12 @@ import EDSL
 cds :: Int -> Asset -> Exp R -> Exp R -> Party -> Party -> Party -> Contr
 cds months cur premium settle buyer seller ref = 
     payment months & settlement
-    where payment 0  = zero
-          payment i = (premium # transfer buyer seller cur) &  
-                      (30 ! payment (i-1))
-          settlement = ifWithin (bObs (Default ref) 0) (30 * months)
-                                (settle # transfer seller buyer cur)
-                                zero
+    where payment i | i <= 0    = zero
+                    | otherwise = (premium # transfer buyer seller cur) &  
+                                  (30 ! payment (i-1))
+          settlement = if bObs (Default ref) 0 `within` 30 * months
+                       then settle # transfer seller buyer cur
+                       else zero
 
 
 -- A bond contract parametrised by the maturity (in months), the
@@ -24,9 +24,12 @@ cds months cur premium settle buyer seller ref =
 
 bond :: Int -> Asset -> Exp R -> Exp R -> Party -> Party -> Contr
 bond months cur inter nom holder issuer = payment months
-    where payment 0 = nom # transfer issuer holder cur
-          payment i = (inter # transfer issuer holder cur) &
-                      (ifWithin (bObs (Default issuer) 0) 30 zero (payment (i-1)))
+    where payment i | i <= 0     = nom # transfer issuer holder cur
+                    | otherwise  = 
+                        inter # transfer issuer holder cur &
+                        if bObs (Default issuer) 0 `within` 30
+                        then zero
+                        else payment (i-1)
 
 
 bondCDSExample :: Contr

@@ -14,7 +14,7 @@ cds maturity cur premium settle buyer seller ref =
     payment & settlement
     where payment = premium # transfer buyer seller cur
           settlement = if bObs (Default ref) 0 `within` maturity
-                       then (settle # transfer seller buyer cur)
+                       then settle # transfer seller buyer cur
                        else zero
 
 -- zero coupon bond
@@ -22,7 +22,7 @@ cds maturity cur premium settle buyer seller ref =
 bond :: Int -> Asset -> Exp R -> Party -> Party -> Contr
 bond maturity cur nom holder issuer = if bObs (Default issuer) 0 `within` maturity
                                       then zero 
-                                      else (nom # transfer issuer holder cur)
+                                      else nom # transfer issuer holder cur
 
 
 
