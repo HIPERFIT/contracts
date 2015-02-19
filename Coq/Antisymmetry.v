@@ -5,7 +5,7 @@ Require Import Tactics.
 
 Definition antisym (t : Trans) : Prop := forall p1 p2 c, t p1 p2 c = - t p2 p1 c.
 Definition antisym_trace (t : Trace) : Prop := forall i, antisym (t i).
-Definition antisym_trace' (t : Env -> ExtEnv -> option Trace) : Prop := 
+Definition antisym_trace' (t : ContrSem) : Prop := 
   forall env ext t', t env ext = Some t' -> antisym_trace t'.
 
 
@@ -92,11 +92,37 @@ Proof.
 Hint Resolve within_trace_antisym.
 
 
-Theorem sem_antisym c : antisym_trace' (C[| c |]).
+Lemma var_antisym' cenv v t: all antisym_trace' cenv -> lookupEnv v cenv = Some t -> antisym_trace' t.
 Proof.
-  
-  induction c; try solve[unfold antisym_trace'; intros; simpl in *; 
-                         first[progress option_inv_auto| inversion H]; subst; unfold empty_trace; eauto].
-  
+admit.
+Qed.
+
+Lemma var_antisym cenv v t env ext t': 
+  all antisym_trace' cenv -> lookupEnv v cenv = Some t -> t env ext = Some t' -> antisym_trace t'.
+Proof.
+admit.
+Qed.
+
+
+Lemma iter_trace_antisym t1 t2 n : (forall t, antisym_trace' t -> antisym_trace' (t1 t)) -> 
+                                     antisym_trace' t2 -> 
+                                     antisym_trace' (iter_sem t1 t2 n).
+Proof.
+admit.
+Qed.
+
+
+Theorem sem_antisym c cenv : all antisym_trace' cenv -> antisym_trace' (C[| c |] cenv).
+Proof.
+  intros. generalize dependent cenv.
+  induction c;intros cenv A; try solve[try specialize (IHc cenv A);
+                                        try specialize (IHc1 cenv A);
+                                        try specialize (IHc2 cenv A);
+                                       unfold antisym_trace'; intros; simpl in *; 
+                                       first[progress option_inv_auto| inversion H]; subst; 
+                                       unfold empty_trace; eauto using var_antisym].
+
+ 
   simpl. apply within_trace_antisym; auto.
+  simpl. apply iter_trace_antisym; auto. 
 Qed.

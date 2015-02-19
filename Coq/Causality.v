@@ -18,7 +18,7 @@ Definition ext_until {A} (d : Z) (r1 r2 : ExtEnv' A) : Prop :=
 (* Semantic causality of (closed) contracts *)
 
 Definition causal (c : Contr) : Prop :=
-  forall d r1 r2 t1 t2,  ext_until (Z.of_nat d) r1 r2 -> C[|c|]nil r1 = Some t1 -> C[|c|]nil r2 = Some t2
+  forall d r1 r2 t1 t2,  ext_until (Z.of_nat d) r1 r2 -> C[|c|] nil nil r1 = Some t1 -> C[|c|]nil nil r2 = Some t2
                         -> t1 d = t2 d.
 
 

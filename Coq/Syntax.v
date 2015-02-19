@@ -95,9 +95,11 @@ fix F (e : Exp) : P e :=
 
 Inductive Contr : Type :=
  | Zero : Contr
+ | VarC : Var -> Contr
  | Let : Exp -> Contr -> Contr
  | Transfer : Party -> Party -> Asset -> Contr
  | Scale : Exp -> Contr -> Contr
  | Translate : nat -> Contr -> Contr
  | Both : Contr -> Contr -> Contr
- | If : Exp -> nat -> Contr -> Contr -> Contr.
+ | If : Exp -> nat -> Contr -> Contr -> Contr
+ | Iter (f : Contr) (d : nat) (e : Contr).

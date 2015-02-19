@@ -80,8 +80,9 @@ Inductive CausalE : TimeEnv -> TimeB -> Exp -> Prop:=
 
 
 
-Inductive CausalC : TimeEnv -> TimeB -> Contr -> Prop :=
-| causal_zero ts t : CausalC ts t Zero
+Inductive CausalC : TimeEnv -> TimeEnv -> TimeB -> Contr -> Prop :=
+| causal_zero cs ts t : CausalC cs ts t Zero
+| causal_var cs ts t : CausalC cs ts t (VarC v)
 | causal_translate ts t d c : CausalC (map (tsub' d) ts) (tsub' d t) c
                                      -> CausalC ts t (Translate d c)
 | causal_let ts t t' e c : CausalE ts t' e -> CausalC (t' :: ts) t c -> CausalC ts t (Let e c)

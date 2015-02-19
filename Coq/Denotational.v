@@ -225,9 +225,11 @@ Proof.
   repeat rewrite delay_trace_iter. rewrite plus_comm. reflexivity.
 Qed.
 
+Definition ContrSem := Env -> ExtEnv -> option Trace.
+
 (* The following function is needed to define the semantics of [IfWithin]. *)
 
-Fixpoint within_sem (c1 c2 : Env -> ExtEnv -> option Trace) 
+Fixpoint within_sem (c1 c2 : ContrSem) 
          (e : Exp) (i : nat)  (env : Env) (rc : ExtEnv) : option Trace 
   := match E[|e|] env rc with
        | Some (BVal true) => c1 env rc
@@ -249,14 +251,26 @@ Definition toReal (v : Val) : option R :=
     | BVal _ => None
   end.
 
-Fixpoint Csem (c : Contr) (env : Env) (ext : ExtEnv) : option Trace :=
+Definition ContrEnv := Env' ContrSem.
+
+Fixpoint iter_sem (c1 : ContrSem -> ContrSem) (c2 : ContrSem) 
+         (i : nat) : ContrSem
+  := match i with
+       | O => c2
+       | S j => c1 (iter_sem c1 c2 j)
+     end.
+
+
+Fixpoint Csem (c : Contr) (cenv : ContrEnv) (env : Env) (ext : ExtEnv) : option Trace :=
     match c with
       | Zero => Some empty_trace
-      | Let e c => E[|e|] env ext >>= fun val => C[|c|] (val :: env) ext
+      | Let e c => E[|e|] env ext >>= fun val => C[|c|] cenv (val :: env) ext
       | Transfer p1 p2 c => Some (singleton_trace (singleton_trans p1 p2 c 1))
-      | Scale e c' => liftM2 scale_trace (E[|e|] env ext >>= toReal) (C[|c'|] env ext) 
-      | Translate d c' => liftM (delay_trace d) (C[|c'|]env (adv_ext (Z.of_nat d) ext))
-      | Both c1 c2 => liftM2 add_trace (C[|c1|]env ext) (C[|c2|]env ext)
-      | If e d c1 c2 => within_sem C[|c1|] C[|c2|] e d env ext
+      | Scale e c' => liftM2 scale_trace (E[|e|] env ext >>= toReal) (C[|c'|] cenv env ext) 
+      | Translate d c' => liftM (delay_trace d) (C[|c'|] cenv env (adv_ext (Z.of_nat d) ext))
+      | Both c1 c2 => liftM2 add_trace (C[|c1|] cenv env ext) (C[|c2|] cenv env ext)
+      | If e d c1 c2 => within_sem (C[|c1|] cenv) (C[|c2|] cenv) e d env ext
+      | VarC v => lookupEnv v cenv >>= (fun sem => sem env ext)
+      | Iter c1 d c2 => iter_sem (fun sem => C[|c1|](sem :: cenv)) (C[|c2|] cenv) d env ext
     end
       where "'C[|' e '|]'" := (Csem e).
