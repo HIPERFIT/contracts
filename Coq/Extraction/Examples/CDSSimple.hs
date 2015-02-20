@@ -27,5 +27,13 @@ bond maturity cur nom holder issuer = if bObs (Default issuer) 0 `within` maturi
 
 
 bondCDSExample :: Contr
-bondCDSExample = bond 30 DKK 1000 X Y & cds 30 DKK 10 1000 Y Z X
+bondCDSExample = bond 30 DKK 1000 Y X & cds 30 DKK 10 900 Y Z X
 
+env1 = mkExtEnvP [] [(Default X,n,False) | n <- [0..30]]
+env2 = mkExtEnvP [] [(Default X,n,n==15) | n <- [0..30]]
+
+spec1 :: Contr
+spec1 = specialise bondCDSExample env1
+
+spec2 :: Contr
+spec2 = specialise bondCDSExample env2
