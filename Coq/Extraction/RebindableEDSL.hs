@@ -28,7 +28,7 @@ module RebindableEDSL
 
 
 import EDSL
-import Prelude as P (Int,Integer,error, Num(..), Fractional(..), fail, return, Bool(..), otherwise)
+import Prelude as P (Int,Integer,error, Num(..), Fractional(..), fail, return, Bool(..), otherwise, Show(..))
 import qualified Prelude
  
 

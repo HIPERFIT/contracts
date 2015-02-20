@@ -50,6 +50,8 @@ horizon,
 advance,
 specialise,
 hasType,
+printContr,
+showContr,
 
 mkExtEnvP,
 
@@ -238,3 +240,9 @@ mkExtEnvP rs bs = env
 
 hasType :: Contr -> Bool
 hasType = C.has_type . fromHoas
+
+printContr :: Contr -> IO ()
+printContr = putStrLn . showContr
+
+showContr :: Contr -> String
+showContr = show . fromHoas
