@@ -37,7 +37,7 @@ infixr 3  &&
 infixr 2  || 
 infix  1  `within`
 
-class Eq a b where
+class Eq a b | a -> b where
     (==) :: a -> a -> b
     (/=) :: a -> a -> b
 
@@ -45,11 +45,11 @@ instance ExpHoas exp => Eq (exp R) (exp B) where
     (==) = (!=!)
     (/=) = (!/=!)
 
-instance Prelude.Eq a => Eq a Bool where
+instance Eq Int Bool where
     (==) = (Prelude.==)
     (/=) = (Prelude./=)
 
-class Eq a b => Ord a b where
+class Eq a b => Ord a b | a -> b where
     (<),(>=), (>), (<=) :: a -> a -> b
 
 class Max a where
@@ -65,7 +65,7 @@ instance ExpHoas exp => Max (exp R) where
     max x y = if x !<! y then y else x
     min x y = if x !<! y then y else x
 
-instance Prelude.Ord a => Ord a Bool where
+instance Ord Int Bool where
     (<) = (Prelude.<)
     (<=) = (Prelude.<=)
     (>) = (Prelude.>)
