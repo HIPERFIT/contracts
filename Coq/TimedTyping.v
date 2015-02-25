@@ -1,5 +1,5 @@
 Require Import Typing.
-Require Import ContextualCausality.
+Require Export ContextualCausality.
 Require Import Tactics.
 Require Import Utils.
 Require Import Environments.

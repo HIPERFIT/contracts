@@ -37,8 +37,14 @@ Tactic Notation "tryfalse" "by" tactic(tac) "/" :=
 
 
 Ltac rewr_assumption := idtac; match goal with
-                          | [R: _ |- _ ] => rewrite R
+                          | [R: _ = _ |- _ ] => first [rewrite R| rewrite <- R]
                         end.
+
+Tactic Notation "rewr_assumption" "in" ident(H) := 
+  idtac; match goal with
+           | [R: _ = _ |- _ ] => first [rewrite R in H| rewrite <- R in H]
+         end.
+
 
 Ltac def_to_eq_sym X HX E :=
   assert (HX : E = X) by reflexivity; clearbody X.

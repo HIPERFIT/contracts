@@ -4,6 +4,7 @@ Require Import TranslateExp.
 Require Import Tactics.
 Require Import FunctionalExtensionality.
 Require Export FinMap.
+Require Import TimedTyping.
 
 
 (********** Partial reduction semantics **********)
@@ -120,6 +121,269 @@ Proof.
   - spec. eapply IHR;eauto. destruct n; simpl in S1; rewrite H in S1; assumption.
     Qed.
 
+Open Scope time.
+
+Definition ext_def_until (ext : ExtEnvP) t := 
+  forall l i, Time i <= t -> exists v, ext l i = Some v.
+
+Definition env_def_until (env : EnvP) ts t := 
+  all2 (fun v t' => time t' <= t -> exists v', v = Some v' /\ TypeVal v' (type t')) env ts.
+
+
+Lemma fromLit_toLit v : fromLit (toLit v) = Some v.
+Proof.
+  destruct v;reflexivity.
+Qed.
+
+Lemma lookupEnvP_complete env tis ti v t:  
+  time ti <= t -> env_def_until env tis t -> TiTyV tis ti v
+  -> exists v', lookupEnvP v env = Some v' /\ TypeVal v' (type ti).
+Proof.
+  intros M E T. generalize dependent env. 
+  induction T;intros;
+  inversion E; subst; simpl; try rewr_assumption; eauto.
+Qed.
+
+
+Lemma add_time_0 t : add_time 0 t = t.
+Proof.
+  destruct t. destruct ti; simpl; try rewrite Z.add_0_r; reflexivity. 
+Qed.
+
+Lemma map_add_time_0 ts : map (add_time 0) ts = ts.
+Proof.
+  erewrite map_ext. apply map_id. intros. auto using add_time_0.
+Qed.
+
+
+Lemma adv_ext_def_until ext t d : 
+  ext_def_until ext t ->
+  ext_def_until (adv_ext (- Z.of_nat d) ext) (tadd' d t).
+Proof.
+  unfold ext_def_until. intros E. intros l i L. unfold adv_ext.
+  assert (Time (- Z.of_nat d + i) <= t) as L'
+  by (destruct t; simpl in *;inversion L; subst; constructor; omega).
+  eapply E in L'. decompose [ex] L'. rewr_assumption. eauto.
+Qed.
+
+Lemma add_time_tle s t d : tadd' d s <= tadd' d t -> s <= t.
+Proof.
+  intro T. destruct s, t; simpl in *;inversion T;subst;constructor;omega.
+Qed.
+
+Lemma env_def_until_add_time d env ti tis :  
+  env_def_until env tis ti
+  -> env_def_until env (map (add_time d) tis) (tadd' d ti).
+Proof.
+  unfold env_def_until. intros.
+  rewrite <- map_id with (l:=env). apply all2_map'. eapply all2_impl in H. 
+  apply H. simpl. intros. rewrite type_add_time. rewrite time_add_time in *.
+  eauto using add_time_tle.
+Qed.
+
+
+Lemma ext_def_until_adv d ext ti : 
+  (d <= 0)%Z -> ext_def_until ext ti -> ext_def_until (adv_ext d ext) ti.
+Proof.
+  unfold ext_def_until. intros L E l i Tl. 
+  assert (Time (d+i) <= ti) as Tl' by (inversion Tl; subst; constructor; omega).
+  eauto.
+Qed.
+
+Lemma ext_def_until_step ext ti : ext_def_until ext ti -> ext_def_until (adv_ext (-1) ext) ti.
+Proof.
+  intros. apply ext_def_until_adv. omega. assumption.
+Qed.
+
+
+Lemma specialiseExp_complete t tis ti e ext env : 
+  time ti <= t -> TiTyE tis ti e -> ext_def_until ext t -> env_def_until env tis t -> TypeExtP ext
+  -> exists v, fromLit (specialiseExp e env ext) = Some v /\ TypeVal v (type ti).
+Proof.
+  intros M T Ti E. 
+  generalize dependent env.   generalize dependent ext. generalize dependent ti. generalize dependent tis. 
+  generalize t.
+  induction e using Exp_ind';intros.
+  - admit.
+  - inversion T. subst. assert (exists v, ext l i = Some v) as D by eauto.
+    decompose [ex] D. simpl. rewr_assumption. simpl. 
+    assert (TypeVal' (ext l i) (type ti)) as T' by eauto.
+    rewr_assumption in T'. inversion T'. eauto using fromLit_toLit. 
+  - assert (exists v', lookupEnvP v env = Some v' /\ TypeVal v' (type ti)) as Hv
+      by (inversion T; subst; eauto using lookupEnvP_complete).
+    decompose [ex and] Hv. simpl. rewr_assumption. simpl. eauto using fromLit_toLit.
+  - simpl. inversion T. subst. clear T. pose Ti as Ti'.
+    apply adv_ext_def_until with (d:=d) in Ti'. 
+    eapply IHe2 in Ti';try rewrite time_add_time; eauto using env_def_until_add_time.
+    decompose [ex and] Ti'. clear Ti'. rewrite type_add_time in *. rewr_assumption. 
+    assert (exists v : Val,
+             Acc_sem
+                (specialiseFun (specialiseExp e1) env
+                   (adv_ext (- Z.of_nat d) ext)) d 
+                (Some x) = Some v /\ |-V v ∶ type ti) as G.
+    clear H1 H4.
+    generalize dependent env. generalize dependent ext. induction d;intros. 
+    + simpl in *. eauto.
+    + simpl. pose E as E'. eapply IHd with (ext:=adv_ext (-1) ext) in E';eauto using ext_def_until_step.
+      decompose [ex and] E'. repeat rewrite adv_ext_step'.
+      rewr_assumption. unfold specialiseFun.
+      eapply all2_cons with (y:=type ti @ TimeBot) in E;eauto. 
+      eapply IHe1 in E;eauto.
+      rewrite H1 in *. auto. rewrite <- adv_ext_step. rewrite adv_ext_opp by omega. assumption. 
+    + decompose [ex and] G. rewr_assumption. simpl. eauto using fromLit_toLit. 
+Qed.
+  
+Lemma tsub'_0 t: tsub' 0 t = t.
+Proof.
+  destruct t;simpl;f_equal. omega. reflexivity.
+Qed.
+
+Lemma map_sub_time_0 ts : map (sub_time 0) ts = ts.
+Proof.
+  erewrite map_ext. apply map_id. intros. destruct a. destruct ti; simpl; repeat f_equal. omega.
+Qed.
+
+Lemma fromLit_fromRLit e : 
+  (exists v, fromLit e = Some v /\ TypeVal v REAL)
+  -> exists r, fromRLit e = Some r.
+Proof.
+  intro E. decompose [ex and] E. destruct e;tryfalse. destruct op, args;tryfalse;simpl in *;eauto.
+  inversion H0. subst. inversion H1. 
+Qed.
+
+
+Lemma fromLit_fromBLit e : 
+  (exists v, fromLit e = Some v /\ TypeVal v BOOL)
+  -> exists b, fromBLit e = Some b.
+Proof.
+  intro E. decompose [ex and] E. destruct e;tryfalse. destruct op, args;tryfalse;simpl in *;eauto.
+  inversion H0. subst. inversion H1. 
+Qed.
+
+
+Definition mk_env_inst : TyEnv -> EnvP -> Env := 
+  zipWith (fun t v => match v with
+                  | Some v' => v'
+                  | None => match t with
+                              | BOOL => BVal false
+                              | REAL => RVal 0
+                            end
+                      end).
+
+Lemma mk_env_inst_env_inst env tys : TypeEnvP tys env -> env_inst env (mk_env_inst tys env).
+Proof.
+  intros T. induction T;constructor;eauto. intros. destruct x; congruence.
+Qed.
+
+
+Lemma mk_env_inst_typed env tys : TypeEnvP tys env -> TypeEnv tys (mk_env_inst tys env).
+Proof.
+  intros T. induction T;constructor;eauto. intros. destruct x. inversion H. auto.
+  destruct y;eauto.
+Qed.  
+
+Definition mk_ext_inst (ext : ExtEnvP) : ExtEnv
+  := fun l i => match ext l i with
+                  | Some v => v
+                  | None => match l with
+                              | LabB _ => BVal false
+                              | LabR _ => RVal 0
+                            end
+                end.
+
+
+Lemma mk_ext_inst_ext_inst ext : ext_inst ext (mk_ext_inst ext).
+Proof.
+  unfold ext_inst, mk_ext_inst. intros. rewr_assumption. reflexivity.
+Qed.
+
+
+Lemma mk_ext_inst_typed ext: TypeExtP ext -> TypeExt (mk_ext_inst ext).
+Proof.
+  unfold TypeExt, TypeExtP, mk_ext_inst. intros. 
+  cases (ext l z) as E. assert (|-V' Some v ∶ t) as V. rewr_assumption. eauto.
+  inversion V. auto. destruct H0;auto.
+Qed.
+
+Hint Resolve mk_ext_inst_ext_inst mk_env_inst_env_inst mk_ext_inst_typed mk_env_inst_typed : inst.
+
+Lemma red_empty tis ti ext env c c' t' : 
+  Time 0 < ti -> TypeEnvP (map type tis) env -> TypeExtP ext -> TiTyC tis ti c -> 
+  Red c env ext c' t' -> t' = empty_trans.
+Proof.
+  intros L Tv Tx Tc R.
+  rewrite TiTyC_decompose in Tc. destruct Tc as [Tc1 Tc2].
+  inversion L. subst.
+  pose Tc1 as Tc1'.
+  apply Csem_typed_total 
+  with (env := mk_env_inst (map type tis) env)
+       (ext := mk_ext_inst ext) in Tc1';
+    eauto with inst. 
+  unfold total_trace in *. destruct Tc1' as [t Tc1'].
+  pose Tc1' as S.
+  eapply red_sound1 in S;eauto with inst.
+  eapply CausalC_empty in Tc1';eauto. rewrite Tc1' in S. auto. simpl. auto.
+Qed.
+
+Lemma tle_tlt x y z: x <= y -> y < z -> x < z.
+Proof.
+  intros X Y. destruct X. destruct Y; constructor. inversion Y;subst. inversion Y. subst.
+  constructor. omega.
+Qed.
+
+Theorem red_complete ti ti' tis c env ext : 
+  Time 0 <= ti -> TiTyC tis ti' c
+  -> ext_def_until ext ti -> env_def_until env tis ti -> TypeExtP ext -> TypeEnvP (map type tis) env
+  -> exists c' t', Red c env ext c' t'.
+Proof.
+  intros Ti T Ex Ev Te Tv.
+  generalize dependent env. generalize dependent ext. 
+  induction T; simpl; intros;eauto.
+  - (* Translate *)
+    destruct d; eauto.
+    assert (exists c' t', Red c env ext c' t') as IH by
+        (eapply IHT; try rewrite tsub'_0;try rewrite map_sub_time_0;eauto).
+    decompose [ex] IH. do 2 eexists. eauto. 
+  - (* Let *)
+    assert (exists c' t', Red c (fromLit (specialiseExp e env ext) :: env) ext c' t') as IH
+    by (eapply IHT;eauto; constructor;eauto using specialiseExp_complete;
+        rewrite TiTyE_decompose in H; destruct H; eauto using fromLit_typed,specialiseExp_typed).
+    decompose [ex] IH. do 2 eexists. econstructor;eauto.
+  - (* Scale *)
+    assert (exists c' t', Red c env ext c' t') as IH by (eapply IHT;eauto).
+    decompose [ex] IH.
+    cases (ti0 <=? ti) as TL.
+    * rewrite tleb_tle in TL.
+      eapply specialiseExp_complete in H;eauto.
+      apply fromLit_fromRLit in H. decompose [ex] H.
+      do 2 eexists. econstructor;eauto.
+      rewr_assumption. constructor.
+    * rewrite tleb_tgt in TL.
+      assert (Time 0 < ti0) as Ti' by eauto using tle_tlt.
+      assert (x0 = empty_trans) as Em. 
+      eauto using red_empty. subst.
+      do 2 eexists. econstructor;eauto.
+      eapply scaleTrans_empty.
+  - (* Both *)
+    assert (exists c' t', Red c1 env ext c' t') as IH1 by (eapply IHT1;eauto).
+    assert (exists c' t', Red c2 env ext c' t') as IH2 by (eapply IHT2;eauto).
+    decompose [ex] IH1. decompose [ex] IH2. eauto.
+  - (* If *)
+    eapply specialiseExp_complete in H;simpl;eauto. 
+    apply fromLit_fromBLit in H. destruct H as [b H].
+    destruct b. 
+    + assert (exists c' t', Red c1 env ext c' t') as IH1 by (eapply IHT1;eauto).
+      decompose [ex] IH1. eapply red_if_true in H;eauto.
+    + destruct d.
+      * assert (exists c' t', Red c2 env ext c' t') as IH2 by
+          (eapply IHT2;try rewrite tsub'_0;try rewrite map_sub_time_0;eauto). 
+        decompose [ex] IH2.
+        eapply red_if0_false in H;eauto.
+      * eapply red_ifS_false in H;eauto.
+Qed.
+
+
+Open Scope R.
 Import SMap.
 
 Definition lift2M {A B C} (f : A -> B -> C) (x : option (A * B)) : option C 
