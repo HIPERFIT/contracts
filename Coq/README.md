@@ -19,10 +19,8 @@ is as follows:
   and proves that "well-timed" (i.e. well-typed in this type system)
   contracts are causal. In addition, it defines type inference
   procedure and proves it sound.
-- [Reduction.v](Reduction.v) defines the (total) reduction semantics
-  and proves it sound and complete.
-- [PartialReduction.v](PartialReduction.v) defines the partial
-  reduction semantics and proves it sound.
+- [Reduction.v](Reduction.v) defines the reduction semantics
+  and proves it sound and complete.g
 - [Specialise.v](Specialise.v) defines specialisation of contracts
   (partial evaluation w.r.t. a partial external environment) and
   proves it correct.
