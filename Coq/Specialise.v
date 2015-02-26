@@ -1,5 +1,6 @@
 Require Import Denotational.
 Require Export DenotationalTyped.
+Require Export ContextualCausality.
 Require Import Tactics.
 Require Import Equivalence.
 
@@ -656,6 +657,7 @@ Proof.
   - intros. inversion H. eauto using smartBoth_sound.
 Qed.
 
+Open Scope nat.
 
 Definition smartTranslate l c : Contr :=
   match l with

@@ -1,3 +1,4 @@
+Require Import ZArith.
 Require Export Specialise.
 Require Import Denotational.
 Require Import TranslateExp.
@@ -47,6 +48,27 @@ result contract, the rule would be unsound. *)
 
 Hint Constructors Red.
 
+Module Preservation.
+
+  (* Proof of type preservation by Red *)
+
+Lemma red_typed c c' envp extp t g:
+  TypeEnvP g envp -> TypeExtP extp -> 
+  g |-C c -> Red c envp extp c' t ->  g |-C c'.
+Proof.
+  intros T1 T2 T R. generalize dependent g.
+  induction R;intros;inversion T;subst;
+  eauto 10 using smartLet_typed, smartBoth_typed, smartScale_typed, translateExp_type,specialiseExp_typed, fromLit_typed.
+Qed.
+
+End Preservation.
+
+Import Preservation.
+
+Module Soundness.
+
+  (* Proof of soundness of Red according to denotational semantics *)
+
 Theorem red_sound1 c c' env ext envp extp tr t g: 
   g |-C c ->
       TypeEnv g env -> TypeExt ext -> 
@@ -76,15 +98,6 @@ Proof.
   - spec. eapply IHR;eauto. destruct n; simpl in S; rewrite H in S;assumption.
 Qed.
 
-
-Theorem red_typed c c' envp extp t g:
-  TypeEnvP g envp -> TypeExtP extp -> 
-  g |-C c -> Red c envp extp c' t ->  g |-C c'.
-Proof.
-  intros T1 T2 T R. generalize dependent g.
-  induction R;intros;inversion T;subst;
-  eauto 10 using smartLet_typed, smartBoth_typed, smartScale_typed, translateExp_type,specialiseExp_typed, fromLit_typed.
-Qed.
 
 Theorem red_sound2 c c' env ext envp extp t t1 t2 i g: 
   g |-C c ->
@@ -120,6 +133,13 @@ Proof.
     rewrite H1 in S2. inversion S2. reflexivity.
   - spec. eapply IHR;eauto. destruct n; simpl in S1; rewrite H in S1; assumption.
     Qed.
+
+End Soundness.
+Import Soundness.
+
+Module Progress.
+
+  (* Proof of progress of Red *)
 
 Open Scope time.
 
@@ -196,17 +216,6 @@ Proof.
 Qed.
 
 
-
-(* Lemma all2_all : all2 P l1 l2 -> all (fun x => P) l2 *)
-
-(*  H5 : all2 (TiTyE tis) ts' args *)
-(*   H : all *)
-(*         (fun x : Exp => *)
-(*          TiTyE tis ti x -> *)
-(*          exists v : Val, *)
-(*            fromLit (specialiseExp x env ext) = Some v /\ |-V v ∶ type ti) *)
-(*         args *)
-
 Lemma ext_def_until_tle t t' ext : t' <= t -> ext_def_until ext t -> ext_def_until ext t'.
 Proof.
   unfold ext_def_until. eauto. 
@@ -237,6 +246,7 @@ Ltac inv := match goal with
               | [t : Ty |- _] => destruct t
               | [ |- context[match ?x with _ => _ end]] => destruct x
 end.
+
 Lemma specialiseOp_complete ts ti args op env ext : 
   |-Op op ∶ ts => ti
   -> all2 (fun (e' : Exp) t' =>
@@ -247,6 +257,9 @@ Lemma specialiseOp_complete ts ti args op env ext :
 Proof.
   intros TO As. destruct TO;repeat (inv;subst; simpl;eauto).
 Qed.
+
+(* [specialiseExp] always yields a literal, if given sufficiently
+defined environments. *)
 
 Lemma specialiseExp_complete t tis ti e ext env : 
   time ti <= t -> TiTyE tis ti e -> ext_def_until ext t -> env_def_until env tis t -> TypeExtP ext
@@ -393,7 +406,7 @@ Proof.
   constructor. omega.
 Qed.
 
-Theorem red_complete ti ti' tis c env ext : 
+Theorem red_progress ti ti' tis c env ext : 
   Time 0 <= ti -> TiTyC tis ti' c
   -> ext_def_until ext ti -> env_def_until env tis ti -> TypeExtP ext -> TypeEnvP (map type tis) env
   -> exists c' t', Red c env ext c' t'.
@@ -444,6 +457,13 @@ Proof.
       * eapply red_ifS_false in H;eauto.
 Qed.
 
+
+End Progress.
+
+
+Module Compute.
+
+  (* Define Red as a computable function redfun and prove it correct  *)
 
 Open Scope R.
 Import SMap.
@@ -645,5 +665,4 @@ Proof.
     unfold pure, compose. rewrite H2. reflexivity. auto. eauto. 
   Qed.
 
-
-
+End Compute.
