@@ -196,15 +196,77 @@ Proof.
 Qed.
 
 
+
+(* Lemma all2_all : all2 P l1 l2 -> all (fun x => P) l2 *)
+
+(*  H5 : all2 (TiTyE tis) ts' args *)
+(*   H : all *)
+(*         (fun x : Exp => *)
+(*          TiTyE tis ti x -> *)
+(*          exists v : Val, *)
+(*            fromLit (specialiseExp x env ext) = Some v /\ |-V v ∶ type ti) *)
+(*         args *)
+
+Lemma ext_def_until_tle t t' ext : t' <= t -> ext_def_until ext t -> ext_def_until ext t'.
+Proof.
+  unfold ext_def_until. eauto. 
+Qed.
+
+Lemma env_def_until_tle ts t t' env : t' <= t -> env_def_until env ts t -> env_def_until env ts t'.
+Proof.
+  unfold env_def_until. intros l T. induction T;eauto.
+Qed.
+
+Lemma fromLit_real x : (exists v, fromLit x = Some v /\ TypeVal v REAL) -> exists v, x = OpE (RLit v) nil.
+Proof.
+  intro E. destruct E as [v E]. destruct E as [E1 E2]. inversion E2. subst.
+  apply toLit_fromLit in E1. subst. simpl. eauto.
+Qed.
+
+Lemma fromLit_bool x : (exists v, fromLit x = Some v /\ TypeVal v BOOL) -> exists v, x = OpE (BLit v) nil.
+Proof.
+  intro E. destruct E as [v E]. destruct E as [E1 E2]. inversion E2. subst.
+  apply toLit_fromLit in E1. subst. simpl. eauto.
+Qed.
+
+
+Ltac inv := match goal with
+              | [T : all2 _  _ _ |- _] => inversion T; clear T;subst
+              | [T : _ |- _] => first [apply fromLit_bool in T|apply fromLit_real in T];
+                               let x := fresh in destruct T as [x T];rewrite T;clear T
+              | [t : Ty |- _] => destruct t
+              | [ |- context[match ?x with _ => _ end]] => destruct x
+end.
+Lemma specialiseOp_complete ts ti args op env ext : 
+  |-Op op ∶ ts => ti
+  -> all2 (fun (e' : Exp) t' =>
+             exists v : Val,
+               fromLit (specialiseExp e' env ext) = Some v /\ |-V v ∶ t')  args ts
+  -> exists v,  (specialiseOp op (map (fun e' : Exp => specialiseExp e' env ext) args)) >>= fromLit = Some v
+               /\ TypeVal v ti.
+Proof.
+  intros TO As. destruct TO;repeat (inv;subst; simpl;eauto).
+Qed.
+
 Lemma specialiseExp_complete t tis ti e ext env : 
   time ti <= t -> TiTyE tis ti e -> ext_def_until ext t -> env_def_until env tis t -> TypeExtP ext
   -> exists v, fromLit (specialiseExp e env ext) = Some v /\ TypeVal v (type ti).
 Proof.
-  intros M T Ti E. 
-  generalize dependent env.   generalize dependent ext. generalize dependent ti. generalize dependent tis. 
-  generalize t.
+  intros M T Ti E TE. 
+  generalize dependent env.   generalize dependent ext. 
+  generalize dependent ti. generalize dependent tis. generalize t.
   induction e using Exp_ind';intros.
-  - admit.
+  - inversion T. subst. clear T. simpl.
+    assert (all2 (fun e' t' => exists v, fromLit (specialiseExp e' env ext) = Some v
+                                               /\ TypeVal v t') args (map type ts')) as G.
+    inversion H4. subst. clear H4 H1.
+    induction H5;constructor.
+    + inversion H. inversion H0. subst. eapply H4;eauto; rewr_assumption;
+      eauto using ext_def_until_tle, env_def_until_tle.
+    + inversion H0. inversion H. subst. apply IHall2;  eauto. 
+    + clear H. inversion H4. eapply specialiseOp_complete in G;eauto.
+      destruct G as [v G]. destruct G as [G1 G2]. option_inv G1. rewr_assumption.
+      simpl. eauto.
   - inversion T. subst. assert (exists v, ext l i = Some v) as D by eauto.
     decompose [ex] D. simpl. rewr_assumption. simpl. 
     assert (TypeVal' (ext l i) (type ti)) as T' by eauto.
@@ -221,7 +283,7 @@ Proof.
                 (specialiseFun (specialiseExp e1) env
                    (adv_ext (- Z.of_nat d) ext)) d 
                 (Some x) = Some v /\ |-V v ∶ type ti) as G.
-    clear H1 H4.
+    clear H0 H3.
     generalize dependent env. generalize dependent ext. induction d;intros. 
     + simpl in *. eauto.
     + simpl. pose E as E'. eapply IHd with (ext:=adv_ext (-1) ext) in E';eauto using ext_def_until_step.
@@ -229,7 +291,7 @@ Proof.
       rewr_assumption. unfold specialiseFun.
       eapply all2_cons with (y:=type ti @ TimeBot) in E;eauto. 
       eapply IHe1 in E;eauto.
-      rewrite H1 in *. auto. rewrite <- adv_ext_step. rewrite adv_ext_opp by omega. assumption. 
+      rewrite H0 in *. auto. rewrite <- adv_ext_step. rewrite adv_ext_opp by omega. assumption. 
     + decompose [ex and] G. rewr_assumption. simpl. eauto using fromLit_toLit. 
 Qed.
   
