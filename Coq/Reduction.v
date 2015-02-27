@@ -61,6 +61,102 @@ Proof.
   eauto 10 using smartLet_typed, smartBoth_typed, smartScale_typed, translateExp_type,specialiseExp_typed, fromLit_typed.
 Qed.
 
+Lemma tsub_tsub n m t : tsub n (tsub m t) = tsub (n + m) t.
+Proof.
+  unfold tsub. rewrite Z.opp_add_distr. apply tadd_tadd.
+Qed.
+
+Lemma map_tsub_tsub n m t : map (tsub n) (map (tsub m) t) = map (tsub (n + m)) t.
+Proof.
+  rewrite map_map. apply map_ext. apply tsub_tsub.
+Qed.
+
+Lemma succ_of_nat d : Z.of_nat d + 1 = Z.of_nat (S d).
+Proof.
+  rewrite Nat2Z.inj_succ. omega. 
+Qed.
+
+Lemma all2_tle_tsub_1 ts : all2 tle (map (tsub 1) ts) ts.
+Proof.
+  apply all2_map_forall;intros. destruct x;simpl;constructor; omega. 
+Qed. 
+
+Open Scope time.
+
+Lemma tle_tsub_1 t : tsub 1 t <= t.
+Proof.
+  destruct t;simpl;constructor; omega. 
+Qed. 
+
+Lemma tadd_tle d x y : (0 <= d)%Z -> x <= y ->  x <= tadd d y.
+Proof.
+  intros L T.
+  destruct x, y; simpl in *;eauto;inversion T; constructor. omega. 
+Qed.
+
+
+Lemma tadd_tle_1 x y : x <= y ->  x <= tadd 1 y.
+Proof.
+  intros T.
+  destruct x, y; simpl in *;eauto;inversion T; constructor. omega. 
+Qed.
+
+
+Ltac inv := match goal with
+              | [T : ex _ |- _] => decompose [ex and] T;clear T
+            end.
+  
+
+Lemma red_timed' c c' envp extp tr ts t:
+  CausalC ts t c -> Red c envp extp c' tr -> exists t', CausalC (map (tsub 1) ts) t' c' /\ tsub 1 t <= t'.
+Proof.
+  intros T R. generalize dependent ts. generalize dependent t.
+  induction R;intros;inversion T;subst;
+  try apply IHR in  H6;try apply IHR in  H8;
+  try apply IHR1 in  H5;try apply IHR2 in  H6;
+  repeat inv;
+  unfold tsub' in *; simpl in *; try rewrite tsub_0,map_tsub_0 in *;
+  eauto 7 using smartLet_timed, smartBoth_timed, smartScale_timed, translateExp_timed,specialiseExp_timed.
+  - eexists. split. apply smartScale_timed. econstructor;eauto. unfold tsub. simpl. 
+    assert (x = tadd (-1) (tadd 1 x)) as E. rewrite tadd_tadd. simpl. rewrite tadd_0. reflexivity.
+    rewrite E. eapply translateExp_timed. apply specialiseExp_timed. 
+    eapply CausalE_open with (ts:=ts) (t:=t1);eauto using all2_tle_refl, tadd_tle_1.
+    apply tsub_tadd_tle;assumption. unfold tsub. auto using tle_tadd.
+  - eexists (tsub 1 t). split. econstructor.
+    unfold tsub' in *. rewrite tsub_tsub, map_tsub_tsub. rewrite succ_of_nat.
+    assumption. auto.
+  - eexists (tmin x x0). split. apply smartBoth_timed. constructor.
+    eapply CausalC_open with (t:=x0); auto using all2_tle_refl, tmin_tle_r.
+    eapply CausalC_open with (t:=x); auto using all2_tle_refl, tmin_tle_l.
+    unfold tmin. destruct (x <=? x0);auto.
+  - eexists (tsub 1 t0). split. constructor;eauto. 
+    eapply CausalE_open with (ts:=ts). apply all2_tle_tsub_1. apply tle_refl. assumption.
+    apply CausalC_open with (ts:=ts) (t:=t0). apply all2_tle_tsub_1. apply tle_tsub_1. 
+    assumption.  unfold tsub' in *. rewrite tsub_tsub, map_tsub_tsub. rewrite succ_of_nat.
+    assumption. apply tle_refl.
+Qed.
+
+Lemma red_timed c c' envp extp tr ts t:
+  CausalC ts t c -> Red c envp extp c' tr -> CausalC (map (tsub 1) ts) (tsub 1 t) c'.
+Proof.
+  intros C R. eapply red_timed' in R;eauto. decompose [ex and] R.
+  eauto using  CausalC_open, all2_tle_refl.
+Qed.
+
+Theorem red_preservation g envp extp t c c' tr :
+  TypeEnvP (map type g) envp -> TypeExtP extp -> 
+  TiTyC g t c -> Red c envp extp c' tr ->  TiTyC (map (sub_time 1) g) (tsub 1 t) c'.
+Proof.
+  intros Ev Ex T R. apply TiTyC_decompose in T. destruct T.
+  rewrite TiTyC_decompose. split. rewrite map_map. 
+  rewrite map_ext with (g := type) by apply type_sub_time.
+  eauto using red_typed.
+  rewrite map_map. 
+  erewrite map_ext by apply time_sub_time.
+  rewrite <- map_map. 
+  eauto using red_timed.
+Qed.
+
 End Preservation.
 
 Import Preservation.
@@ -307,11 +403,6 @@ Proof.
       rewrite H0 in *. auto. rewrite <- adv_ext_step. rewrite adv_ext_opp by omega. assumption. 
     + decompose [ex and] G. rewr_assumption. simpl. eauto using fromLit_toLit. 
 Qed.
-  
-Lemma tsub'_0 t: tsub' 0 t = t.
-Proof.
-  destruct t;simpl;f_equal. omega. reflexivity.
-Qed.
 
 Lemma map_sub_time_0 ts : map (sub_time 0) ts = ts.
 Proof.
@@ -429,8 +520,8 @@ Proof.
     decompose [ex] IH.
     cases (ti0 <=? ti) as TL.
     * rewrite tleb_tle in TL.
-      eapply specialiseExp_complete in H;eauto.
-      apply fromLit_fromRLit in H. decompose [ex] H.
+      eapply specialiseExp_complete in H0;eauto.
+      apply fromLit_fromRLit in H0. decompose [ex] H0.
       do 2 eexists. econstructor;eauto.
       rewr_assumption. constructor.
     * rewrite tleb_tgt in TL.

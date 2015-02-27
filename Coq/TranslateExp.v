@@ -64,6 +64,6 @@ Qed.
 Lemma translateExp_type g d e t : g |-E e ∶ t -> g |-E translateExp d e ∶ t.
 Proof.
   intro T. generalize dependent g.  generalize dependent t. 
-  induction e using Exp_ind'; intros; simpl; inversion T; subst; try auto.
+  induction e using Exp_ind'; intros; simpl; inversion T; subst; auto.
   - econstructor. eassumption. eapply all_apply' in H. apply all_zip; eauto. 
 Qed.

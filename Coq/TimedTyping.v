@@ -71,7 +71,7 @@ Inductive TiTyC : TiTyEnv -> TimeB -> Contr -> Prop :=
 | causal_translate ts t d c : TiTyC (map (sub_time d) ts) (tsub' d t) c
                                      -> TiTyC ts t (Translate d c)
 | causal_let ts t t' e c : TiTyE ts t' e -> TiTyC (t' :: ts) t c -> TiTyC ts t (Let e c)
-| causal_scale ts ti e c : TiTyE ts (REAL @ ti) e -> TiTyC ts ti c -> TiTyC ts ti (Scale e c)
+| causal_scale ts ti ti' e c : ti' <= ti -> TiTyE ts (REAL @ ti) e -> TiTyC ts ti c -> TiTyC ts ti' (Scale e c)
 | causal_both ts t c1 c2 : TiTyC ts t c1 -> TiTyC ts t c2 -> TiTyC ts t (Both c1 c2)
 | causal_transfer t ts p1 p2 a : t <= Time 0 -> TiTyC ts t (Transfer p1 p2 a)
 | causal_if ts t d e c1 c2 : TiTyE ts (BOOL @ Time 0) e -> TiTyC ts t c1
@@ -125,7 +125,7 @@ Proof.
   intros T. induction T; econstructor;simpl in *;eauto.
   - rewrite map_map in IHT. erewrite map_ext. eassumption. intro. simpl.
     rewrite type_sub_time. reflexivity.
-  - apply TiTyE_type in H. simpl in H. apply H.
+  - apply TiTyE_type in H0. simpl in H0. apply H0.
   - apply TiTyE_type in H. simpl in H. apply H.
   - rewrite map_map in IHT2. erewrite map_ext. eassumption. intro. simpl.
     rewrite type_sub_time. reflexivity.
@@ -174,7 +174,7 @@ Proof.
   - rewrite map_map in *. erewrite map_ext. eassumption. intro. simpl.
     rewrite time_sub_time. reflexivity.
   - apply TiTyE_time in H. simpl in H. apply H.
-  - apply TiTyE_time in H. simpl in H. apply H.
+  - apply TiTyE_time in H0. simpl in H0. apply H0.
   - apply TiTyE_time in H. simpl in H. apply H.
   - rewrite map_map in *. erewrite map_ext. eassumption. intro. simpl.
     rewrite time_sub_time. reflexivity.
@@ -429,115 +429,43 @@ Definition ole (lo hi : option Z) := forall l h, lo = Some l -> hi = Some h -> l
 Hint Unfold ole.
 
 (* Time intervals are always non-empty. *)
-Inductive TimeI := TimeInt (lo hi : option Z) : ole lo hi -> TimeI.
+Inductive TimeI := Time' (t : TimeB) | TimeTop.
 
-(* This is a variant of [Z.le] in order to be able to discharge the
-proof obligations of the functions on [TimeI] defined below. *)
+Definition iadd d t := match t with
+                         | TimeTop => TimeTop
+                         | Time' t' => Time' (tadd' d t')
+                       end.
 
-Definition zleb (a b : Z) : {a <= b} + {b < a}.
-cases (a <=? b). 
-- rewrite Z.leb_le in Eq. auto.
-- rewrite Z.leb_gt in Eq. auto.
-Qed.
+Definition tileb l t := match t with
+                           | TimeTop => true
+                           | Time' t' => tleb l t'
+                       end.
 
-
-Ltac destruct_time :=   
-  repeat (match goal with
-            | [x : option _ |- _] => destruct x
-            | [x : TimeB |- _] => destruct x
-            | [x : TimeI |- _] => destruct x
-          end); autounfold in *; simpl in *; 
-  try match goal with
-        | [_ : context [?x <=? ?y] |- _] => cases (x <=? y)
-        | [_ : context [zleb ?x ?y] |- _] => cases (zleb x y)
-      end.
-
-Program Definition iadd' (d : Z) (t : TimeI) :=
-  match t with TimeInt lo hi _ => TimeInt (liftM (Z.add d) lo) (liftM (Z.add d) hi) _ end.
-
-Next Obligation. destruct_time; autounfold; intros; option_inv_auto. auto using Zplus_le_compat_l.
-Qed.
-
-Definition iadd (d : nat) : option TimeI -> option TimeI := liftM (iadd' (Z.of_nat d)).
+Definition ileb t1 t2 := match t1,t2 with
+                         | _,TimeTop => true
+                         | Time' s1, Time' s2 => tleb s1 s2
+                         | _, _ => false
+                       end.
 
 
+Definition imin t1 t2 := if ileb t1 t2 then t1 else t2.
 
-
-Program Definition icut' (l : TimeB) (t : TimeI) : option TimeI :=
-  match l with
-    | TimeBot => Some t
-    | Time l' => match t with TimeInt lo hi _ =>
-                 let lo' := match lo with
-                              | None => Some l'
-                              | Some x => Some (Z.max x l')
-                            end
-                 in match hi with
-                      | None => Some (TimeInt lo' hi _)
-                      | Some y => if zleb l' y then Some (TimeInt lo' hi _) else None
-                    end
-                 end
-  end.
-
-Next Obligation.
-  destruct lo; autounfold in *; intros;option_inv_auto. apply Z.max_lub. eauto. auto. auto.
-Qed.
-
-Definition icut (l : TimeB) (t : option TimeI) : option TimeI :=
-  t >>= fun t' => icut' l t'.
-
-
-Program Definition imeet' (t1 t2 : TimeI) : option TimeI :=
-  match t1,t2 with
-      TimeInt lo1 hi1 _, TimeInt lo2 hi2 _ =>
-  let lo := match lo1, lo2 with
-                | None,_ => lo2
-                | _, None => lo1
-                | Some l1, Some l2 => Some (Z.max l1 l2)
-            end in
-  let hi := match hi1, hi2 with
-                | None,_ => hi2
-                | _, None => hi1
-                | Some h1, Some h2 => Some (Z.min h1 h2)
-            end
-  in match lo,hi with
-       | Some l, Some h => if zleb l h then Some (TimeInt lo hi _) else None
-       | _,_ => Some (TimeInt lo hi _)
-     end
-  end.
-
-Next Obligation.
-  destruct_time;intros;option_inv_auto;auto.
-Qed.
-Next Obligation.
-  autounfold. intros. destruct_time;intros;option_inv_auto;auto;
-  specialize (H _ _ (conj (@eq_refl _ _) (@eq_refl _ _))); contradiction.
-Qed.
-
-
-
-Definition imeet (t1 t2 : option TimeI) : option TimeI :=
-  t1 >>= fun t1' => t2 >>= fun t2' => imeet' t1' t2'.
-
-
-Hint Unfold iadd icut imeet.
 Open Scope time.
-
-Program Definition iall : TimeI := TimeInt None None _.
-Program Definition ibelow (t : Z) : TimeI := TimeInt None (Some t) _.
 
 Fixpoint inferC (env : TiTyEnv) (c:Contr) : option TimeI :=
   match c with
-    | Zero => Some iall
-    | Transfer p1 p2 a => Some (ibelow 0)
-    | Translate d c' => iadd d (inferC (map (sub_time d) env) c')
-    | Scale e c' => inferE env e >>= fun t => if tyeqb (type t) REAL 
-                                              then icut (time t) (inferC env c')
+    | Zero => Some TimeTop
+    | Transfer p1 p2 a => Some (Time' (Time 0))
+    | Translate d c' => liftM (iadd d) (inferC (map (sub_time d) env) c')
+    | Scale e c' => inferE env e >>= fun ty => 
+                   inferC env c' >>= fun t => if tyeqb (type ty) REAL && tileb (time ty) t
+                                              then Some t
                                               else None
-    | Both c1 c2 => imeet (inferC env c1) (inferC env c2)
+    | Both c1 c2 => liftM2 imin (inferC env c1) (inferC env c2)
     | Let e c' => inferE env e >>= fun t => inferC (t :: env) c'
     | If e d c1 c2 => inferE env e >>= fun t =>
-                      if tyeqb (type t) BOOL && (time t <=? Time 0)
-                      then imeet (inferC env c1) (iadd d (inferC (map (sub_time d) env) c2))
+                      if tyeqb (type t) BOOL && tleb (time t) (Time 0)
+                      then liftM2 imin (inferC env c1) (liftM (iadd d) (inferC (map (sub_time d) env) c2))
                       else None
   end.
 
@@ -592,68 +520,75 @@ Qed.
 
 Open Scope Z.
 
-Inductive ielem : TimeB -> TimeI -> Prop :=
-  | ielem_none t p : ielem t (TimeInt None None p)
-  | ielem_lo l t p : l <= t -> ielem (Time t) (TimeInt (Some l) None p)
-  | ielem_hi h t p : t <= h -> ielem (Time t) (TimeInt None (Some h) p)
-  | ielem_lohi l h t p : l <= t -> t <= h -> ielem (Time t) (TimeInt (Some l) (Some h) p).
+Inductive tile : TimeB -> TimeI -> Prop :=
+| tile_top t : tile t TimeTop
+| tile_time s t : tle s t -> tile s (Time' t).
 
-Hint Constructors ielem.
+Lemma tileb_tile s t : tileb s t = true <-> tile s t.
+admit. Qed.
 
-Lemma icut_ielem t ti i j : icut ti j = Some i -> ielem t i -> tle ti t.
+Open Scope time.
+Lemma tadd_tsub_tle d x y : x <= tadd d y ->  tsub d x <= y.
 Proof.
-  intros I C. destruct_time;
- try constructor; inversion I; inversion C; 
-  clear I C; subst; eauto using Z.max_lub_l, Z.max_lub_r.
-Qed.
-
-Definition ile (i j : TimeI) := forall t : TimeB, ielem t i -> ielem t j.
-
-Hint Unfold ile.
-
-Lemma icut_ile t i j : icut t j = Some i -> exists j', j = Some j' /\ ile i j'.
-Proof.
-  intros C. destruct_time; inversion C; clear C; subst; 
-  eexists; split; try reflexivity; intros s S; inversion S; clear S; subst;
-  eauto using Z.max_lub_l, Z.max_lub_r.
+  intros T.
+  destruct x, y; simpl in *;eauto;inversion T; constructor. omega. 
 Qed.
 
 
-Lemma iadd_ielem_opp t n x : ielem t (iadd' n x) -> ielem (tadd (-n) t) x.
+Lemma tile_tsub_iadd t n x :  tile t (iadd n x) -> tile (tsub' n t) x.
 Proof.
-  intros I. destruct_time; autounfold in *; simpl in *;
-  inversion I; clear I; subst; constructor; omega.
+  intro L. destruct x. inversion L. subst. unfold tsub', tadd' in *.
+  constructor. auto using tadd_tsub_tle. constructor.
+Qed.
+  
+Lemma tile_imin_l t x y : tile t (imin x y) -> tile t x.
+Proof.
+  (* intro T. unfold imin in *. *)
+  (* cases (ileb x y) as L. assumption. destruct x, y;simpl in *;eauto. *)
+admit.
 Qed.
 
-Lemma imeet_ile i j k : imeet i j = Some k -> exists i' j', i = Some i' /\ ile k i' /\ j = Some j' /\ ile k j'.
+Lemma tile_imin_r t x y : tile t (imin x y) -> tile t y.
 Proof.
-  intros M. destruct_time;inversion M; clear M; subst;
-  do 2 eexists; repeat split; try reflexivity; intros s S; inversion S; clear S; subst;
-  eauto using Z.max_lub_l, Z.max_lub_r, Z.min_glb_l, Z.min_glb_r. 
+  (* intro T. unfold imin in *. *)
+  (* cases (ileb x y) as L. assumption. destruct x, y;simpl in *;eauto. *)
+admit.
+Qed.
+
+Lemma tile_imin_iadd s t x n : tile t (imin x (iadd n s)) -> tile (tsub' n t) s.
+Proof. 
+  intros T. eauto using tile_imin_r, tile_tsub_iadd.
 Qed.
 
 
-
-Theorem inferC_sound env c i : inferC env c = Some i -> forall t, ielem t i -> TiTyC env t c.
+Theorem inferC_sound env c i : inferC env c = Some i -> forall t, tile t i -> TiTyC env t c.
 Proof.
   generalize dependent env. generalize dependent i.
   induction c; intros i env I t E;simpl in *; option_inv_auto;
   try solve [eauto using inferE_sound |inversion E;auto].
-  - cases (tyeqb (type x) REAL) as TE;tryfalse. rewrite tyeqb_iff in TE.
-    constructor. apply TiTyE_open' with (t:=x). split. auto. simpl.
-    eauto using icut_ielem. eauto using inferE_sound. 
-    pose H1 as C.
-    apply icut_ile in C. decompose [ex and] C. clear C.
-    eapply IHc. eassumption. auto.
-  - autounfold in I. option_inv I;subst. eauto using iadd_ielem_opp. 
-  - apply imeet_ile in I. decompose [ex and] I. clear I. constructor; eauto.
+  - cases (tyeqb (type x) REAL && tileb (time x) x0) as TE;tryfalse.
+    rewrite Bool.andb_true_iff in TE.
+    destruct TE as [TE1 TE2]. rewrite tyeqb_iff in TE1.
+    rewrite tileb_tile in TE2.
+    destruct x. simpl in *. subst. inversion H3. subst.
+    apply inferE_sound in H0.
+    cases (tleb t ti) as TL. rewrite tleb_tle in TL.
+    eapply IHc in H2;try eassumption.
+    econstructor;eauto.
+    rewrite tleb_tgt in TL.
+    eapply IHc in H2; try apply E.
+    eapply causal_scale in H2. eassumption.
+    apply tle_refl. apply TiTyE_open' with (t:=REAL@ti);eauto.
+    constructor. reflexivity. simpl. auto using tle_tlt.
+  - eapply IHc in H0;eauto using tile_tsub_iadd.
+  - constructor; eauto using tile_imin_l, tile_imin_r. 
   - cases (tyeqb (type x) BOOL && tleb (time x) (Time 0)) as B;tryfalse.
-    apply imeet_ile in H1. decompose [ex and] H1. clear H1.
     rewrite Bool.andb_true_iff in B. destruct B as [B1 B2].
-    rewrite tleb_tle, tyeqb_iff in *. 
-    autounfold in H3; option_inv' H3. 
+    rewrite tleb_tle, tyeqb_iff in *.
+    option_inv_auto.
     constructor. eapply TiTyE_open' with (t:=x);eauto using inferE_sound.
-    eapply IHc1; eauto. eapply IHc2; eauto using iadd_ielem_opp.
+    eapply IHc1; eauto using tile_imin_l. 
+    eapply IHc2; eauto using tile_imin_iadd.
 Qed.
 
 Definition has_type (c : Contr) : bool := 
@@ -662,15 +597,18 @@ Definition has_type (c : Contr) : bool :=
     | None => false
   end.
 
-Lemma ielem_exists i : exists t, ielem t i.
-Proof.
-  destruct i. autounfold in *. destruct lo,hi;
-  first [exists (Time z)|exists (TimeBot)]; eauto using Z.le_refl.
-Qed.
+Definition select_time t := match t with
+                              | TimeTop => Time 0
+                              | Time' t => t
+                            end.
 
+Lemma select_time_tile t : tile (select_time t) t.
+Proof.
+  destruct t; simpl; constructor. apply tle_refl. 
+Qed.
 
 Corollary has_type_causal c : has_type c = true -> causal c.
 Proof.
   unfold has_type. intros. cases (inferC [] c) as T;tryfalse.
-  pose (ielem_exists t) as E. destruct E. eauto using inferC_sound, TiTyC_causal.
+  eauto using inferC_sound,select_time_tile, TiTyC_causal.
 Qed.

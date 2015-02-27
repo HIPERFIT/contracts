@@ -228,6 +228,9 @@ Proof.
   repeat inv; tryfalse; eauto using specialiseOpSimp_typed.
 Qed.
 
+
+
+
 Lemma lookupEnvP_typed G envp v t : TypeEnvP G envp -> G |-X v ∶ t -> |-V' lookupEnvP v envp ∶ t.
 Proof.
   intros E V. generalize dependent envp. generalize dependent G. 
@@ -293,6 +296,8 @@ Proof.
       * intros. eapply fromLit_typed. apply IHE2; auto. 
     + simpl. auto.
 Qed.
+
+
 
 Lemma fromBLit_Some b x : fromBLit x = Some b -> x = OpE (BLit b) [].
 Proof.
@@ -461,6 +466,12 @@ Inductive elimVarEnv {A} : Var -> list A -> list A -> Prop :=
 
 Hint Constructors elimVarEnv.
 
+Lemma elimVarEnv_map {A B} v xs ys (f : A -> B) : elimVarEnv v xs ys -> elimVarEnv v (map f xs) (map f ys).
+Proof.
+  intro E. induction E;intros;simpl in *;eauto. 
+Qed.
+
+
 Lemma Acc_sem_ext {A} l (e1 e2 : A) f1 f2 : 
   e1 = e2 -> (forall x y, f1 x y = f2 x y) ->  Acc_sem f1 l e1 = Acc_sem f2 l e2.
 Proof.
@@ -511,7 +522,6 @@ Proof.
       option_inv_auto. inversion H2. subst. eauto.
   - constructor;eauto.
 Qed. 
-
 
 Fixpoint elimVarC (v : Var) (c : Contr) : option Contr :=
   match c with
@@ -826,3 +836,158 @@ Lemma specialise_fromLit e env envp ext extp v g t :
 Proof.
   intros. erewrite <- specialiseExp_sound by eauto. apply Esem_fromLit. assumption.
 Qed.
+
+Module Timed.
+
+Lemma toLit_timed ts t v : CausalE ts t (toLit v).
+Proof.
+  destruct v; simpl; auto. 
+Qed.
+
+Hint Resolve toLit_timed.
+
+  Ltac inv := match goal with
+                | [T: specialiseOpSimp _ _ = _ |- _] => unfold specialiseOpSimp in T; option_inv_auto
+                | [T : all _ _ |- _] => inversion T; clear T;subst
+                | [_: context[match ?x with _ => _ end]|- _] => destruct x
+                | [T: Some _ = Some _|- _] => inversion T;clear T; subst
+            end.
+
+
+Lemma specialiseOp_timed op es e ts t : 
+all (CausalE ts t) es -> specialiseOp op es = Some e -> CausalE ts t e.
+Proof.
+  intros A S. destruct op; repeat (inv;tryfalse;simpl in *;eauto).
+Qed.
+
+
+Lemma specialiseExp_timed ts e t extp envp : 
+  CausalE ts t e -> CausalE ts t (specialiseExp e envp extp).
+Proof.
+  intros E. generalize dependent extp.
+  generalize dependent ts. generalize dependent t. 
+  induction e using Exp_ind'; intros.
+  - simpl. inversion E. subst. 
+    do 2 (eapply all_apply in H; try eassumption).
+    apply all_mp in H; try eassumption.
+    eapply all_apply in H; try eassumption.
+    eapply all_map in H.
+    cases (specialiseOp op (map (fun e' : Exp => specialiseExp e' envp extp) args));simpl; 
+    eauto using specialiseOp_timed.
+  - simpl. destruct (extp l i);simpl; auto.
+  - simpl. destruct (lookupEnvP v envp); simpl; auto.
+  - simpl. destruct_toLit S.
+    + simpl. auto.
+    + simpl. inversion E. subst. eauto.
+Qed.
+
+Lemma elimVarE_timed v ts1 ts2 e e' t: 
+  elimVarE v e = Some e' -> elimVarEnv v ts1 ts2 -> 
+  CausalE ts1 t e -> CausalE ts2 t e'.
+Proof.
+  intros O U T. generalize dependent ts1. generalize dependent ts2.
+  generalize dependent t. generalize dependent e'. generalize dependent v.
+  induction e using Exp_ind';intros;simpl in *;first[option_inv' O|inversion O];inversion T;clear T;subst.
+  - econstructor;eauto. generalize dependent x. induction H4;intros.
+    + simpl in H2. inversion H2. constructor.
+    + simpl in H2. option_inv' H2. inversion H. subst. constructor; eauto.
+  - auto.
+  - constructor. generalize dependent v. generalize dependent x. induction U;intros.
+    + destruct v0;destruct v;tryfalse; simpl in *; inversion H1; subst;inversion H3;auto.
+    + destruct v;tryfalse. simpl in *. inversion H1. inversion H3. subst. assumption.
+    + destruct v0; simpl in *. inversion H1. inversion H3. subst. auto.
+      option_inv_auto. inversion H3. subst. eauto.
+  - constructor;eauto using elimVarEnv_map.
+Qed.
+
+Lemma elimVarC_timed v ts1 ts2 c c' t : elimVarC v c = Some c' -> elimVarEnv v ts1 ts2 -> 
+                                         CausalC ts1 t c -> CausalC ts2 t c'.
+Proof.
+  intros O U T. generalize dependent ts1. generalize dependent ts2. generalize dependent t.
+  generalize dependent c'. generalize dependent v.
+  induction c;intros;simpl in *;first[option_inv' O|inversion O];inversion T;clear T;subst;
+  eauto 6 using elimVarE_timed,elimVarEnv_map.
+Qed. 
+
+Lemma smartLet_timed e c ts t: 
+  CausalC ts t (Let e c) -> CausalC ts t (smartLet e c).
+Proof.
+  intros T. inversion T. unfold smartLet. cases (elimVarC V1 c); eauto using elimVarC_timed.
+Qed.  
+
+Lemma smartScale_timed e c t ts : 
+  CausalC ts t (Scale e c) -> CausalC ts t (smartScale e c).
+Proof.
+  intros T. inversion T. unfold smartScale. cases (isZeroLit e); cases c; eauto.
+Qed.
+
+Lemma smartBoth_timed c1 c2 ts t : 
+  CausalC ts t (Both c1 c2) -> CausalC ts t (smartBoth c1 c2).
+Proof.
+  intros T. inversion T. destruct c1;destruct c2; simpl; eauto.
+Qed.
+
+Lemma smartTranslate_timed l c ts t : 
+  CausalC ts t (Translate l c) -> CausalC ts t (smartTranslate l c).
+Proof.
+  intros T. inversion T. 
+  destruct l;auto;destruct c; simpl;
+  try rewrite map_tsub'_0 in *; try rewrite tsub'_0 in *; eauto. 
+Qed.
+
+Hint Resolve smartTranslate_timed smartBoth_timed smartScale_timed 
+     smartLet_timed specialiseExp_timed : SmartTimed.
+
+Lemma all2_tle_tsub' n ts : all2 tle (map (tsub' n) ts) ts.
+Proof.
+  apply all2_map_forall;intros. destruct x;simpl;constructor; omega. 
+Qed. 
+
+Open Scope time.
+
+Lemma tle_tsub' n t : tsub' n t <= t.
+Proof.
+  destruct t;simpl;constructor;omega.
+Qed. 
+
+Lemma tsub_0 t : tsub 0 t = t.
+Proof.
+  unfold tsub. simpl. apply tadd_0.
+Qed.
+
+Lemma map_tsub_0 t : map (tsub 0) t = t.
+Proof.
+  erewrite map_ext. apply map_id. apply tsub_0.
+Qed.
+
+
+(* Theorem specialise_timed ts t env ext  c : *)
+(*   CausalC ts t c -> CausalC ts t (specialise c env ext). *)
+(* Proof. *)
+(*   intros T. generalize dependent env. generalize dependent ext. *)
+(*   generalize dependent ts. generalize dependent t. *)
+(*   induction c;intros; inversion T;clear T;subst;simpl; eauto 9 with SmartTimed. *)
+(*   (* all cases except If are caught by eauto *) *)
+(*   match goal with [|-context[default _ ?x]] => cases x as S end;try auto. *)
+(*   generalize dependent c. generalize dependent ext. generalize dependent t. *)
+(*   generalize dependent ts. generalize 0. *)
+(*   induction n;intros. *)
+(*   - simpl in *. cases (fromBLit (specialiseExp e env ext)) as B;tryfalse. *)
+(*     destruct b; inversion S; eauto with SmartTimed. *)
+(*     apply smartTranslate_timed. econstructor. apply IHc1.  *)
+(*     apply CausalC_open with (ts:=ts) (t:=t);eauto using tle_tsub',all2_tle_tsub'. *)
+(*     unfold tsub' in *. rewrite map_tsub_0, tsub_0 in *.  *)
+(*     apply smartTranslate_timed. constructor. apply IHc2. *)
+(*     apply CausalC_open with (ts:=ts) (t:=t);eauto using tle_tsub',all2_tle_tsub'. *)
+(*   - simpl in *. cases (fromBLit (specialiseExp e env ext)) as B;tryfalse. *)
+(*     destruct b; inversion S. apply smartTranslate_timed. constructor.  *)
+(*     eapply IHn;eauto.  *)
+(*     eapply CausalE_open with (ts:=ts) (t:=Time 0);eauto using tle_tsub',all2_tle_tsub'. *)
+(*     apply CausalC_open with (ts:=ts) (t:=t);eauto using tle_tsub',all2_tle_tsub'. *)
+(*     eapply CausalC_open;eauto using tle_tsub',all2_tle_tsub'. *)
+(* .apply IHn in S;eauto. *)
+(* Qed. *)
+
+
+End Timed.
+Export Timed.
