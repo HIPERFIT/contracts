@@ -1,11 +1,10 @@
 Add LoadPath "..".
 
 Require Import Denotational.
-Require Import PartialReduction.
+Require Import Reduction.
 Require Import Horizon.
 Require Import Specialise.
 Require Import TimedTyping.
-
 
 
 
@@ -27,7 +26,6 @@ Extract Inductive Z => "Int" ["0" "id" "negate"].
 Extract Inductive positive => "Int" ["unused" "unused" "1"].
 
 Extract Inlined Constant Z.leb => "(<=)".
-Extract Inlined Constant zleb => "(<=)".
 Extract Inlined Constant Z.ltb => "(<)".
 Extract Inlined Constant Z.add => "(+)".
 Extract Inlined Constant Z.sub => "(-)".

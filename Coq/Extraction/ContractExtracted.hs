@@ -2211,6 +2211,319 @@ translateExp d e =
    VarE a -> VarE a;
    Acc f n z -> Acc (translateExp d f) n (translateExp d z)}
 
+data TimeB =
+   Time Int
+ | TimeBot
+
+tleb :: TimeB -> TimeB -> Bool
+tleb t1 t2 =
+  case t1 of {
+   Time t1' ->
+    case t2 of {
+     Time t2' -> (<=) t1' t2';
+     TimeBot -> False};
+   TimeBot -> True}
+
+tadd :: Int -> TimeB -> TimeB
+tadd d t =
+  case t of {
+   Time t' -> Time ((+) t' d);
+   TimeBot -> TimeBot}
+
+tsub :: Int -> TimeB -> TimeB
+tsub d =
+  tadd (negate d)
+
+tadd' :: Int -> TimeB -> TimeB
+tadd' d =
+  tadd (id d)
+
+tsub' :: Int -> TimeB -> TimeB
+tsub' d =
+  tsub (id d)
+
+data TiTy =
+   TimedType Ty TimeB
+
+time :: TiTy -> TimeB
+time t =
+  case t of {
+   TimedType ty ti -> ti}
+
+type0 :: TiTy -> Ty
+type0 t =
+  case t of {
+   TimedType ty ti -> ty}
+
+add_time :: Int -> TiTy -> TiTy
+add_time d t =
+  case t of {
+   TimedType ty ti -> TimedType ty (tadd' d ti)}
+
+sub_time :: Int -> TiTy -> TiTy
+sub_time d t =
+  case t of {
+   TimedType ty ti -> TimedType ty (tsub' d ti)}
+
+type TiTyEnv = Env' TiTy
+
+inferObs :: ObsLabel -> Ty
+inferObs l =
+  case l of {
+   LabR l0 -> REAL;
+   LabB l0 -> BOOL}
+
+tyeqb :: Ty -> Ty -> Bool
+tyeqb t1 t2 =
+  case t1 of {
+   REAL ->
+    case t2 of {
+     REAL -> True;
+     BOOL -> False};
+   BOOL ->
+    case t2 of {
+     REAL -> False;
+     BOOL -> True}}
+
+inferOp :: Op -> (List Ty) -> Maybe Ty
+inferOp op args =
+  case op of {
+   And ->
+    case args of {
+     [] -> Nothing;
+     (:) t l ->
+      case t of {
+       REAL -> Nothing;
+       BOOL ->
+        case l of {
+         [] -> Nothing;
+         (:) t0 l0 ->
+          case t0 of {
+           REAL -> Nothing;
+           BOOL ->
+            case l0 of {
+             [] -> Just BOOL;
+             (:) t1 l1 -> Nothing}}}}};
+   Or ->
+    case args of {
+     [] -> Nothing;
+     (:) t l ->
+      case t of {
+       REAL -> Nothing;
+       BOOL ->
+        case l of {
+         [] -> Nothing;
+         (:) t0 l0 ->
+          case t0 of {
+           REAL -> Nothing;
+           BOOL ->
+            case l0 of {
+             [] -> Just BOOL;
+             (:) t1 l1 -> Nothing}}}}};
+   Less ->
+    case args of {
+     [] -> Nothing;
+     (:) t l ->
+      case t of {
+       REAL ->
+        case l of {
+         [] -> Nothing;
+         (:) t0 l0 ->
+          case t0 of {
+           REAL ->
+            case l0 of {
+             [] -> Just BOOL;
+             (:) t1 l1 -> Nothing};
+           BOOL -> Nothing}};
+       BOOL -> Nothing}};
+   Leq ->
+    case args of {
+     [] -> Nothing;
+     (:) t l ->
+      case t of {
+       REAL ->
+        case l of {
+         [] -> Nothing;
+         (:) t0 l0 ->
+          case t0 of {
+           REAL ->
+            case l0 of {
+             [] -> Just BOOL;
+             (:) t1 l1 -> Nothing};
+           BOOL -> Nothing}};
+       BOOL -> Nothing}};
+   Equal ->
+    case args of {
+     [] -> Nothing;
+     (:) t l ->
+      case t of {
+       REAL ->
+        case l of {
+         [] -> Nothing;
+         (:) t0 l0 ->
+          case t0 of {
+           REAL ->
+            case l0 of {
+             [] -> Just BOOL;
+             (:) t1 l1 -> Nothing};
+           BOOL -> Nothing}};
+       BOOL -> Nothing}};
+   Not ->
+    case args of {
+     [] -> Nothing;
+     (:) t l ->
+      case t of {
+       REAL -> Nothing;
+       BOOL ->
+        case l of {
+         [] -> Just BOOL;
+         (:) t0 l0 -> Nothing}}};
+   Neg ->
+    case args of {
+     [] -> Nothing;
+     (:) t l ->
+      case t of {
+       REAL ->
+        case l of {
+         [] -> Just REAL;
+         (:) t0 l0 -> Nothing};
+       BOOL -> Nothing}};
+   BLit b ->
+    case args of {
+     [] -> Just BOOL;
+     (:) t l -> Nothing};
+   RLit r ->
+    case args of {
+     [] -> Just REAL;
+     (:) t l -> Nothing};
+   Cond ->
+    case args of {
+     [] -> Nothing;
+     (:) t l ->
+      case t of {
+       REAL -> Nothing;
+       BOOL ->
+        case l of {
+         [] -> Nothing;
+         (:) t1 l0 ->
+          case l0 of {
+           [] -> Nothing;
+           (:) t2 l1 ->
+            case l1 of {
+             [] ->
+              case tyeqb t1 t2 of {
+               True -> Just t1;
+               False -> Nothing};
+             (:) t0 l2 -> Nothing}}}}};
+   _ ->
+    case args of {
+     [] -> Nothing;
+     (:) t l ->
+      case t of {
+       REAL ->
+        case l of {
+         [] -> Nothing;
+         (:) t0 l0 ->
+          case t0 of {
+           REAL ->
+            case l0 of {
+             [] -> Just REAL;
+             (:) t1 l1 -> Nothing};
+           BOOL -> Nothing}};
+       BOOL -> Nothing}}}
+
+tmax :: TimeB -> TimeB -> TimeB
+tmax t1 t2 =
+  case t1 of {
+   Time t1' ->
+    case t2 of {
+     Time t2' -> Time (max t1' t2');
+     TimeBot -> t1};
+   TimeBot -> t2}
+
+tmaxs :: (List TimeB) -> TimeB
+tmaxs ts =
+  foldr tmax TimeBot ts
+
+inferE :: TiTyEnv -> Exp -> Maybe TiTy
+inferE env e =
+  case e of {
+   OpE op args ->
+    (>>=) (sequence (P.map (inferE env) args)) (\args' ->
+      liftM (\ty -> TimedType ty (tmaxs (P.map time args')))
+        (inferOp op (P.map type0 args')));
+   Obs l i -> Just (TimedType (inferObs l) (Time i));
+   VarE v -> lookupEnv v env;
+   Acc f d z ->
+    (>>=) (inferE (P.map (add_time d) env) z) (\t ->
+      (>>=) (inferE ((:) (TimedType (type0 t) TimeBot) env) f) (\t' ->
+        case tyeqb (type0 t) (type0 t') of {
+         True -> Just (TimedType (type0 t)
+          (tmax (tsub' d (time t)) (time t')));
+         False -> Nothing}))}
+
+data TimeI =
+   Time' TimeB
+ | TimeTop
+
+iadd :: Int -> TimeI -> TimeI
+iadd d t =
+  case t of {
+   Time' t' -> Time' (tadd' d t');
+   TimeTop -> TimeTop}
+
+tileb :: TimeB -> TimeI -> Bool
+tileb l t =
+  case t of {
+   Time' t' -> tleb l t';
+   TimeTop -> True}
+
+ileb :: TimeI -> TimeI -> Bool
+ileb t1 t2 =
+  case t1 of {
+   Time' s1 ->
+    case t2 of {
+     Time' s2 -> tleb s1 s2;
+     TimeTop -> True};
+   TimeTop ->
+    case t2 of {
+     Time' t -> False;
+     TimeTop -> True}}
+
+imin :: TimeI -> TimeI -> TimeI
+imin t1 t2 =
+  case ileb t1 t2 of {
+   True -> t1;
+   False -> t2}
+
+inferC :: TiTyEnv -> Contr -> Maybe TimeI
+inferC env c =
+  case c of {
+   Zero -> Just TimeTop;
+   Let e c' -> (>>=) (inferE env e) (\t -> inferC ((:) t env) c');
+   Transfer p1 p2 a -> Just (Time' (Time 0));
+   Scale e c' ->
+    (>>=) (inferE env e) (\ty ->
+      (>>=) (inferC env c') (\t ->
+        case (&&) (tyeqb (type0 ty) REAL) (tileb (time ty) t) of {
+         True -> Just t;
+         False -> Nothing}));
+   Translate d c' -> liftM (iadd d) (inferC (P.map (sub_time d) env) c');
+   Both c1 c2 -> liftM2 imin (inferC env c1) (inferC env c2);
+   If e d c1 c2 ->
+    (>>=) (inferE env e) (\t ->
+      case (&&) (tyeqb (type0 t) BOOL) (tleb (time t) (Time 0)) of {
+       True ->
+        liftM2 imin (inferC env c1)
+          (liftM (iadd d) (inferC (P.map (sub_time d) env) c2));
+       False -> Nothing})}
+
+has_type :: Contr -> Bool
+has_type c =
+  case inferC [] c of {
+   Just t -> True;
+   Nothing -> False}
+
 type ExtEnvP = ExtEnv' (Maybe Val)
 
 type EnvP = List (Maybe Val)
@@ -2586,6 +2899,12 @@ empty :: SMap
 empty =
   Map.empty
 
+lift2M :: (a1 -> a2 -> a3) -> (Maybe ((,) a1 a2)) -> Maybe a3
+lift2M f x =
+  liftM (\x0 ->
+    case x0 of {
+     (,) x1 x2 -> f x1 x2}) x
+
 scale_trans' :: (Maybe Double) -> SMap -> Maybe SMap
 scale_trans' v t =
   case v of {
@@ -2642,6 +2961,10 @@ redfun c env ext =
           empty))
           n})}
 
+smap_fun :: SMap -> Party -> Party -> Asset -> Double
+smap_fun m p1 p2 a =
+  find p1 p2 a m
+
 plus0 :: Int -> Int -> Int
 plus0 n m =
   (\fO fS n -> if n==0 then fO () else fS (n-1))
@@ -2661,360 +2984,4 @@ horizon c =
    Translate l c' -> plus0 l (horizon c');
    Both c1 c2 -> max (horizon c1) (horizon c2);
    If e l c1 c2 -> plus0 l (max (horizon c1) (horizon c2))}
-
-data TimeB =
-   Time Int
- | TimeBot
-
-tleb :: TimeB -> TimeB -> Bool
-tleb t1 t2 =
-  case t1 of {
-   Time t1' ->
-    case t2 of {
-     Time t2' -> (<=) t1' t2';
-     TimeBot -> False};
-   TimeBot -> True}
-
-tadd :: Int -> TimeB -> TimeB
-tadd d t =
-  case t of {
-   Time t' -> Time ((+) t' d);
-   TimeBot -> TimeBot}
-
-tsub :: Int -> TimeB -> TimeB
-tsub d =
-  tadd (negate d)
-
-tadd' :: Int -> TimeB -> TimeB
-tadd' d =
-  tadd (id d)
-
-tsub' :: Int -> TimeB -> TimeB
-tsub' d =
-  tsub (id d)
-
-data TiTy =
-   TimedType Ty TimeB
-
-time :: TiTy -> TimeB
-time t =
-  case t of {
-   TimedType ty ti -> ti}
-
-type0 :: TiTy -> Ty
-type0 t =
-  case t of {
-   TimedType ty ti -> ty}
-
-add_time :: Int -> TiTy -> TiTy
-add_time d t =
-  case t of {
-   TimedType ty ti -> TimedType ty (tadd' d ti)}
-
-sub_time :: Int -> TiTy -> TiTy
-sub_time d t =
-  case t of {
-   TimedType ty ti -> TimedType ty (tsub' d ti)}
-
-type TiTyEnv = Env' TiTy
-
-inferObs :: ObsLabel -> Ty
-inferObs l =
-  case l of {
-   LabR l0 -> REAL;
-   LabB l0 -> BOOL}
-
-tyeqb :: Ty -> Ty -> Bool
-tyeqb t1 t2 =
-  case t1 of {
-   REAL ->
-    case t2 of {
-     REAL -> True;
-     BOOL -> False};
-   BOOL ->
-    case t2 of {
-     REAL -> False;
-     BOOL -> True}}
-
-inferOp :: Op -> (List Ty) -> Maybe Ty
-inferOp op args =
-  case op of {
-   And ->
-    case args of {
-     [] -> Nothing;
-     (:) t l ->
-      case t of {
-       REAL -> Nothing;
-       BOOL ->
-        case l of {
-         [] -> Nothing;
-         (:) t0 l0 ->
-          case t0 of {
-           REAL -> Nothing;
-           BOOL ->
-            case l0 of {
-             [] -> Just BOOL;
-             (:) t1 l1 -> Nothing}}}}};
-   Or ->
-    case args of {
-     [] -> Nothing;
-     (:) t l ->
-      case t of {
-       REAL -> Nothing;
-       BOOL ->
-        case l of {
-         [] -> Nothing;
-         (:) t0 l0 ->
-          case t0 of {
-           REAL -> Nothing;
-           BOOL ->
-            case l0 of {
-             [] -> Just BOOL;
-             (:) t1 l1 -> Nothing}}}}};
-   Less ->
-    case args of {
-     [] -> Nothing;
-     (:) t l ->
-      case t of {
-       REAL ->
-        case l of {
-         [] -> Nothing;
-         (:) t0 l0 ->
-          case t0 of {
-           REAL ->
-            case l0 of {
-             [] -> Just BOOL;
-             (:) t1 l1 -> Nothing};
-           BOOL -> Nothing}};
-       BOOL -> Nothing}};
-   Leq ->
-    case args of {
-     [] -> Nothing;
-     (:) t l ->
-      case t of {
-       REAL ->
-        case l of {
-         [] -> Nothing;
-         (:) t0 l0 ->
-          case t0 of {
-           REAL ->
-            case l0 of {
-             [] -> Just BOOL;
-             (:) t1 l1 -> Nothing};
-           BOOL -> Nothing}};
-       BOOL -> Nothing}};
-   Equal ->
-    case args of {
-     [] -> Nothing;
-     (:) t l ->
-      case t of {
-       REAL ->
-        case l of {
-         [] -> Nothing;
-         (:) t0 l0 ->
-          case t0 of {
-           REAL ->
-            case l0 of {
-             [] -> Just BOOL;
-             (:) t1 l1 -> Nothing};
-           BOOL -> Nothing}};
-       BOOL -> Nothing}};
-   Not ->
-    case args of {
-     [] -> Nothing;
-     (:) t l ->
-      case t of {
-       REAL -> Nothing;
-       BOOL ->
-        case l of {
-         [] -> Just BOOL;
-         (:) t0 l0 -> Nothing}}};
-   Neg ->
-    case args of {
-     [] -> Nothing;
-     (:) t l ->
-      case t of {
-       REAL ->
-        case l of {
-         [] -> Just REAL;
-         (:) t0 l0 -> Nothing};
-       BOOL -> Nothing}};
-   BLit b ->
-    case args of {
-     [] -> Just BOOL;
-     (:) t l -> Nothing};
-   RLit r ->
-    case args of {
-     [] -> Just REAL;
-     (:) t l -> Nothing};
-   Cond ->
-    case args of {
-     [] -> Nothing;
-     (:) t l ->
-      case t of {
-       REAL -> Nothing;
-       BOOL ->
-        case l of {
-         [] -> Nothing;
-         (:) t1 l0 ->
-          case l0 of {
-           [] -> Nothing;
-           (:) t2 l1 ->
-            case l1 of {
-             [] ->
-              case tyeqb t1 t2 of {
-               True -> Just t1;
-               False -> Nothing};
-             (:) t0 l2 -> Nothing}}}}};
-   _ ->
-    case args of {
-     [] -> Nothing;
-     (:) t l ->
-      case t of {
-       REAL ->
-        case l of {
-         [] -> Nothing;
-         (:) t0 l0 ->
-          case t0 of {
-           REAL ->
-            case l0 of {
-             [] -> Just REAL;
-             (:) t1 l1 -> Nothing};
-           BOOL -> Nothing}};
-       BOOL -> Nothing}}}
-
-tmax :: TimeB -> TimeB -> TimeB
-tmax t1 t2 =
-  case t1 of {
-   Time t1' ->
-    case t2 of {
-     Time t2' -> Time (max t1' t2');
-     TimeBot -> t1};
-   TimeBot -> t2}
-
-tmaxs :: (List TimeB) -> TimeB
-tmaxs ts =
-  foldr tmax TimeBot ts
-
-inferE :: TiTyEnv -> Exp -> Maybe TiTy
-inferE env e =
-  case e of {
-   OpE op args ->
-    (>>=) (sequence (P.map (inferE env) args)) (\args' ->
-      liftM (\ty -> TimedType ty (tmaxs (P.map time args')))
-        (inferOp op (P.map type0 args')));
-   Obs l i -> Just (TimedType (inferObs l) (Time i));
-   VarE v -> lookupEnv v env;
-   Acc f d z ->
-    (>>=) (inferE (P.map (add_time d) env) z) (\t ->
-      (>>=) (inferE ((:) (TimedType (type0 t) TimeBot) env) f) (\t' ->
-        case tyeqb (type0 t) (type0 t') of {
-         True -> Just (TimedType (type0 t)
-          (tmax (tsub' d (time t)) (time t')));
-         False -> Nothing}))}
-
-data TimeI =
-   TimeInt (Maybe Int) (Maybe Int)
-
-iadd' :: Int -> TimeI -> TimeI
-iadd' d t =
-  case t of {
-   TimeInt lo hi -> TimeInt (liftM ((+) d) lo) (liftM ((+) d) hi)}
-
-iadd :: Int -> (Maybe TimeI) -> Maybe TimeI
-iadd d =
-  liftM (iadd' (id d))
-
-icut' :: TimeB -> TimeI -> Maybe TimeI
-icut' l t =
-  case l of {
-   Time l' ->
-    case t of {
-     TimeInt lo hi ->
-      let {
-       lo' = case lo of {
-              Just x -> Just (max x l');
-              Nothing -> Just l'}}
-      in
-      case hi of {
-       Just y ->
-        case (<=) l' y of {
-         True -> Just (TimeInt lo' hi);
-         False -> Nothing};
-       Nothing -> Just (TimeInt lo' hi)}};
-   TimeBot -> Just t}
-
-icut :: TimeB -> (Maybe TimeI) -> Maybe TimeI
-icut l t =
-  (>>=) t (\t' -> icut' l t')
-
-imeet' :: TimeI -> TimeI -> Maybe TimeI
-imeet' t1 t2 =
-  case t1 of {
-   TimeInt lo1 hi1 ->
-    case t2 of {
-     TimeInt lo2 hi2 ->
-      let {
-       lo = case lo1 of {
-             Just l1 ->
-              case lo2 of {
-               Just l2 -> Just (max l1 l2);
-               Nothing -> lo1};
-             Nothing -> lo2}}
-      in
-      let {
-       hi = case hi1 of {
-             Just h1 ->
-              case hi2 of {
-               Just h2 -> Just (min h1 h2);
-               Nothing -> hi1};
-             Nothing -> hi2}}
-      in
-      case lo of {
-       Just l ->
-        case hi of {
-         Just h ->
-          case (<=) l h of {
-           True -> Just (TimeInt lo hi);
-           False -> Nothing};
-         Nothing -> Just (TimeInt lo hi)};
-       Nothing -> Just (TimeInt lo hi)}}}
-
-imeet :: (Maybe TimeI) -> (Maybe TimeI) -> Maybe TimeI
-imeet t1 t2 =
-  (>>=) t1 (\t1' -> (>>=) t2 (\t2' -> imeet' t1' t2'))
-
-iall :: TimeI
-iall =
-  TimeInt Nothing Nothing
-
-ibelow :: Int -> TimeI
-ibelow t =
-  TimeInt Nothing (Just t)
-
-inferC :: TiTyEnv -> Contr -> Maybe TimeI
-inferC env c =
-  case c of {
-   Zero -> Just iall;
-   Let e c' -> (>>=) (inferE env e) (\t -> inferC ((:) t env) c');
-   Transfer p1 p2 a -> Just (ibelow 0);
-   Scale e c' ->
-    (>>=) (inferE env e) (\t ->
-      case tyeqb (type0 t) REAL of {
-       True -> icut (time t) (inferC env c');
-       False -> Nothing});
-   Translate d c' -> iadd d (inferC (P.map (sub_time d) env) c');
-   Both c1 c2 -> imeet (inferC env c1) (inferC env c2);
-   If e d c1 c2 ->
-    (>>=) (inferE env e) (\t ->
-      case (&&) (tyeqb (type0 t) BOOL) (tleb (time t) (Time 0)) of {
-       True ->
-        imeet (inferC env c1) (iadd d (inferC (P.map (sub_time d) env) c2));
-       False -> Nothing})}
-
-has_type :: Contr -> Bool
-has_type c =
-  case inferC [] c of {
-   Just t -> True;
-   Nothing -> False}
 

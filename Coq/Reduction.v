@@ -757,3 +757,4 @@ Proof.
   Qed.
 
 End Compute.
+Export Compute.
