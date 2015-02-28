@@ -524,8 +524,15 @@ Inductive tile : TimeB -> TimeI -> Prop :=
 | tile_top t : tile t TimeTop
 | tile_time s t : tle s t -> tile s (Time' t).
 
+Hint Constructors tile.
+
 Lemma tileb_tile s t : tileb s t = true <-> tile s t.
-admit. Qed.
+Proof.
+  split;intros A.
+  - destruct t;auto. simpl in *. rewrite tleb_tle in A. auto.
+  - destruct t; simpl;auto. inversion A. subst.
+    rewrite <- tleb_tle in *. auto.
+Qed.
 
 Open Scope time.
 Lemma tadd_tsub_tle d x y : x <= tadd d y ->  tsub d x <= y.
@@ -543,16 +550,18 @@ Qed.
   
 Lemma tile_imin_l t x y : tile t (imin x y) -> tile t x.
 Proof.
-  (* intro T. unfold imin in *. *)
-  (* cases (ileb x y) as L. assumption. destruct x, y;simpl in *;eauto. *)
-admit.
+  intro T. unfold imin in *.
+  cases (ileb x y) as L. assumption. destruct x, y;simpl in *;eauto.
+  rewrite tleb_tgt in L. inversion T. subst. constructor. eauto using tle_trans, tle_tlt.
+  inversion L.
 Qed.
 
 Lemma tile_imin_r t x y : tile t (imin x y) -> tile t y.
 Proof.
-  (* intro T. unfold imin in *. *)
-  (* cases (ileb x y) as L. assumption. destruct x, y;simpl in *;eauto. *)
-admit.
+  intro T. unfold imin in *.
+  cases (ileb x y) as L; try assumption. destruct x, y;simpl in *;eauto.
+  rewrite tleb_tle in L. inversion T. subst. constructor. eauto using tle_trans.
+  inversion L.
 Qed.
 
 Lemma tile_imin_iadd s t x n : tile t (imin x (iadd n s)) -> tile (tsub' n t) s.
