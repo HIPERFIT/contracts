@@ -315,6 +315,15 @@ Proof.
   eapply CausalE_open;eauto.
 Qed.
 
+
+Lemma TiTyC_open t t' ts ts' c : all2 subtype ts' ts -> t' <= t -> TiTyC ts t c -> TiTyC ts' t' c.
+Proof.
+  intros Ss S T. rewrite TiTyC_decompose in *. destruct T. 
+  split. erewrite all_subtype_type by eassumption. assumption.
+  eapply CausalC_open;eauto.
+Qed.
+
+
 Lemma subtype_refl t : t <| t.
 Proof. destruct t. auto. Qed.
 
@@ -329,6 +338,9 @@ Qed.
 (* Special case of [TiTyE_open] where the type environment stays the same. *)
 Corollary TiTyE_open' t t' ts (e : Exp) : t <| t' -> TiTyE ts t e -> TiTyE ts t' e.
 Proof. eauto using TiTyE_open, all_subtype_refl. Qed.
+
+Lemma TiTyC_open' t t' ts c : t' <= t -> TiTyC ts t c -> TiTyC ts t' c.
+Proof. eauto using TiTyC_open, all_subtype_refl. Qed.
 
 Definition inferObs (l : ObsLabel) : Ty :=
   match l with
@@ -518,6 +530,62 @@ Proof.
     + rewrite Z.max_le_iff. right. omega.
 Qed.
 
+Lemma inferObs_complete l t : |-O l ∶ t -> inferObs l = t.
+Proof.
+  intros T. destruct T; reflexivity.
+Qed.
+
+Open Scope time.
+Lemma tadd_tsub_tle d x y : x <= tadd d y ->  tsub d x <= y.
+Proof.
+  intros T.
+  destruct x, y; simpl in *;eauto;inversion T; constructor. omega. 
+Qed.
+
+
+Lemma tyeqb_refl x : tyeqb x x = true.
+Proof. rewrite tyeqb_iff. reflexivity. Qed.
+
+Lemma all_tmaxs ts' s : 
+  all (fun t' : TiTy => time t' = time s) ts' -> tmaxs (map time ts') <= time s.
+Proof.
+  intros A. induction A. constructor. simpl.
+  rewrite tmax_lub_iff. rewrite H. auto using tle_refl.
+Qed.
+
+Theorem inferE_complete env e s :
+   TiTyE env s e -> exists t, inferE env e = Some t /\ t <| s.
+Proof.
+  intros T. generalize dependent env. generalize dependent s.
+  induction e using Exp_ind'; intros; inversion T;clear T;subst;simpl in *;option_inv_auto.
+  - assert (exists ts,sequence (map (inferE env) args) = Some ts /\ map type ts = map type ts' 
+           /\ tmaxs (map time ts) <= tmaxs (map time ts')) as Q.
+    clear H4. induction H5;simpl. eauto. inversion H. subst. eapply IHall2 in H4.
+    decompose [ex and] H4. apply H3 in H0. decompose [ex and] H0. eexists. split.
+    repeat rewr_assumption. simpl. autounfold. reflexivity. simpl. split. 
+    apply subtype_type in H9. repeat rewr_assumption. reflexivity.
+    inversion H9. rewrite tmax_lub_iff. split.
+    rewrite tmax_tle_iff. auto. rewrite tmax_tle_iff. auto.
+
+    decompose [ex and] Q. inversion H4. rewrite <- inferOp_TypeOp in *.
+    repeat (rewr_assumption; simpl). autounfold. eexists. split.
+    reflexivity. split. reflexivity. simpl. 
+    assert (tmaxs (map time ts') <= time s). apply all_tmaxs. eauto.
+    eauto using tle_trans.
+
+  - eexists. split. erewrite inferObs_complete by eassumption. reflexivity. eauto.
+  - induction H2;try decompose [ex and] IHTiTyV;eexists;split; simpl;eauto.
+  - apply IHe1 in H5. apply IHe2 in H3. decompose [ex and] H5. decompose [ex and] H3.
+    eexists. split. 
+    assert (type x0 = type s) as E by (inversion H4; rewrite type_add_time in *; assumption).
+    repeat (rewr_assumption;simpl).
+    assert (type x = type s) as E2 by auto using subtype_type.
+    rewr_assumption. rewrite tyeqb_refl. reflexivity. 
+    constructor. reflexivity. simpl. inversion H4. inversion H1. 
+    destruct s, x, x0. simpl in *. rewrite tmax_lub_iff. 
+    unfold tadd', tsub'. split; auto using tadd_tsub_tle.
+Qed.
+
 Open Scope Z.
 
 Inductive tile : TimeB -> TimeI -> Prop :=
@@ -534,12 +602,6 @@ Proof.
     rewrite <- tleb_tle in *. auto.
 Qed.
 
-Open Scope time.
-Lemma tadd_tsub_tle d x y : x <= tadd d y ->  tsub d x <= y.
-Proof.
-  intros T.
-  destruct x, y; simpl in *;eauto;inversion T; constructor. omega. 
-Qed.
 
 
 Lemma tile_tsub_iadd t n x :  tile t (iadd n x) -> tile (tsub' n t) x.
@@ -599,6 +661,59 @@ Proof.
     eapply IHc1; eauto using tile_imin_l. 
     eapply IHc2; eauto using tile_imin_iadd.
 Qed.
+
+Lemma tile_iadd_tsub t n x :  tile (tsub' n t) x  -> tile t (iadd n x).
+Proof.
+  intro L. destruct x. inversion L. subst. unfold tsub', tadd' in *.
+  constructor. unfold tadd'. auto using tsub_tadd_tle. constructor.
+Qed.
+
+Lemma tile_imin t x y : tile t x -> tile t y -> tile t (imin x y).
+Proof.
+  intros X Y. unfold imin. cases (ileb x y) as L;assumption.
+Qed.
+
+Lemma imin_top_l t : imin TimeTop t = t.
+Proof. unfold imin. destruct t;reflexivity. Qed.
+
+Lemma imin_top_r t : imin t TimeTop = t.
+Proof. unfold imin. destruct t;reflexivity. Qed.
+
+Theorem inferC_complete env c t : TiTyC env t c -> exists i, inferC env c = Some i /\ tile t i.
+Proof.
+  generalize dependent env. generalize dependent t.
+  induction c; intros t env T;simpl in *; option_inv_auto;inversion T;subst;eauto.
+  - apply inferE_complete in H3. decompose [ex and] H3. subst. 
+    eapply TiTyC_open in H4.
+    apply IHc in H4. decompose [ex and] H4. 
+    eexists. split. 
+    repeat (rewr_assumption;simpl). reflexivity. eassumption.
+    eauto using all_subtype_refl. apply tle_refl.
+  - apply IHc in H5. decompose [ex and] H5.
+    apply inferE_complete in H4. decompose [ex and] H4.
+    repeat (rewr_assumption;simpl). inversion H6. simpl in *.
+    rewrite H. rewrite tyeqb_refl.
+    assert (tile (time x0) x) as E by (inversion H2;eauto).
+    subst. rewrite <- tileb_tile in E. rewrite E.
+    simpl. eexists. split. reflexivity.
+    inversion H2;eauto.
+  - apply IHc in H2. decompose [ex and] H2. rewr_assumption. simpl. autounfold.
+    eexists. split. reflexivity. auto using tile_iadd_tsub.
+  - apply IHc1 in H3. decompose [ex and] H3. apply IHc2 in H4. decompose [ex and] H4. 
+    repeat rewr_assumption. simpl. autounfold. 
+    eexists. split. reflexivity. auto using tile_imin.
+  - apply IHc1 in H6. decompose [ex and] H6. apply IHc2 in H7. decompose [ex and] H7. 
+    apply inferE_complete in H4. decompose [ex and] H4.
+    repeat rewr_assumption. simpl. autounfold.
+    eexists. split. inversion H8. rewrite <- tleb_tle in H9. simpl in *.
+    repeat rewr_assumption. rewrite tyeqb_refl. simpl. reflexivity.
+    inversion H1; subst. rewrite imin_top_l. auto using tile_iadd_tsub.
+    inversion H3; subst. simpl. rewrite imin_top_r. assumption.
+    simpl. unfold imin. cases (ileb (Time' t0) (Time' (tadd' n t1))).
+    assumption. simpl. constructor. unfold tadd', tsub' in *.
+    auto using tsub_tadd_tle.
+Qed.
+
 
 Definition has_type (c : Contr) : bool := 
   match inferC nil c with
