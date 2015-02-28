@@ -960,34 +960,54 @@ Proof.
   erewrite map_ext. apply map_id. apply tsub_0.
 Qed.
 
+Lemma traverseIf_timed ts t c1 c2 n d l e ext env c : 
+  (forall ext', CausalC ts t (c1 ext')) -> (forall ext', CausalC (map (tsub' n) ts) (tsub' n t) (c2 ext')) -> 
+  CausalE ts (Time 0) e -> n = d + l -> traverseIf env ext e c1 c2 d l = Some c ->
+  CausalC ts t c.
+Proof.
+  intros C1 C2 E N T. generalize dependent l. generalize dependent d. generalize dependent c. 
+  generalize dependent ext. 
+  induction n;intros. 
+  - symmetry in N. apply plus_is_O in N. destruct N. subst.
+    simpl in *. cases (fromBLit (specialiseExp e env ext)) as L;tryfalse.
+    rewrite tsub'_0, map_tsub'_0 in *.
+    destruct b;option_inv_auto;auto.
+  -  generalize dependent T. generalize dependent n. generalize dependent d. 
+     generalize dependent ext. generalize dependent c. induction l;intros.
+    + simpl in *. cases (fromBLit (specialiseExp e env ext)) as L;tryfalse.
+      destruct b;option_inv_auto;auto;
+      apply smartTranslate_timed; constructor.
+      eapply CausalC_open. apply all2_tle_tsub'. apply tle_tsub'. auto.
+      rewrite <- plus_n_O in *. subst. auto.
+    + simpl in T. cases (fromBLit (specialiseExp e env ext)) as L;tryfalse.
+      destruct b;option_inv_auto;auto. apply smartTranslate_timed; constructor.
+      eapply CausalC_open. apply all2_tle_tsub'. apply tle_tsub'. auto.
+      assert (S n = S d + l) by omega.
+      eapply IHl;eauto.
+Qed.
 
-(* Theorem specialise_timed ts t env ext  c : *)
-(*   CausalC ts t c -> CausalC ts t (specialise c env ext). *)
-(* Proof. *)
-(*   intros T. generalize dependent env. generalize dependent ext. *)
-(*   generalize dependent ts. generalize dependent t. *)
-(*   induction c;intros; inversion T;clear T;subst;simpl; eauto 9 with SmartTimed. *)
-(*   (* all cases except If are caught by eauto *) *)
-(*   match goal with [|-context[default _ ?x]] => cases x as S end;try auto. *)
-(*   generalize dependent c. generalize dependent ext. generalize dependent t. *)
-(*   generalize dependent ts. generalize 0. *)
-(*   induction n;intros. *)
-(*   - simpl in *. cases (fromBLit (specialiseExp e env ext)) as B;tryfalse. *)
-(*     destruct b; inversion S; eauto with SmartTimed. *)
-(*     apply smartTranslate_timed. econstructor. apply IHc1.  *)
-(*     apply CausalC_open with (ts:=ts) (t:=t);eauto using tle_tsub',all2_tle_tsub'. *)
-(*     unfold tsub' in *. rewrite map_tsub_0, tsub_0 in *.  *)
-(*     apply smartTranslate_timed. constructor. apply IHc2. *)
-(*     apply CausalC_open with (ts:=ts) (t:=t);eauto using tle_tsub',all2_tle_tsub'. *)
-(*   - simpl in *. cases (fromBLit (specialiseExp e env ext)) as B;tryfalse. *)
-(*     destruct b; inversion S. apply smartTranslate_timed. constructor.  *)
-(*     eapply IHn;eauto.  *)
-(*     eapply CausalE_open with (ts:=ts) (t:=Time 0);eauto using tle_tsub',all2_tle_tsub'. *)
-(*     apply CausalC_open with (ts:=ts) (t:=t);eauto using tle_tsub',all2_tle_tsub'. *)
-(*     eapply CausalC_open;eauto using tle_tsub',all2_tle_tsub'. *)
-(* .apply IHn in S;eauto. *)
-(* Qed. *)
+Lemma specialise_timed ts t env ext  c :
+  CausalC ts t c -> CausalC ts t (specialise c env ext).
+Proof.
+  intros T. generalize dependent env. generalize dependent ext.
+  generalize dependent ts. generalize dependent t.
+  induction c;intros; inversion T;clear T;subst;simpl; eauto 9 with SmartTimed.
+  (* all cases except If are caught by eauto *)
 
+  cases (traverseIf env ext e (specialise c1 env) (specialise c2 env) 0 n) as T;simpl;auto.
+  eapply traverseIf_timed in T;eauto.
+Qed.
+
+Require Import TimedTyping.
+
+
+Theorem specialise_preservation ts t env ext  c : 
+  TiTyC ts t c -> TypeEnvP (map type ts) env -> TypeExtP ext ->
+  TiTyC ts t (specialise c env ext).
+Proof.
+  intros T Ev Ex. rewrite TiTyC_decompose in *. destruct T. 
+  split;eauto using specialise_typed, specialise_timed.
+Qed.
 
 End Timed.
 Export Timed.
