@@ -16,11 +16,10 @@ is as follows:
   [ContextualCausality.v](ContextualCausality.v) implement syntactic
   causality checks and prove them sound.
 - [TimedTyping.v](TimedTyping.v) gives the time-indexed type system
-  and proves that "well-timed" (i.e. well-typed in this type system)
-  contracts are causal. In addition, it defines type inference
-  procedure and proves it sound.
-- [Reduction.v](Reduction.v) defines the reduction semantics
-  and proves it sound and complete.g
+  and proves that well-typed contracts are causal. In addition, it
+  defines type inference procedure and proves it sound and complete.
+- [Reduction.v](Reduction.v) defines the reduction semantics and
+  proves it adequate for the denotational semantics.
 - [Specialise.v](Specialise.v) defines specialisation of contracts
   (partial evaluation w.r.t. a partial external environment) and
   proves it correct.
