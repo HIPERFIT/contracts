@@ -26,6 +26,28 @@ is as follows:
 - [Horizon.v](Horizon.v) defines the (syntactic) horizon of a contract
   and proves that it is semantically correct.
 
+Theorems from the Paper
+=======================
+
+The list below details where the theorems (and lemmas, corollaries
+etc.) from the paper
+["Certified Symbolic Management of Financial Multi-Party Contracts"](http://www.diku.dk/~paba/pubs/files/bahr15icfp-preprint.pdf)
+can be found in the Coq formalisation:
+
+- Lemma 1: lemma `translateExp_ext` in [TranslateExp.v](TranslateExp.v)
+- Lemma 2: theorem `sem_antisym` in [Antisymmetry.v](Antisymmetry.v)
+- Proposition 3: theorem `Esem_typed_total` and `Csem_typed_total` in
+  [DenotationalTyped.v](DenotationalTyped.v)
+- Proposition 4: theorem `horizon_sound` in [Horizon.v](Horizon.v)
+- Proposition 5: lemma `TiTyE_type` and theorem `TiTyC_type` in [TimedTyping.v](TimedTyping.v)
+- Theorem 6: corollary `TiTyC_causal` in [TimedTyping.v](TimedTyping.v)
+- Lemma 7: lemma `TiTyE_open` and `TiTyC_open` in [TimedTyping.v](TimedTyping.v)
+- Theorem 8: theorem `inferC_sound` and inferC_complete in [TimedTyping.v](TimedTyping.v)
+- Corollary 9: corollary `has_type_causal` in [TimedTyping.v](TimedTyping.v)
+- Theorem 10: theorem `specialiseExp_sound` and `specialise_sound` in [Specialise.v](Specialise.v)
+- Theorem 11: (i) theorem `red_sound1` and `red_sound2`, (ii) theorem
+  `red_preservation`, and (iii) theorem `red_progress` in [Reduction.v](Reduction.v)
+
 
 Extraction
 ==========
@@ -52,4 +74,4 @@ types:
 - We assume the type `FMap` of finite mappings given by a standard set
   of operations on finite mappings together with a set of axioms that
   specify their properties (cf. [FinMap.v](FinMap.v)).
-
+  
