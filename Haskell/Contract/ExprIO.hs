@@ -1,29 +1,12 @@
-{-# LANGUAGE GADTs #-} 
+{-# LANGUAGE GADTs, StandaloneDeriving #-} 
 module Contract.ExprIO where
 
 import Contract.Expr
 -- Show/Read instances and other pretty-printing related stuff
 
--- | Show instance for debugging (cannot be derived automatically for GADTs)
-instance Show (Expr a) where
-    show (I n) = "I " ++ show n
-    show (R r) = "R " ++ ppReal r
-    show (B b) = "B " ++ show b
-    show (V v) = "V " ++ show v
-    show (Pair e1 e2) = "Pair " ++ par (show e1) ++ par (show e2)
-    show (Fst e) = "Fst " ++ par (show e)
-    show (Snd e) = "Snd " ++ par (show e)
-    show (Obs (s,i)) = "Obs " ++ par (show s ++ "," ++ show i)
-    show (ChosenBy (p,i)) = "ChosenBy " ++ par (show p ++ "," ++ show i)
-    show (Acc (v,e) i a) = "Acc " ++ unwords [par (show v ++ "," ++ show e),
-                                             show i, par (show a)]
-    show (Not e) = "Not " ++ par (show e)
-    show (Arith op e1 e2) = "Arith " ++ unwords [show op, par (show e1),
-                                                 par (show e2)]
-    show (Less e1 e2) = "Less " ++ unwords [par (show e1), par (show e2)]
-    show (Equal e1 e2) = "Equal " ++ unwords [par (show e1), par (show e2)]
-    show (Or e1 e2) = "Or " ++ unwords [par (show e1), par (show e2)]
+deriving instance Show (Expr a)
 
+{-
 -- | Operators can be read in
 instance Read AOp where
     readsPrec _ ('+':rest) = [(Plus,rest)]
@@ -33,6 +16,7 @@ instance Read AOp where
     readsPrec _ ('m':'a':'x':rest) = [(Max,rest)]
     readsPrec _ ('m':'i':'n':rest) = [(Min,rest)]
     readsPrec _ _ = []
+-}
 
 -----------------------------------------------------------------
 -- Pretty-print an expression (not the same as the Show instance)
