@@ -2,3 +2,4 @@
 *.v.d
 *.vo
 Extraction/Contract.hs
+Extraction/ContractExtracted.hs
