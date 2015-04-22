@@ -30,6 +30,7 @@ module Contract
 
 import Contract.Date
 import Contract.Expr
+import Contract.ExprIO
 import Contract.Type
 import Contract.Environment
 
