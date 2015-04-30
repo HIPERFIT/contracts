@@ -7,11 +7,9 @@ before_install:
     - travis_retry sudo apt-get install ghc-$GHCVER ocaml ocaml-native-compilers camlp4-extra
     - export PATH=/opt/ghc/$GHCVER/bin:$PATH
     - ghc --version
-    - wget https://coq.inria.fr/distrib/V8.4pl6/files/coq-8.4pl6.tar.gz
-    - tar xf coq-8.4pl6.tar.gz
-    - cd coq-8.4pl6
-    - ./configure -prefix /usr
-    - make
+    - wget http://www.diku.dk/~paba/coq-8.5beta2-build.tgz
+    - tar xf coq-8.5beta2-build.tgz
+    - cd coq-8.5beta2
     - sudo make install
     - cd ..
 script:
