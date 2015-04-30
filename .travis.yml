@@ -1,6 +1,6 @@
 before_install:
     - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
-    - travis_retry sudo add-apt-repository -y ppa:grand-edgemaster/coq-ocaml42
+    - travis_retry sudo add-apt-repository -y ppa:ezyang/coq-git
     - travis_retry sudo apt-get update
     - travis_retry sudo apt-get install coq ghc
     - coqc --version
