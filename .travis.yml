@@ -1,10 +1,16 @@
 before_install:
     - travis_retry sudo add-apt-repository -y ppa:hvr/ghc
-    - travis_retry sudo add-apt-repository -y ppa:glondu/ppa
+    - travis_retry sudo add-apt-repository -y ppa:avsm/ocaml41+opam12
     - travis_retry sudo apt-get update
-    - travis_retry sudo apt-get install coq ghc
-    - coqc --version
+    - travis_retry sudo apt-get install ghc ocaml ocaml-native-compilers camlp4-extra
     - ghc --version
+    - wget https://coq.inria.fr/distrib/V8.4pl6/files/coq-8.4pl6.tar.gz
+    - tar xf coq-8.4pl6.tar.gz
+    - cd coq-8.4pl6
+    - ./configure -prefix /usr
+    - make
+    - sudo make install
+    - cd ..
 script:
     - cd Coq
     - make
