@@ -1,5 +1,5 @@
-Introduction
-============
+# Introduction [![Build Status](https://travis-ci.org/HIPERFIT/contracts.svg?branch=master)](https://travis-ci.org/HIPERFIT/contracts)
+
 
 This is an implementation of a simple financial contract language in
 Haskell (see [Haskell](Haskell) subdirectory). The implementation is

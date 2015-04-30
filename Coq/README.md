@@ -1,5 +1,4 @@
-Coq Formalisation of Contract Language
-======================================
+# Coq Formalisation of Contract Language [![Build Status](https://travis-ci.org/HIPERFIT/contracts.svg?branch=master)](https://travis-ci.org/HIPERFIT/contracts)
 
 This is a formalisation of the contract language. The module structure
 is as follows:
