@@ -1,6 +1,8 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RebindableSyntax #-}
 
+module CreditDefaultSwap where
+
 import RebindableEDSL
 
 -- Credit default swap parametrised by the maturity (in months), the

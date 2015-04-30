@@ -1,5 +1,7 @@
 {-# LANGUAGE RebindableSyntax #-}
 
+module AsianOption where
+
 import RebindableEDSL
 
 option :: Contr

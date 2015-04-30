@@ -17,3 +17,6 @@ clean:
 	rm -rf *~
 	rm -f $(TARGET) $(EXTRACTED)
 	rm -rf $(COQ_FILE:.v=.vo) $(COQ_FILE:.v=.glob)
+
+test: default
+	ghc -fno-code -no-hs-main Examples/*.hs

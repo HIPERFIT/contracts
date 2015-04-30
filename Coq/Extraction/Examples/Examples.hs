@@ -1,5 +1,7 @@
 {-# LANGUAGE RebindableSyntax #-}
 
+module Examples where
+
 import RebindableEDSL
 
 -- Silly example to test the interaction of binders on contract and

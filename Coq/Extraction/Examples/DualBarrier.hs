@@ -1,6 +1,8 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RebindableSyntax #-}
 
+module DualBarrier where
+
 import RebindableEDSL
 
 -- dual barrier knock-out FX option

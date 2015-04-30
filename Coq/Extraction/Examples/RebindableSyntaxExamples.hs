@@ -1,5 +1,7 @@
 {-# LANGUAGE RebindableSyntax #-}
 
+module RebindableSyntaxExamples where
+
 import RebindableEDSL
 
 ex1 :: Contr

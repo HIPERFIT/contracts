@@ -1,6 +1,8 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RebindableSyntax #-}
 
+module CDSSimple where
+
 -- Simple credit default swap for a zero coupon bond.
 
 import RebindableEDSL

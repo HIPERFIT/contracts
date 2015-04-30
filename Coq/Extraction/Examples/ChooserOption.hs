@@ -1,6 +1,8 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RebindableSyntax #-}
 
+module ChooserOption where
+
 import RebindableEDSL
 
 strike :: Exp R

@@ -1,6 +1,8 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RebindableSyntax #-}
 
+module Bond where
+
 import RebindableEDSL
 
 -- bond

@@ -1,6 +1,8 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RebindableSyntax #-}
 
+module KnockoutOption where
+
 import RebindableEDSL
 
 -- knock-out barrier option
