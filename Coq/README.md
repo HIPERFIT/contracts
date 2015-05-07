@@ -1,7 +1,13 @@
-# Coq Formalisation of Contract Language [![Build Status](https://travis-ci.org/HIPERFIT/contracts.svg?branch=master)](https://travis-ci.org/HIPERFIT/contracts)
+# Certified Symbolic Management of Financial Multi-Party Contracts [![Build Status](https://travis-ci.org/HIPERFIT/contracts.svg?branch=master)](https://travis-ci.org/HIPERFIT/contracts)
 
-This is a formalisation of the contract language. The module structure
-is as follows:
+This directory contains the certified implementation of the financial
+multi-party contract language described in the paper
+["Certified Symbolic Management of Financial Multi-Party Contracts"](http://www.diku.dk/~paba/pubs/files/bahr15icfp-preprint.pdf). It
+also includes the Haskell implementation that has been extracted from
+the Coq implementation along with examples that illustrate the use of
+the extracted Haskell library.
+
+## File Structure
 
 - [Syntax.v](Syntax.v) defines the language's syntax.
 - [Typing.v](Typing.v) defines the type system.
@@ -25,8 +31,8 @@ is as follows:
 - [Horizon.v](Horizon.v) defines the (syntactic) horizon of a contract
   and proves that it is semantically correct.
 
-Theorems from the Paper
-=======================
+## Theorems from the Paper
+
 
 The list below details where the theorems (and lemmas, corollaries
 etc.) from the paper
@@ -48,13 +54,14 @@ can be found in the Coq formalisation:
   `red_preservation`, and (iii) theorem `red_progress` in [Reduction.v](Reduction.v)
 
 
-Extraction
-==========
+## Code Extraction & Examples
+
 
 The [Extraction](Extraction) subdirectory implements a simple
 extraction of the Coq definitions to Haskell code using Coq's built-in
-extraction facility. To extract the Coq definitions to Haskell use the
-Makefile in [Extraction](Extraction):
+extraction facility. For convenience, the extracted Haskell code is
+included in this repository. To reproduce the code extraction from Coq
+to Haskell use the Makefile in [Extraction](Extraction):
 
 ```shell
 make
@@ -62,8 +69,15 @@ cd Extraction
 make
 ```
 
-Logical Axioms
-==============
+The extracted Haskell code provides a library for writing and managing
+contracts embedded in Haskell. The
+[Extraction/Examples](Extraction/Examples) subdirectory contains a
+number of example contracts that are written using the extracted
+Haskell library.
+
+
+## Logical Axioms
+
 
 The Coq formalisation uses logical axioms for three abstract data
 types:
@@ -74,3 +88,19 @@ types:
   of operations on finite mappings together with a set of axioms that
   specify their properties (cf. [FinMap.v](FinMap.v)).
   
+## Technical Details
+
+### Dependencies
+
+- To check the proofs: Coq 8.4pl5
+- To step through the proofs: GNU Emacs 24.3.1, Proof General 4.2
+- To use extracted Haskell library: GHC 7.8.4
+
+### Proof Checking
+
+To check and compile the complete Coq development, you can use the
+`Makefile`:
+
+```shell
+> make
+```
