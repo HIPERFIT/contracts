@@ -6,7 +6,7 @@ found in the [Coq](Coq) subdirectory. The contract language and its
 verified Coq implementation are documented in the accompanying
 [ICFP 2015 paper](http://www.diku.dk/~paba/pubs/files/bahr15icfp-preprint.pdf);
 the [README file](Coq/README.md) provides an overview of the Coq
-proofs. Moreover, this repository also includes prototype
+proofs. Moreover, this repository also includes earlier prototype
 implementations of the contract language in Haskell (see
 [Haskell](Haskell) subdirectory) and Standard ML (see [SML](SML)
 subdirectory).
