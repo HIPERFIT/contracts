@@ -54,6 +54,17 @@ can be found in the Coq formalisation:
   `red_preservation`, and (iii) theorem `red_progress` in [Reduction.v](Reduction.v)
 
 
+## Other Definitions and Properties from the Paper
+
+The function `adv` from the paper is defined as `redfun` in
+[Reduction.v](Reduction.v). The soundness and completeness of `redfun`
+is proved by Theorem `redfun_red` respectively Theorem `red_redfun` in
+[Reduction.v](Reduction.v).
+
+The functions `spE` and `spC` from the paper are defined in
+[Specialise.v](Specialise.v) as `specialiseExp` and
+`specialise`, respectively.
+
 ## Code Extraction & Examples
 
 
