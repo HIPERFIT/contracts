@@ -2,7 +2,7 @@
 
 This directory contains the certified implementation of the financial
 multi-party contract language described in the paper
-["Certified Symbolic Management of Financial Multi-Party Contracts"](http://www.diku.dk/~paba/pubs/files/bahr15icfp-preprint.pdf). It
+["Certified Symbolic Management of Financial Multi-Party Contracts"](../doc/icfp2015.pdf). It
 also includes the Haskell implementation that has been extracted from
 the Coq implementation along with examples that illustrate the use of
 the extracted Haskell library.
