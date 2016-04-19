@@ -58,10 +58,13 @@ simplify0 env c =
         Scale r t -> scale (eval env r) (simplify0 env t)
         Transl i t' -> transl i (simplify0 (promote env i) t')
         TransfOne _ _ _ -> c
-        If e c1 c2 -> let e = eval env e
-                          c1 = simplify0 env c1
-                          c2 = simplify0 env c2
-                      in iff e c1 c2 -- if e known, iff constr. will shorten
+        If e c1 c2 -> let e' = eval env e
+                          c1' = simplify0 env c1
+                          c2' = simplify0 env c2
+                      in case e' of -- if e' known, iff constr. will shorten
+                           B True -> c1'
+                           B False -> c2'
+                           _ -> iff e' c1' c2'
         CheckWithin e i c1 c2 
             -> let env' = emptyEnv -- (emp,#2 G)
                    substE = eval env'
