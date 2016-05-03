@@ -35,7 +35,7 @@ import Contract.Environment
 
 -- | Currency type. These are just tags and not used in expressions/arithmetics
 -- (and should probably not be here; not really used that much in our code.)
-data Currency = EUR | DKK | SEK | USD | GBP | JPY
+data Currency = EUR | DKK | SEK | USD | GBP | JPY | NOK
               deriving (Eq, Show, Read)
 -- good enough with only FX derivatives. Otherwise we could add this:
 -- "... | Stock String | Equity String"

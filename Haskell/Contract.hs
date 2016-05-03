@@ -3,7 +3,7 @@ module Contract
     , MContract
     , Party
     -- smart constructors and convenience functions, defined in Contract.Type
-    , zero, transfOne, transl, iff, checkWithin, both, allCs, scale, flow
+    , zero, transfOne, transl, iff, checkWithin, both, allCs, scale, flow, foreach
     , ppContr
     -- dates:
     , Date, DateError, dateDiff, at, addDays, ppDate, ppDays

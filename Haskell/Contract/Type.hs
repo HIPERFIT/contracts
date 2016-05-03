@@ -5,7 +5,7 @@ module Contract.Type
     , MContract -- managed contract, including a start date
     , Party
     -- smart constructors and convenience functions
-    , zero, transfOne, transl, iff, checkWithin, both, allCs, scale, flow
+    , zero, transfOne, transl, iff, checkWithin, both, allCs, scale, flow, foreach
     -- pretty-printer
     , ppContr
     ) where
@@ -120,3 +120,7 @@ scale r c | r == 0 = Zero
 -- | straightforward money transfer (translate, scale, transfOne): after given number of days, transfer from one party to another the given amount in the given currency
 flow :: Int -> RealE -> Currency -> Party -> Party -> Contract
 flow d amount cur from to = transl d (scale amount (transfOne cur from to))
+
+-- | repeat contract c for each day in ds
+foreach :: [Int] -> Contract -> Contract
+foreach ds c = allCs (map (\ d -> transl d c) ds)
