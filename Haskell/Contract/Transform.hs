@@ -57,14 +57,11 @@ simplify0 env c =
             simplify0 env (both (scale ob c1) (scale ob c2))
         Scale r t -> scale (eval env r) (simplify0 env t)
         Transl i t' -> transl i (simplify0 (promote env i) t')
-        TransfOne _ _ _ -> c
+        TransfOne _ _ _ -> c        
         If e c1 c2 -> let e' = eval env e
                           c1' = simplify0 env c1
                           c2' = simplify0 env c2
-                      in case e' of -- if e' known, iff constr. will shorten
-                           B True -> c1'
-                           B False -> c2'
-                           _ -> iff e' c1' c2'
+                      in iff e' c1' c2' -- just eval e, no branch elimination
         CheckWithin e i c1 c2 
             -> let env' = emptyEnv -- (emp,#2 G)
                    substE = eval env'
@@ -105,10 +102,14 @@ elimBrs env (Scale r t) = scale r (elimBrs env t)
 elimBrs env (Transl i t') = transl i (elimBrs (promote env i) t')
 elimBrs env c@(TransfOne _ _ _) = c
 -- the interesting ones:
-elimBrs env (If e c1 c2) = let e = eval env e
-                               c1 = elimBrs env c1
-                               c2 = elimBrs env c2
-                           in iff e c1 c2 -- if e known, iff will shorten
+elimBrs env (If e c1 c2) =
+    let e' = eval env e
+        c1' = elimBrs env c1
+        c2' = elimBrs env c2
+    in case e' of -- if e known, iff will shorten
+         B True -> c1'
+         B False -> c2'
+         _ -> iff e' c1' c2'
 elimBrs env (CheckWithin e 0 c1 c2) = elimBrs env (If e c1 c2)
 -- elimBrs env (CheckWithin e i c1 c2) 
 --     = let env' = emptyEnv -- (emp,#2 G)
