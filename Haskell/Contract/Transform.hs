@@ -5,7 +5,7 @@ module Contract.Transform
        , simplify
        , elimBranches
        ) where
-import Debug.Trace
+
 import Contract.Type
 import Contract.Expr
 import Contract.Date
