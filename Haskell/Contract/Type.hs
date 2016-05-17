@@ -1,4 +1,5 @@
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE GADTs #-}
 
 module Contract.Type
     ( Contract(..) -- constructors exported
@@ -92,10 +93,13 @@ transl d (Transl d' c) = Transl (d+d') c
 transl d c = Transl d c
 
 -- | conditional contract (two branches)
-iff = If
-
+iff (B True) c1 c2 = c1
+iff (B False) c1 c2 = c2
+iff e c1 c2 = If e c1 c2
+              
 -- | repeatedly checking condition for the given number of days, branching into first contract when true, or else into second contract at the end 
-checkWithin = CheckWithin 
+checkWithin e n c1 c2 | n == 0    = iff e c1 c2
+                      | otherwise = CheckWithin e n c1 c2
 
 -- | two contracts
 both c1 Zero = c1

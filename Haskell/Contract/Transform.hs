@@ -5,7 +5,7 @@ module Contract.Transform
        , simplify
        , elimBranches
        ) where
-
+import Debug.Trace
 import Contract.Type
 import Contract.Expr
 import Contract.Date
@@ -50,7 +50,7 @@ simplify (Env e_d e_f) (c_d, c) = (c_d, simplify0 env c)
 -- | internal simplify, assumes c and env have same reference date
 simplify0 :: Env -> Contract -> Contract
 simplify0 env c = 
-    case c of
+     case c of
         Zero -> zero
         Both c1 c2 -> both (simplify0 env c1) (simplify0 env c2)
         Scale ob (Both c1 c2) -> 
@@ -61,18 +61,16 @@ simplify0 env c =
         If e c1 c2 -> let e' = eval env e
                           c1' = simplify0 env c1
                           c2' = simplify0 env c2
-                      in iff e' c1' c2' -- just eval e, no branch elimination
+                      in iff e' c1' c2' -- if e known, iff will shorten due to use of the smart constructor "iff"
         CheckWithin e i c1 c2 
-            -> let env' = emptyEnv -- (emp,#2 G)
-                   substE = eval env'
-                   substC = simplify0 env'
-               in case eval env e of
-                    B True  -> simplify0 env c1
-                    B False -> simplify0 env 
-                               (transl 1 (checkWithin (substE e) (i-1) 
-                                                 (substC c1) (substC c2)))
-                    _ -> checkWithin (substE e) i (substC c1) (substC c2)
-
+                   -> let env' = emptyEnv -- (emp,#2 G)
+                          substE = eval env'
+                          substC = simplify0 env'
+                      in case eval env e of
+                           B True  -> simplify0 env c1
+                           B False -> simplify0 env 
+                                      (transl 1 (checkWithin (substE e) (i-1) (substC c1) (substC c2)))
+                           _ -> checkWithin (substE e) i (substC c1) (substC c2)
 {- (*
             val () = print ("e = " ^ ppExp e ^ "\n")
             val () = print ("obs(Time,0) = " ^ ppExp (eval G (obs("Time",0))) ^ "\n")
@@ -106,10 +104,7 @@ elimBrs env (If e c1 c2) =
     let e' = eval env e
         c1' = elimBrs env c1
         c2' = elimBrs env c2
-    in case e' of -- if e known, iff will shorten
-         B True -> c1'
-         B False -> c2'
-         _ -> iff e' c1' c2'
+    in iff e' c1' c2' -- if e known, iff will shorten due to use of the smart constructor "iff"
 elimBrs env (CheckWithin e 0 c1 c2) = elimBrs env (If e c1 c2)
 -- elimBrs env (CheckWithin e i c1 c2) 
 --     = let env' = emptyEnv -- (emp,#2 G)
