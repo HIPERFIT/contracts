@@ -2,7 +2,6 @@ module ETest
     where
 
 import Contract.Expr
-import Contract.ExprIO
 import Contract.Environment
 
 import qualified Control.Exception as E

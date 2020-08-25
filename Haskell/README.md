@@ -10,7 +10,6 @@ $ stack test
 
 - [Contract][src/Contract.hs]
   - [Contract.Expr][src/Contract/Expr.hs]: Expression type + pretty-printing function + evaluation
-  - [Contract.ExprIO][src/Contract/ExprIO.hs]: A pretty-printing function
   - [Contract.Type][src/Contract/Type.hs]: Contract type
   - [Contract.Date][src/Contract/Date.hs]: Date type
   - [Contract.FXInstrument][src/Contract/FXInstrument.hs]: Canned FX product functions

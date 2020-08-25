@@ -12,7 +12,6 @@ module Contract.Type
     ) where
 
 import Contract.Expr
-import Contract.ExprIO
 import Contract.Date
 import Contract.Hash
 

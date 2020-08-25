@@ -16,7 +16,6 @@ library:
     - Contract.Date
     - Contract.Environment
     - Contract.Expr
-    - Contract.ExprIO
     - Contract.FXInstrument
     - Contract.Hash
     - Contract.Transform
