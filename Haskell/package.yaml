@@ -1,0 +1,33 @@
+name: edsl
+version: 0.1.0
+homepage: https://github.com/HIPERFIT/contracts
+author: Patrick Bahr, Jost Berthold, Martin Elsman
+
+extra-source-files:
+  - README.md
+
+dependencies:
+  - base
+
+library:
+  exposed-modules:
+    - Contract
+    - Contract.Analysis
+    - Contract.Date
+    - Contract.Environment
+    - Contract.Expr
+    - Contract.ExprIO
+    - Contract.FXInstrument
+    - Contract.Hash
+    - Contract.Transform
+    - Contract.Type
+  source-dirs: src
+
+tests:
+  test:
+    main: Test.hs
+    source-dirs: test
+    dependencies:
+      - edsl
+      - QuickCheck
+      - smallcheck

@@ -1,6 +1,8 @@
-Module structure
-----------------
+# Haskell smart contract eDSL
 
+## Module structure
+
+```
 Contract.hs       -- with smart constructors (also for Expr module)
 
         Contract.Expr       -- expression types, p.printer, evaluation
@@ -15,4 +17,4 @@ Contract.hs       -- with smart constructors (also for Expr module)
         Contract.Transform  -- simplification/evaluation, normal form
 
         Contract.Analysis   -- trigger extraction etc (?)
-
+```
