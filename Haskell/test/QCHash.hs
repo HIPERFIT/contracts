@@ -190,26 +190,21 @@ equivC (CheckWithin b1 i1 c1 c2) (CheckWithin b2 i2 c3 c4)
 equivC _ _ = False
 
 -- main program (you want to run compiled code for this!!!)
-main = do args <- getArgs
-          let size = if null args then 8 else read (head args)
-              params = stdArgs { maxSize = 2^size }
-          -- long live the monomorphism restriction, yeuch
-          putStrLn ("Testing all properties with max size " ++ show size)
-          quickCheckWith params prop_eqE
-          putStrLn "Done with R expressions"
-          quickCheckWith params prop_eqB
-          putStrLn "Done with B expressions"
-          quickCheckWith params prop_eqC
-          putStrLn "Done with contracts"
-
-          putStrLn ("Do you have time, should I test with smallCheck (depth "
-                    ++ show size ++ ")? (y/n)")
-          c <- getChar
-          if c == 'y' then do SC.smallCheck size prop_eqE
-                              putStrLn "done with eqE"
-                              SC.smallCheck size prop_eqB
-                              putStrLn "Done"
-                      else putStrLn "OK, maybe next time."
+runtests = do
+  let size = 8
+      params = stdArgs { maxSize = 2^size }
+  -- long live the monomorphism restriction, yeuch
+  putStrLn ("Testing all properties with max size " ++ show size)
+  quickCheckWith params prop_eqE
+  putStrLn "Done with R expressions"
+  quickCheckWith params prop_eqB
+  putStrLn "Done with B expressions"
+  quickCheckWith params prop_eqC
+  putStrLn "Done with contracts"
+  -- SC.smallCheck size prop_eqE
+  -- putStrLn "done with eqE"
+  -- SC.smallCheck size prop_eqB
+  -- putStrLn "Done"
 
 rename :: (Var,Var) -> Expr a -> Expr a
 rename (x,y) (V s) | s == x    = V y
