@@ -1,20 +1,20 @@
 # Haskell smart contract eDSL
 
-## Module structure
+To run tests, install [Stack](https://haskellstack.org/) and run:
 
 ```
-Contract.hs       -- with smart constructors (also for Expr module)
-
-        Contract.Expr       -- expression types, p.printer, evaluation
-
-        Contract.Type       -- contract type and p.printer
-                            -- exporting constructors, for internal use
-
-        Contract.Date       -- date library
-
-        Contract.Instrument -- canned FX product functions
-
-        Contract.Transform  -- simplification/evaluation, normal form
-
-        Contract.Analysis   -- trigger extraction etc (?)
+$ stack test
 ```
+
+## Module overview
+
+- [Contract][src/Contract.hs]
+  - [Contract.Expr][src/Contract/Expr.hs]: Expression type + pretty-printing function + evaluation
+  - [Contract.ExprIO][src/Contract/ExprIO.hs]: A pretty-printing function
+  - [Contract.Type][src/Contract/Type.hs]: Contract type
+  - [Contract.Date][src/Contract/Date.hs]: Date type
+  - [Contract.FXInstrument][src/Contract/FXInstrument.hs]: Canned FX product functions
+  - [Contract.Transform][src/Contract/Transform.hs]: Simplification/evaluation, normal form
+  - [Contract.Analysis][src/Contract/Analysis.hs]: Trigger extraction
+  - [Contract.Hash][src/Contract/Hash.hs]: Utility functions for hashing expressions and contracts
+  - [Contract.Environment][src/Contract/Environment.hs]: A partial mapping alike Data.Map.
