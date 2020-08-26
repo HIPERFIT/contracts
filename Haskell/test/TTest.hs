@@ -2,7 +2,6 @@ module TTest where
 
 import Contract
 import Contract.Analysis
-import Contract.ExprIO
 
 import Contract.Transform -- for branch elimination
 

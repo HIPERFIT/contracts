@@ -1,6 +1,6 @@
 {-# LANGUAGE GADTs, FlexibleInstances, FlexibleContexts, MultiParamTypeClasses #-}
 
--- module QCHash where
+module QCHash where
 
 -- quickcheck test for hash functions (expression and contract)
 
@@ -40,10 +40,13 @@ instance Monad m => Serial m BoolE where
 instance Arbitrary RealE where
     -- arbitrary :: Gen (Expr a)
     arbitrary = sized realE
+
+varGen :: Gen Var
+varGen = ('v':) <$> arbitrary
+
 realE 0 = oneof  [arbitrary >>= return . R, arbitrary >>= return . V]
-realE n | n > 0 = oneof [lit, var, op (n `div` 2), ac (n `div` 2)]
-        where lit = arbitrary >>= return . R
-              var = arbitrary >>= return . V . ('v':)
+realE n | n > 0 = oneof [lit, V <$> varGen, op (n `div` 2), ac (n `div` 2)]
+        where lit = R <$> arbitrary
               op n = do e1 <- realE n
                         e2 <- realE n
                         op <- oneof (map return [(+), (-), (*), maxx, minn])
@@ -51,17 +54,16 @@ realE n | n > 0 = oneof [lit, var, op (n `div` 2), ac (n `div` 2)]
               ac n = do e1 <- realE n
                         e2 <- realE n
                         i  <- arbitrary
-                        (V s) <- var
-                        return (Acc (s, e1) i e2)
+                        v <- varGen
+                        return (Acc (v, e1) i e2)
 
 -- although we do not really use intE...
 instance Arbitrary IntE where
     -- arbitrary :: Gen (Expr a)
     arbitrary = sized intE
 intE 0 = oneof  [arbitrary >>= return . I, arbitrary >>= return . V]
-intE n | n > 0 = oneof [lit, var, op (n `div` 2), ac (n `div` 2)]
+intE n | n > 0 = oneof [lit, V <$> varGen, op (n `div` 2), ac (n `div` 2)]
         where lit = arbitrary >>= return . I
-              var = arbitrary >>= return . V . ('v':)
               op n = do e1 <- intE n
                         e2 <- intE n
                         op <- oneof (map return [(+), (-), (*), maxx, minn])
@@ -69,18 +71,17 @@ intE n | n > 0 = oneof [lit, var, op (n `div` 2), ac (n `div` 2)]
               ac n = do e1 <- intE n
                         e2 <- intE n
                         i  <- arbitrary
-                        (V s) <- var
-                        return (Acc (s, e1) i e2)
+                        v <- varGen
+                        return (Acc (v, e1) i e2)
 
 instance Arbitrary BoolE where
     -- arbitrary :: Gen (Expr a)
     arbitrary = sized boolE
 
 boolE 0 = oneof [arbitrary >>= return . B, arbitrary >>= return . V]
-boolE n | n > 0 = oneof ([var, lit] ++
+boolE n | n > 0 = oneof ([V <$> varGen, lit] ++
                          map (\f -> f (n `div` 2)) [not, opR, opI, opB, ac])
         where lit = arbitrary >>= return . B
-              var = arbitrary >>= return . V . ('v':)
               not n = boolE n >>= return . Not
               opR n = do e1 <- realE n
                          e2 <- realE n
@@ -97,8 +98,8 @@ boolE n | n > 0 = oneof ([var, lit] ++
               ac n = do e1 <- boolE n
                         e2 <- boolE n
                         i  <- arbitrary
-                        (V s) <- var
-                        return (Acc (s, e1) i e2)
+                        v <- varGen
+                        return (Acc (v, e1) i e2)
 
 -- too generic, needs type annotation when used
 prop_eqExpr :: Expr a -> Expr a -> Property
@@ -189,26 +190,21 @@ equivC (CheckWithin b1 i1 c1 c2) (CheckWithin b2 i2 c3 c4)
 equivC _ _ = False
 
 -- main program (you want to run compiled code for this!!!)
-main = do args <- getArgs
-          let size = if null args then 8 else read (head args)
-              params = stdArgs { maxSize = 2^size }
-          -- long live the monomorphism restriction, yeuch
-          putStrLn ("Testing all properties with max size " ++ show size)
-          quickCheckWith params prop_eqE
-          putStrLn "Done with R expressions"
-          quickCheckWith params prop_eqB
-          putStrLn "Done with B expressions"
-          quickCheckWith params prop_eqC
-          putStrLn "Done with contracts"
-
-          putStrLn ("Do you have time, should I test with smallCheck (depth "
-                    ++ show size ++ ")? (y/n)")
-          c <- getChar
-          if c == 'y' then do SC.smallCheck size prop_eqE
-                              putStrLn "done with eqE"
-                              SC.smallCheck size prop_eqB
-                              putStrLn "Done"
-                      else putStrLn "OK, maybe next time."
+runtests = do
+  let size = 8
+      params = stdArgs { maxSize = 2^size }
+  -- long live the monomorphism restriction, yeuch
+  putStrLn ("Testing all properties with max size " ++ show size)
+  quickCheckWith params prop_eqE
+  putStrLn "Done with R expressions"
+  quickCheckWith params prop_eqB
+  putStrLn "Done with B expressions"
+  quickCheckWith params prop_eqC
+  putStrLn "Done with contracts"
+  -- SC.smallCheck size prop_eqE
+  -- putStrLn "done with eqE"
+  -- SC.smallCheck size prop_eqB
+  -- putStrLn "Done"
 
 rename :: (Var,Var) -> Expr a -> Expr a
 rename (x,y) (V s) | s == x    = V y
