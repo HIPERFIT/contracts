@@ -8,12 +8,12 @@ $ stack test
 
 ## Module overview
 
-- [Contract][src/Contract.hs]
-  - [Contract.Expr][src/Contract/Expr.hs]: Expression type + pretty-printing function + evaluation
-  - [Contract.Type][src/Contract/Type.hs]: Contract type
-  - [Contract.Date][src/Contract/Date.hs]: Date type
-  - [Contract.FXInstrument][src/Contract/FXInstrument.hs]: Canned FX product functions
-  - [Contract.Transform][src/Contract/Transform.hs]: Simplification/evaluation, normal form
-  - [Contract.Analysis][src/Contract/Analysis.hs]: Trigger extraction
-  - [Contract.Hash][src/Contract/Hash.hs]: Utility functions for hashing expressions and contracts
-  - [Contract.Environment][src/Contract/Environment.hs]: A partial mapping alike Data.Map.
+- [Contract](src/Contract.hs]
+  - [Contract.Expr](src/Contract/Expr.hs): Expression type + pretty-printing function + evaluation
+  - [Contract.Type](src/Contract/Type.hs): Contract type
+  - [Contract.Date](src/Contract/Date.hs): Date type
+  - [Contract.FXInstrument](src/Contract/FXInstrument.hs): Canned FX product functions
+  - [Contract.Transform](src/Contract/Transform.hs): Simplification/evaluation, normal form
+  - [Contract.Analysis](src/Contract/Analysis.hs): Trigger extraction
+  - [Contract.Hash](src/Contract/Hash.hs): Utility functions for hashing expressions and contracts
+  - [Contract.Environment](src/Contract/Environment.hs): A partial mapping alike Data.Map.
